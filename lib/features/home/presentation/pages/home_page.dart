@@ -168,10 +168,7 @@ class _ProductCard extends StatelessWidget {
   final Product product;
   final VoidCallback onTap;
 
-  const _ProductCard({
-    required this.product,
-    required this.onTap,
-  });
+  const _ProductCard({required this.product, required this.onTap});
 
   @override
   Widget build(BuildContext context) {

@@ -29,20 +29,20 @@ class ProductDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final item = product ?? const Product(
-      title: 'Achado sem título',
-      subtitle: 'Vintage, ótimo estado',
-      price: 'R\$ 0,00',
-      shopName: 'Brechó Express',
-      condition: 'Bom estado',
-      description: 'Descrição do produto não disponível.',
-      deliveryEstimate: 'Entrega em até 45 min',
-    );
+    final item =
+        product ??
+        const Product(
+          title: 'Achado sem título',
+          subtitle: 'Vintage, ótimo estado',
+          price: 'R\$ 0,00',
+          shopName: 'Brechó Express',
+          condition: 'Bom estado',
+          description: 'Descrição do produto não disponível.',
+          deliveryEstimate: 'Entrega em até 45 min',
+        );
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Detalhe do produto'),
-      ),
+      appBar: AppBar(title: const Text('Detalhe do produto')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
@@ -63,21 +63,43 @@ class ProductDetailPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            Text(item.title, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+            Text(
+              item.title,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             const SizedBox(height: AppSpacing.sm),
-            Text(item.subtitle, style: theme.textTheme.bodyLarge?.copyWith(color: AppColors.gray500)),
+            Text(
+              item.subtitle,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: AppColors.gray500,
+              ),
+            ),
             const SizedBox(height: AppSpacing.sm),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(item.price, style: theme.textTheme.headlineSmall?.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700)),
+                Text(
+                  item.price,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary.withAlpha(31),
                     borderRadius: BorderRadius.circular(AppRadius.small),
                   ),
-                  child: Text(item.deliveryEstimate, style: theme.textTheme.bodySmall),
+                  child: Text(
+                    item.deliveryEstimate,
+                    style: theme.textTheme.bodySmall,
+                  ),
                 ),
               ],
             ),
@@ -92,20 +114,39 @@ class ProductDetailPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Brechó', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
+                  Text(
+                    'Brechó',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(item.shopName, style: theme.textTheme.bodyLarge),
                   const SizedBox(height: AppSpacing.md),
-                  Text('Condição', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
+                  Text(
+                    'Condição',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(item.condition, style: theme.textTheme.bodyLarge),
                 ],
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            Text('Descrição', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+            Text(
+              'Descrição',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             const SizedBox(height: AppSpacing.sm),
-            Text(item.description, style: theme.textTheme.bodyMedium, textAlign: TextAlign.justify),
+            Text(
+              item.description,
+              style: theme.textTheme.bodyMedium,
+              textAlign: TextAlign.justify,
+            ),
             const SizedBox(height: AppSpacing.xl),
             ElevatedButton(
               onPressed: () {},
