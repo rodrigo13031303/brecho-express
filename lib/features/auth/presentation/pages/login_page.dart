@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:brecho_express_app/core/design_system/tokens.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -31,20 +32,23 @@ class _LoginPageState extends State<LoginPage> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: colorScheme.primary.withAlpha(10),
+      backgroundColor: AppColors.primary.withAlpha(10),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.xl,
+            ),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 520),
               child: Card(
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(AppRadius.large),
                 ),
                 elevation: 6,
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(AppSpacing.lg),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -52,8 +56,8 @@ class _LoginPageState extends State<LoginPage> {
                       Row(
                         children: [
                           CircleAvatar(
-                            radius: 28,
-                            backgroundColor: colorScheme.primary,
+                            radius: AppSizes.icon + 4,
+                            backgroundColor: AppColors.primary,
                             child: Text(
                               'BE',
                               style: Theme.of(context).textTheme.titleLarge
@@ -63,7 +67,7 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                             ),
                           ),
-                          const SizedBox(width: 16),
+                          SizedBox(width: AppSpacing.md),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -72,7 +76,7 @@ class _LoginPageState extends State<LoginPage> {
                                 style: Theme.of(context).textTheme.headlineSmall
                                     ?.copyWith(fontWeight: FontWeight.w700),
                               ),
-                              const SizedBox(height: 4),
+                              SizedBox(height: AppSpacing.xs),
                               Text(
                                 'Seu achado chegou.',
                                 style: Theme.of(context).textTheme.bodyMedium,
@@ -81,7 +85,7 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 20),
+                      SizedBox(height: AppSpacing.md),
                       Form(
                         key: _formKey,
                         child: Column(
@@ -106,7 +110,7 @@ class _LoginPageState extends State<LoginPage> {
                                 return null;
                               },
                             ),
-                            const SizedBox(height: 12),
+                            SizedBox(height: AppSpacing.sm),
                             TextFormField(
                               controller: _passCtrl,
                               decoration: const InputDecoration(
@@ -124,7 +128,7 @@ class _LoginPageState extends State<LoginPage> {
                                 return null;
                               },
                             ),
-                            const SizedBox(height: 20),
+                            SizedBox(height: AppSpacing.md),
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton(
@@ -132,7 +136,7 @@ class _LoginPageState extends State<LoginPage> {
                                 child: const Text('Entrar'),
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            SizedBox(height: AppSpacing.sm),
                             Center(
                               child: TextButton(
                                 onPressed: () {
@@ -156,18 +160,18 @@ class _LoginPageState extends State<LoginPage> {
                                 child: const Text('Criar conta'),
                               ),
                             ),
-                            const SizedBox(height: 12),
+                            SizedBox(height: AppSpacing.md),
                             // separador
                             Row(
-                              children: const [
-                                Expanded(child: Divider()),
-                                SizedBox(width: 12),
-                                Text('ou continue com'),
-                                SizedBox(width: 12),
-                                Expanded(child: Divider()),
+                              children: [
+                                const Expanded(child: Divider()),
+                                SizedBox(width: AppSpacing.sm),
+                                const Text('ou continue com'),
+                                SizedBox(width: AppSpacing.sm),
+                                const Expanded(child: Divider()),
                               ],
                             ),
-                            const SizedBox(height: 12),
+                            SizedBox(height: AppSpacing.sm),
                             // botões sociais
                             LayoutBuilder(
                               builder: (context, constraints) {
@@ -204,7 +208,7 @@ class _LoginPageState extends State<LoginPage> {
                                   return Row(
                                     children: [
                                       Expanded(child: googleButton),
-                                      const SizedBox(width: 12),
+                                      SizedBox(width: AppSpacing.sm),
                                       Expanded(child: facebookButton),
                                     ],
                                   );
@@ -216,7 +220,7 @@ class _LoginPageState extends State<LoginPage> {
                                       width: double.infinity,
                                       child: googleButton,
                                     ),
-                                    const SizedBox(height: 8),
+                                    SizedBox(height: AppSpacing.sm),
                                     SizedBox(
                                       width: double.infinity,
                                       child: facebookButton,
