@@ -94,8 +94,9 @@ class _LoginPageState extends State<LoginPage> {
                                 prefixIcon: Icon(Icons.email),
                               ),
                               validator: (v) {
-                                if (v == null || v.isEmpty)
+                                if (v == null || v.isEmpty) {
                                   return 'Informe o e-mail';
+                                }
                                 if (!RegExp(
                                   r"^[\w-.]+@[\w-]+\.[a-z]{2,}$",
                                   caseSensitive: false,
@@ -114,9 +115,12 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                               obscureText: true,
                               validator: (v) {
-                                if (v == null || v.isEmpty)
+                                if (v == null || v.isEmpty) {
                                   return 'Informe a senha';
-                                if (v.length < 6) return 'Senha muito curta';
+                                }
+                                if (v.length < 6) {
+                                  return 'Senha muito curta';
+                                }
                                 return null;
                               },
                             ),
@@ -151,6 +155,75 @@ class _LoginPageState extends State<LoginPage> {
                                 },
                                 child: const Text('Criar conta'),
                               ),
+                            ),
+                            const SizedBox(height: 12),
+                            // separador
+                            Row(
+                              children: const [
+                                Expanded(child: Divider()),
+                                SizedBox(width: 12),
+                                Text('ou continue com'),
+                                SizedBox(width: 12),
+                                Expanded(child: Divider()),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            // botões sociais
+                            LayoutBuilder(
+                              builder: (context, constraints) {
+                                final wide = constraints.maxWidth > 420;
+                                Widget googleButton = OutlinedButton.icon(
+                                  onPressed: () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Login social será implementado em breve.',
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.g_translate),
+                                  label: const Text('Continuar com Google'),
+                                );
+
+                                Widget facebookButton = OutlinedButton.icon(
+                                  onPressed: () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Login social será implementado em breve.',
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.facebook),
+                                  label: const Text('Continuar com Facebook'),
+                                );
+
+                                if (wide) {
+                                  return Row(
+                                    children: [
+                                      Expanded(child: googleButton),
+                                      const SizedBox(width: 12),
+                                      Expanded(child: facebookButton),
+                                    ],
+                                  );
+                                }
+
+                                return Column(
+                                  children: [
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: googleButton,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: facebookButton,
+                                    ),
+                                  ],
+                                );
+                              },
                             ),
                           ],
                         ),
