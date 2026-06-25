@@ -14,9 +14,31 @@ class MyApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = buildRouter();
 
+    final seed = const Color(0xFF64B5F6); // azul claro
+
     return MaterialApp.router(
       title: 'Brechó Express',
-      theme: ThemeData(useMaterial3: true),
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(seedColor: seed),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            minimumSize: const Size.fromHeight(48),
+          ),
+        ),
+        appBarTheme: const AppBarTheme(centerTitle: true, elevation: 0),
+      ),
       routerConfig: router,
     );
   }
