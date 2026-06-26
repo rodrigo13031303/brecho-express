@@ -1,31 +1,66 @@
 # API do Brechó Express
 
 ## Visão Geral
-A API será construída sobre Oracle + ORDS para expor recursos REST consumidos pelo app Flutter.
+A API é construída sobre Oracle + ORDS para expor recursos REST consumidos pelo app Flutter. As rotas seguem o domínio oficial e a Linguagem Ubíqua do projeto.
 
-## Principais Endpoints
+## Fluxo Oficial da API
+Login
+↓
+Home
+↓
+Achados
+↓
+Carrinho
+↓
+Purchase Request
+↓
+Pagamento
+↓
+Pedido
+↓
+Shipment
+↓
+Avaliação
+
+As APIs seguem exatamente o fluxo oficial do domínio, garantindo que a sequência de chamadas reflita a jornada de negócio do cliente desde a descoberta até a avaliação do brechó.
+
+## Endpoints Principais
 - `POST /auth/login`
-- `GET /products`
-- `GET /products/{id}`
-- `GET /categories`
-- `POST /orders`
-- `GET /orders/{id}`
-- `GET /shops/{id}`
+- `GET /api/product`
+- `GET /api/product/{id}`
+- `GET /api/category`
+- `GET /api/store/{id}`
+- `GET /api/cart`
+- `POST /api/purchase-request`
+- `POST /api/order`
+- `GET /api/order/{id}`
+- `POST /api/payment`
+- `GET /api/store/{id}/review`
 
-## Contratos Iniciais
+## Contratos Principais
 ### Autenticação
 - Login com e-mail e senha.
+- Gestão de contas e perfis.
 
-### Produtos
+### Achados
 - Listagem de achados.
-- Detalhe do produto.
-- Busca e filtros por categoria.
+- Detalhe de achado.
+- Busca e filtros por categoria, marca e condição.
 
-### Pedidos
-- Criação de pedido.
-- Status do pedido.
+### Checkout
+- Criação de Purchase Request para confirmar disponibilidade.
+- POST `/api/purchase-request` para verificar quantidade e disponibilidade.
+- Criação de Order após pagamento aprovado.
+
+### Entregas
+- Suporte a Entrega Express e Entrega Nacional.
+- Shipments vinculados a Order e Brechó.
+
+### Brechó
+- Detalhe do Brechó, endereço e reputação.
+- Eventos temporários e promoção.
 
 ## Consumo no Flutter
 - Dio para chamadas HTTP.
-- Repositórios para abstração da API.
-- Mapeamento de JSON para entidades de domínio.
+- Repositórios e providers para abstração da API.
+- Mapeamento de JSON para entidades de domínio conforme Linguagem Ubíqua.

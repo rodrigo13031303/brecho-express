@@ -1,0 +1,47 @@
+Table BEX_ACCOUNT {
+  ACC_ID bigint [pk, increment]
+  ACC_EMAIL varchar(150)
+  ACC_PASSWORD_HASH varchar(255)
+  ACC_PROVIDER varchar(30)
+  ACC_PROVIDER_ID varchar(150)
+  ACC_STATUS varchar(30)
+  ACC_CREATED_AT timestamp
+  ACC_UPDATED_AT timestamp
+}
+
+Table BEX_PROFILE {
+  PRF_ID bigint [pk, increment]
+  ACC_ID bigint
+  PRF_NAME varchar(150)
+  PRF_PHONE varchar(20)
+  PRF_DOCUMENT varchar(20)
+  PRF_PHOTO_URL varchar(500)
+  PRF_CREATED_AT timestamp
+  PRF_UPDATED_AT timestamp
+}
+
+Table BEX_STORE {
+  STR_ID bigint [pk, increment]
+  PRF_ID bigint
+  STR_NAME varchar(150)
+  STR_DESCRIPTION text
+  STR_TYPE varchar(30)
+  STR_ACTIVE char(1)
+  STR_CREATED_AT timestamp
+  STR_UPDATED_AT timestamp
+}
+
+Table BEX_PRODUCT {
+  PRD_ID bigint [pk, increment]
+  STR_ID bigint
+  PRD_TITLE varchar(200)
+  PRD_DESCRIPTION text
+  PRD_PRICE decimal
+  PRD_STATUS varchar(30)
+  PRD_CREATED_AT timestamp
+  PRD_UPDATED_AT timestamp
+}
+
+Ref: BEX_PROFILE.ACC_ID > BEX_ACCOUNT.ACC_ID
+Ref: BEX_STORE.PRF_ID > BEX_PROFILE.PRF_ID
+Ref: BEX_PRODUCT.STR_ID > BEX_STORE.STR_ID

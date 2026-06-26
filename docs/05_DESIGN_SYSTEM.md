@@ -1,7 +1,7 @@
 # Design System do Brechó Express
 
 ## Visão do Design System
-Design moderno, leve e profissional que transmite confiança, rapidez, moda e sustentabilidade.
+Design moderno, leve e profissional que transmite confiança, sustentabilidade e eficiência. O sistema reforça o posicionamento do Brechó Express como um marketplace nacional de economia circular.
 
 ## Paleta de Cores
 - Primary: Azul claro (#64B5F6)
@@ -39,3 +39,6 @@ Design moderno, leve e profissional que transmite confiança, rapidez, moda e su
 - Contraste suficiente em textos.
 - Toque alvo mínimo de 44x44 dp.
 - Feedback visual claro em interações.
+
+## Aplicação
+O Design System é preservado como base de consistência visual, mas continua alinhado à nova visão nacional e aos conceitos de economia circular, Brechó Plus e entrega inteligente.

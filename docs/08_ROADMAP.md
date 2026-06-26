@@ -1,26 +1,30 @@
 # Roadmap do Brechó Express
 
-## Fase 1: MVP Curitiba
-- Autenticação básica
-- Feed de achados mockados
-- Página de detalhes de produto
-- Design system e tema Material 3
-- Navegação principal com GoRouter
-- Estrutura de projeto Clean Architecture simplificada
+## Fase 1: Plataforma Nacional
+- Revisão do modelo de domínio e linguagem ubíqua.
+- Autenticação e cadastro de Conta e Perfil.
+- Feed de achados com filtro por categoria, marca e condição.
+- Detalhe de achado e galeria de imagens.
+- Suporte a Brechó Gratuito e Brechó Plus.
+- Implementação de Design System consistente.
 
-## Fase 2: Integração Inicial
-- Integração com API Oracle / ORDS
-- Listagem real de produtos
-- Perfil de brechó e cliente
-- Simulação de pedido
+## Fase 2: Integração e Checkout Inteligente
+- Integração com Oracle + ORDS.
+- Endpoints de Product, Store, Cart, Purchase Request e Order.
+- Fluxo de carrinho que não reserva produtos.
+- Purchase Request para confirmação de disponibilidade.
+- Pagamento somente após confirmação.
+- Criação de Order com múltiplos Shipments.
 
-## Fase 3: Expansão
-- Pagamentos integrados
-- Gestão de pedidos e entregas
-- Alertas de disponibilidade
-- Expansão geográfica além de Curitiba
+## Fase 3: Logística e Experiência Avançada
+- Entrega Express e Entrega Nacional.
+- Reserva Presencial para Brechó Plus.
+- Eventos temporários e Store Event.
+- Avaliação de Brechó e Reputação.
+- Doações e desapego.
 
 ## Marco de Valor
-- MVP pronto para teste local
-- Integração básica com backend
-- Perfis completos e fluxo de pedido
+- Plataforma nacional de economia circular em operação.
+- Fluxo de compra alinhado ao modelo oficial.
+- Capacidade de entrega inteligente e reserva presencial.
+- Métricas de reputação e engajamento.

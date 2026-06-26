@@ -1,7 +1,14 @@
 # Arquitetura do Brechó Express
 
 ## Visão Geral
-Aplicação mobile construída em Flutter com arquitetura de aplicações baseada em Clean Architecture simplificada.
+A arquitetura do Brechó Express é orientada a Domain-Driven Design (DDD), com estrutura feature-first e linguagens oficiais de domínio. A solução combina backend Oracle + ORDS e frontend Flutter, garantindo consistência entre dados, APIs e interface.
+
+## Princípios Arquiteturais
+- Domain-Driven Design (DDD) e Linguagem Ubíqua oficiais.
+- Feature First para organizar funcionalidades por domínio.
+- Mesma base de código para Cliente e Brechó.
+- Backend Oracle + ORDS com APIs REST alinhadas ao domínio.
+- Frontend Flutter com Riverpod e GoRouter.
 
 ## Tecnologias Principais
 - Flutter
@@ -12,26 +19,24 @@ Aplicação mobile construída em Flutter com arquitetura de aplicações basead
 - ORDS
 
 ## Camadas
-- Presentation: UI, páginas e widgets.
-- Domain: casos de uso, entidades e repositórios.
-- Data: implementação de acesso a dados via Dio / ORDS.
+- Presentation: UI, páginas, widgets, navegação e tradução de linguagem técnico/comercial.
+- Domain: entidades, casos de uso, repositórios e regras de negócio.
+- Data: integração com APIs, ORDS, transporte de dados e persistência.
+- Core: design system, tema, rede e utilitários compartilhados.
 
 ## Padrões
-- Navegação: GoRouter para rotas declarativas.
-- Estado: Riverpod para manejo de estado global e dependências.
-- Clean Architecture simplificada: separar UI, lógica de negócio e dados.
-
-## Diretrizes
-- Módulos por feature: auth, home, products, profile, orders.
-- Repositórios para abstração de dados.
-- Providers para dependências e estado reativo.
-- Tema centralizado e tokens para design system.
-
-## Arquivo de Roteamento
-`lib/app_router.dart` controla as rotas principais do aplicativo.
+- Navegação declarativa com GoRouter.
+- Estado e dependências gerenciados com Riverpod.
+- Feature-first para manter coesão e escalabilidade.
+- Repositórios e providers para abstração de dados.
+- Uso de linguagem ubíqua e documentação oficial para nomenclatura.
 
 ## Organização de Pastas
-- lib/core: tema, design system, utilitários.
-- lib/features: cada feature com domain, data e presentation.
+- lib/core: tema, design system, rede e utilitários.
+- lib/features: domínio por feature, incluindo account, profile, store, product, cart, purchase_request, order e payment.
 - lib/app_router.dart: roteamento principal.
-- lib/main.dart: entrada do app.
+- lib/main.dart: ponto de entrada do aplicativo.
+
+## Integração de Domínio
+- Os documentos `docs/12_DOMAIN_MODEL.md`, `docs/13_UBIQUITOUS_LANGUAGE.md` e `docs/14_BUSINESS_FLOW.md` são a fonte oficial da arquitetura e devem ser respeitados.
+- APIs, banco e interface são modelados com base em conceitos como Purchase Request, Shipments, Brechó Plus e Economia Circular.
