@@ -2,7 +2,7 @@
 
 ## 1. Objetivo
 
-Este documento apresenta a visão arquitetural do domínio modelado até a Sprint 2 do Brechó Express.
+Este documento apresenta a visão arquitetural oficial do domínio modelado até a Sprint 2 do Brechó Express.
 
 A proposta é consolidar, de forma objetiva, a estrutura conceitual dos módulos de Identidade, Brechós e Catálogo, sem detalhar implementação Oracle, SQL ou Flutter.
 
@@ -14,14 +14,28 @@ A proposta é consolidar, de forma objetiva, a estrutura conceitual dos módulos
 
 ## 3. Identidade
 
-Representação conceitual:
+### Visão do Módulo
+
+```text
+ACCOUNT
+     │
+     │ 1:1
+     ▼
+PROFILE
+     │
+     ├───────────────┐
+     │               │
+     ▼               ▼
+ADDRESS        PROFILE_ROLE
+                    │
+                    ▼
+                   ROLE
 
 ACCOUNT
-  -> PROFILE
-  -> ADDRESS
-  -> PROFILE_ROLE
-  -> ROLE
-  -> SESSION
+     │
+     ▼
+SESSION
+```
 
 Resumo do módulo:
 
@@ -34,14 +48,23 @@ Resumo do módulo:
 
 ## 4. Brechós
 
-Representação conceitual:
+### Visão do Módulo
 
+```text
 PROFILE
-  -> STORE
-  -> STORE_USER
-  -> STORE_PLAN
-  -> STORE_EVENT
-  -> STORE_FOLLOWER
+      │
+      ▼
+STORE
+      │
+      ├──────────────┐
+      │              │
+      ▼              ▼
+STORE_USER     STORE_PLAN
+      │
+      ├──────────────┐
+      ▼              ▼
+STORE_EVENT   STORE_FOLLOWER
+```
 
 Resumo do módulo:
 
@@ -54,14 +77,21 @@ Resumo do módulo:
 
 ## 5. Catálogo
 
-Representação conceitual:
+### Visão do Módulo
 
+```text
 STORE
-  -> PRODUCT
-  -> CATEGORY
-  -> BRAND
-  -> PRODUCT_STATUS
-  -> PRODUCT_IMAGE
+      │
+      ▼
+PRODUCT
+      │
+ ┌────┼───────────────┐
+ ▼    ▼               ▼
+CATEGORY BRAND PRODUCT_STATUS
+                     │
+                     ▼
+               PRODUCT_IMAGE
+```
 
 Resumo do módulo:
 
@@ -72,32 +102,179 @@ Resumo do módulo:
 - PRODUCT_STATUS controla o ciclo de vida e a visibilidade do Achado.
 - PRODUCT_IMAGE representa as imagens associadas ao Achado.
 
-## 6. Visão consolidada
+## 6. Aggregate Roots do Domínio
 
-Diagrama textual consolidado dos principais relacionamentos:
+Os Aggregate Roots atuais do domínio são:
 
+- PROFILE
+- STORE
+- PRODUCT
+
+Esses conceitos funcionam como raízes de agregação porque concentram a identidade e a consistência interna de seus respectivos contextos:
+
+- PROFILE é a raiz de identidade da pessoa no domínio.
+- STORE é a raiz organizacional do contexto de Brechós.
+- PRODUCT é a raiz do catálogo e representa o principal objeto de negócio do módulo de Achados.
+
+## 7. Classificação das Entidades
+
+A classificação das entidades segue a função que cada uma exerce no domínio.
+
+### MASTER
+
+Entidades centrais da modelagem, com identidade própria e forte relevância para o negócio.
+
+- ACCOUNT
+- PROFILE
+- STORE
+- PRODUCT
+
+### CONFIGURATION
+
+Entidades de parametrização e referência que orientam o comportamento do domínio.
+
+- ROLE
+- STORE_PLAN
+- CATEGORY
+- BRAND
+- PRODUCT_STATUS
+
+### SUPPORT
+
+Entidades auxiliares que sustentam relacionamentos, organização e apresentação.
+
+- ADDRESS
+- PROFILE_ROLE
+- STORE_USER
+- STORE_FOLLOWER
+- PRODUCT_IMAGE
+
+### TRANSACTION
+
+Entidades associadas a ações, eventos ou estados transitórios do processo de negócio.
+
+- SESSION
+- STORE_EVENT
+
+## 8. Dependência entre Módulos
+
+A arquitetura do domínio é organizada por dependência progressiva entre módulos.
+
+```text
+IDENTIDADE
+      ↓
+BRECHÓS
+      ↓
+CATÁLOGO
+      ↓
+COMPRA
+      ↓
+LOGÍSTICA
+      ↓
+FINANCEIRO
+      ↓
+PÓS-VENDA
+      ↓
+ECONOMIA CIRCULAR
+      ↓
+SOCIAL
+```
+
+Essa estrutura reduz o acoplamento entre módulos e permite evoluir o domínio de forma incremental. Cada módulo depende, em maior ou menor grau, dos conceitos definidos nos módulos anteriores, preservando a coerência arquitetural do sistema.
+
+## 9. Visão consolidada
+
+Diagrama textual consolidado dos principais relacionamentos do domínio:
+
+```text
 ACCOUNT
-  └─ PROFILE
-       ├─ ADDRESS
-       ├─ PROFILE_ROLE
-       │    └─ ROLE
-       └─ SESSION
+  │
+  │ 1:1
+  ▼
+PROFILE
+  │
+  ├───────────────┐
+  │               │
+  ▼               ▼
+ADDRESS        PROFILE_ROLE
+                  │
+                  ▼
+                 ROLE
 
 PROFILE
-  └─ STORE
-       ├─ STORE_USER
-       ├─ STORE_PLAN
-       ├─ STORE_EVENT
-       └─ STORE_FOLLOWER
+  │
+  ▼
+STORE
+  │
+  ├──────────────┐
+  │              │
+  ▼              ▼
+STORE_USER    STORE_PLAN
+  │
+  ├──────────────┐
+  ▼              ▼
+STORE_EVENT  STORE_FOLLOWER
 
 STORE
-  └─ PRODUCT
-       ├─ CATEGORY
-       ├─ BRAND
-       ├─ PRODUCT_STATUS
-       └─ PRODUCT_IMAGE
+  │
+  ▼
+PRODUCT
+  │
+  ├───────────────┐
+  │               │
+  ▼               ▼
+CATEGORY        BRAND
+  │               │
+  │               ▼
+  │           PRODUCT_STATUS
+  ▼
+PRODUCT_IMAGE
 
-## 7. Observações arquiteturais
+ACCOUNT
+  │
+  ▼
+SESSION
+```
+
+## 10. Evolução do Domínio
+
+A evolução arquitetural do Brechó Express pode ser acompanhada por sprints.
+
+### Sprint 1
+
+✔ Identidade
+
+✔ Brechós
+
+### Sprint 2
+
+✔ Catálogo
+
+### Sprint 3
+
+⬜ Compra
+
+### Sprint 4
+
+⬜ Logística
+
+### Sprint 5
+
+⬜ Financeiro
+
+### Sprint 6
+
+⬜ Pós-venda
+
+### Sprint 7
+
+⬜ Economia Circular
+
+### Sprint 8
+
+⬜ Social
+
+## 11. Observações arquiteturais
 
 - PROFILE é a base da identidade da pessoa no domínio.
 - ACCOUNT é separado de PROFILE para manter a distinção entre autenticação e identidade.

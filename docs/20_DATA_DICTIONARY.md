@@ -1820,3 +1820,679 @@ PIM_CREATED_BY e PIM_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações
 PRODUCT_IMAGE é uma entidade de suporte do módulo Catálogo.
 
 Ela representa as imagens associadas aos Achados, incluindo a imagem principal.
+
+# CART
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | CART |
+| Prefixo | CRT |
+| Tipo | TRANSACTION |
+| Responsável | Compra |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Sim |
+| Cache | Não |
+
+## Objetivo
+
+Representar o carrinho temporário de um Profile, registrando a intenção de compra antes da confirmação comercial.
+
+O carrinho pode expirar automaticamente, sem reservar produtos, e carrinhos expirados podem ser descartados por processo automático.
+
+## Classificação
+
+TRANSACTION
+
+## Responsabilidades
+
+- Registrar a intenção de compra de um Profile.
+- Agrupar os itens escolhidos para futura análise comercial.
+- Apoiar a criação de uma Purchase Request.
+- Representar o estado temporário do processo de compra.
+- Suportar a expiração automática de carrinhos sem reservar produtos.
+
+## Não é responsabilidade
+
+- Reservar estoque.
+- Confirmar pagamento.
+- Substituir a entidade PURCHASE_REQUEST.
+- Substituir a entidade ORDER.
+
+## Dono da Informação
+
+Compra
+
+## Regras de Negócio
+
+- RN-001 — CART representa intenção de compra.
+- RN-002 — Um PROFILE pode possuir um CART ativo.
+- RN-003 — CART nunca reserva PRODUCT.
+- RN-004 — CART pode possuir vários CART_ITEM.
+- RN-005 — O carrinho pode expirar automaticamente.
+- RN-006 — A expiração não reserva produtos.
+- RN-007 — Carrinhos expirados podem ser descartados por processo automático.
+- RN-008 — CRT_PUBLIC_ID deve ser CHAR(32).
+- RN-009 — APIs externas usam CRT_PUBLIC_ID, nunca CRT_ID.
+- RN-010 — A exclusão deve ser lógica via CRT_STATUS.
+
+## Relacionamentos
+
+- PROFILE (N:1)
+- CART_ITEM (1:N)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| CRT_ID | NUMBER Identity | Sim |
+| CRT_PUBLIC_ID | CHAR(32) | Sim |
+| PFL_ID | NUMBER | Sim |
+| CRT_STATUS | VARCHAR2(20) | Sim |
+| CRT_EXPIRES_AT | TIMESTAMP | Não |
+| CRT_CREATED_AT | TIMESTAMP | Sim |
+| CRT_UPDATED_AT | TIMESTAMP | Sim |
+| CRT_CREATED_BY | NUMBER | Não |
+| CRT_UPDATED_BY | NUMBER | Não |
+
+CRT_CREATED_BY e CRT_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_CART
+- UK_CART_PUBLIC_ID
+- IDX_CART_PROFILE
+- IDX_CART_STATUS
+
+## Packages Oracle
+
+- CRT_API_PKG
+- CRT_RULE_PKG
+
+## APIs
+
+- GET /carts
+- GET /carts/{publicId}
+- POST /carts
+- PUT /carts/{publicId}
+
+## Flutter
+
+- CartModel
+- CartRepository
+- CartController
+- CartPage
+
+## Observações
+
+CART é uma entidade transacional do módulo Compra.
+
+Ele representa intenção de compra, não confirmação comercial nem reserva de estoque.
+
+# CART_ITEM
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | CART_ITEM |
+| Prefixo | CTI |
+| Tipo | TRANSACTION |
+| Responsável | Compra |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Sim |
+| Cache | Não |
+
+## Objetivo
+
+Representar um Achado selecionado por um Profile dentro do carrinho.
+
+## Classificação
+
+TRANSACTION
+
+## Responsabilidades
+
+- Registrar um PRODUCT incluído no carrinho.
+- Manter a quantidade selecionada pelo cliente.
+- Preservar o preço estimado no momento da inclusão.
+- Apoiar a transformação do carrinho em Purchase Request.
+
+## Não é responsabilidade
+
+- Reservar estoque.
+- Confirmar compra.
+- Substituir a entidade PRODUCT.
+- Substituir a entidade PURCHASE_REQUEST_ITEM.
+
+## Dono da Informação
+
+Compra
+
+## Regras de Negócio
+
+- RN-001 — CART_ITEM representa um PRODUCT selecionado pelo cliente.
+- RN-002 — CART_ITEM não reserva estoque.
+- RN-003 — A quantidade deve ser maior que zero.
+- RN-004 — O preço registrado é uma estimativa no momento da inclusão.
+- RN-005 — Um CART pode possuir vários CART_ITEM.
+- RN-006 — CTI_PUBLIC_ID deve ser CHAR(32).
+- RN-007 — APIs externas usam CTI_PUBLIC_ID, nunca CTI_ID.
+- RN-008 — A exclusão deve ser lógica via CTI_STATUS.
+
+## Relacionamentos
+
+- CART (N:1)
+- PRODUCT (N:1)
+- STORE (N:1)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| CTI_ID | NUMBER Identity | Sim |
+| CTI_PUBLIC_ID | CHAR(32) | Sim |
+| CRT_ID | NUMBER | Sim |
+| PRD_ID | NUMBER | Sim |
+| STR_ID | NUMBER | Sim |
+| CTI_QUANTITY | NUMBER | Sim |
+| CTI_UNIT_PRICE | NUMBER(12,2) | Sim |
+| CTI_STATUS | VARCHAR2(20) | Sim |
+| CTI_CREATED_AT | TIMESTAMP | Sim |
+| CTI_UPDATED_AT | TIMESTAMP | Sim |
+| CTI_CREATED_BY | NUMBER | Não |
+| CTI_UPDATED_BY | NUMBER | Não |
+
+CTI_CREATED_BY e CTI_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_CART_ITEM
+- UK_CART_ITEM_PUBLIC_ID
+- IDX_CART_ITEM_CART
+- IDX_CART_ITEM_PRODUCT
+- IDX_CART_ITEM_STORE
+- IDX_CART_ITEM_STATUS
+
+## Packages Oracle
+
+- CTI_API_PKG
+- CTI_RULE_PKG
+
+## APIs
+
+- GET /cart-items
+- GET /cart-items/{publicId}
+- POST /cart-items
+- PUT /cart-items/{publicId}
+
+## Flutter
+
+- CartItemModel
+- CartItemRepository
+- CartItemController
+- CartItemPage
+
+## Observações
+
+CART_ITEM é uma entidade transacional do módulo Compra.
+
+Ele representa a seleção de um Achado pelo cliente dentro de um carrinho temporário.
+
+# PURCHASE_REQUEST
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | PURCHASE_REQUEST |
+| Prefixo | PUR |
+| Tipo | TRANSACTION |
+| Responsável | Compra |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Sim |
+| Cache | Não |
+
+## Objetivo
+
+Representar a solicitação de compra enviada ao Brechó para confirmação de disponibilidade antes do pagamento.
+
+## Classificação
+
+TRANSACTION
+
+## Responsabilidades
+
+- Registrar uma solicitação de compra derivada do carrinho.
+- Verificar disponibilidade com o Brechó antes do pagamento.
+- Apoiar a confirmação parcial ou total dos itens.
+- Servir de base para o nascimento de um Pedido.
+- Registrar a resposta do Brechó, independentemente do resultado.
+
+## Não é responsabilidade
+
+- Confirmar pagamento.
+- Reservar estoque de forma definitiva.
+- Substituir a entidade ORDER.
+- Substituir a entidade CART.
+
+## Dono da Informação
+
+Compra
+
+## Regras de Negócio
+
+- RN-001 — PURCHASE_REQUEST nasce a partir do checkout do CART.
+- RN-002 — PURCHASE_REQUEST verifica disponibilidade antes do pagamento.
+- RN-003 — PURCHASE_REQUEST pode envolver itens de vários STORE.
+- RN-004 — PURCHASE_REQUEST pode ser confirmada total ou parcialmente.
+- RN-005 — A resposta do Brechó pode ser aprovada, parcialmente aprovada ou recusada.
+- RN-006 — PUR_CONFIRMED_AT representa apenas confirmação total.
+- RN-007 — PUR_RESPONSE_AT representa o momento em que o Brechó respondeu à solicitação, independentemente do resultado.
+- RN-008 — Pagamento só ocorre após confirmação.
+- RN-009 — PUR_PUBLIC_ID deve ser CHAR(32).
+- RN-010 — APIs externas usam PUR_PUBLIC_ID, nunca PUR_ID.
+- RN-011 — A exclusão deve ser lógica via PUR_STATUS.
+
+## Relacionamentos
+
+- PROFILE (N:1)
+- PURCHASE_REQUEST_ITEM (1:N)
+- ORDER (1:1 futuro)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| PUR_ID | NUMBER Identity | Sim |
+| PUR_PUBLIC_ID | CHAR(32) | Sim |
+| PFL_ID | NUMBER | Sim |
+| PUR_STATUS | VARCHAR2(20) | Sim |
+| PUR_REQUESTED_AT | TIMESTAMP | Sim |
+| PUR_CONFIRMED_AT | TIMESTAMP | Não |
+| PUR_RESPONSE_AT | TIMESTAMP | Não |
+| PUR_EXPIRES_AT | TIMESTAMP | Não |
+| PUR_CREATED_AT | TIMESTAMP | Sim |
+| PUR_UPDATED_AT | TIMESTAMP | Sim |
+| PUR_CREATED_BY | NUMBER | Não |
+| PUR_UPDATED_BY | NUMBER | Não |
+
+PUR_CREATED_BY e PUR_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_PURCHASE_REQUEST
+- UK_PURCHASE_REQUEST_PUBLIC_ID
+- IDX_PURCHASE_REQUEST_PROFILE
+- IDX_PURCHASE_REQUEST_STATUS
+- IDX_PURCHASE_REQUEST_REQUESTED_AT
+
+## Packages Oracle
+
+- PUR_API_PKG
+- PUR_RULE_PKG
+
+## APIs
+
+- GET /purchase-requests
+- GET /purchase-requests/{publicId}
+- POST /purchase-requests
+- PUT /purchase-requests/{publicId}
+
+## Flutter
+
+- PurchaseRequestModel
+- PurchaseRequestRepository
+- PurchaseRequestController
+- PurchaseRequestPage
+
+## Observações
+
+PURCHASE_REQUEST é uma entidade transacional do módulo Compra.
+
+Ela representa a etapa de confirmação comercial e disponibilidade antes da criação do pedido definitivo.
+
+# PURCHASE_REQUEST_ITEM
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | PURCHASE_REQUEST_ITEM |
+| Prefixo | PRI |
+| Tipo | TRANSACTION |
+| Responsável | Compra |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Sim |
+| Cache | Não |
+
+## Objetivo
+
+Representar cada item solicitado dentro de uma Purchase Request, preservando o contexto da solicitação e da confirmação.
+
+## Classificação
+
+TRANSACTION
+
+## Responsabilidades
+
+- Registrar um PRODUCT solicitado pelo cliente.
+- Preservar a quantidade solicitada e a quantidade confirmada.
+- Apoiar a confirmação parcial ou recusa de itens.
+- Servir como base para a criação de ORDER_ITEM.
+- Registrar recusas individuais de itens quando houver motivo específico.
+
+## Não é responsabilidade
+
+- Confirmar pagamento.
+- Substituir a entidade PRODUCT.
+- Substituir a entidade ORDER_ITEM.
+
+## Dono da Informação
+
+Compra
+
+## Regras de Negócio
+
+- RN-001 — PURCHASE_REQUEST_ITEM representa um PRODUCT solicitado.
+- RN-002 — A quantidade confirmada pode ser menor que a solicitada.
+- RN-003 — Um item pode ser recusado individualmente pelo Brechó.
+- RN-004 — O preço deve ser registrado no momento da solicitação.
+- RN-005 — PRI_REJECT_REASON pode registrar motivos como Produto indisponível, Produto vendido na loja física, Produto reservado ou Produto danificado.
+- RN-006 — PRI_PUBLIC_ID deve ser CHAR(32).
+- RN-007 — APIs externas usam PRI_PUBLIC_ID, nunca PRI_ID.
+- RN-008 — A exclusão deve ser lógica via PRI_STATUS.
+
+## Relacionamentos
+
+- PURCHASE_REQUEST (N:1)
+- PRODUCT (N:1)
+- STORE (N:1)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| PRI_ID | NUMBER Identity | Sim |
+| PRI_PUBLIC_ID | CHAR(32) | Sim |
+| PUR_ID | NUMBER | Sim |
+| PRD_ID | NUMBER | Sim |
+| STR_ID | NUMBER | Sim |
+| PRI_REQUESTED_QUANTITY | NUMBER | Sim |
+| PRI_CONFIRMED_QUANTITY | NUMBER | Não |
+| PRI_UNIT_PRICE | NUMBER(12,2) | Sim |
+| PRI_REJECT_REASON | VARCHAR2(500) | Não |
+| PRI_STATUS | VARCHAR2(20) | Sim |
+| PRI_CREATED_AT | TIMESTAMP | Sim |
+| PRI_UPDATED_AT | TIMESTAMP | Sim |
+| PRI_CREATED_BY | NUMBER | Não |
+| PRI_UPDATED_BY | NUMBER | Não |
+
+PRI_CREATED_BY e PRI_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_PURCHASE_REQUEST_ITEM
+- UK_PURCHASE_REQUEST_ITEM_PUBLIC_ID
+- IDX_PURCHASE_REQUEST_ITEM_PURCHASE_REQUEST
+- IDX_PURCHASE_REQUEST_ITEM_PRODUCT
+- IDX_PURCHASE_REQUEST_ITEM_STORE
+- IDX_PURCHASE_REQUEST_ITEM_STATUS
+
+## Packages Oracle
+
+- PRI_API_PKG
+- PRI_RULE_PKG
+
+## APIs
+
+- GET /purchase-request-items
+- GET /purchase-request-items/{publicId}
+- POST /purchase-request-items
+- PUT /purchase-request-items/{publicId}
+
+## Flutter
+
+- PurchaseRequestItemModel
+- PurchaseRequestItemRepository
+- PurchaseRequestItemController
+- PurchaseRequestItemPage
+
+## Observações
+
+PURCHASE_REQUEST_ITEM é uma entidade transacional do módulo Compra.
+
+Ela representa cada item solicitado dentro da confirmação comercial anterior ao pedido final.
+
+# ORDER
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | ORDER |
+| Prefixo | ORD |
+| Tipo | TRANSACTION |
+| Responsável | Compra |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Sim |
+| Cache | Não |
+
+## Objetivo
+
+Representar o pedido confirmado após pagamento aprovado, consolidando os itens efetivamente aceitos pelo processo comercial.
+
+## Classificação
+
+TRANSACTION
+
+## Responsabilidades
+
+- Registrar um pedido confirmado após pagamento aprovado.
+- Consolidar os itens aceitos comercialmente.
+- Servir de base para logística e pós-venda.
+- Relacionar um pedido a uma Purchase Request confirmada.
+- Preservar a composição do valor final com subtotal, desconto e frete.
+
+## Não é responsabilidade
+
+- Confirmar disponibilidade de forma independente.
+- Substituir a entidade PURCHASE_REQUEST.
+- Substituir a entidade PAYMENT.
+
+## Dono da Informação
+
+Compra
+
+## Regras de Negócio
+
+- RN-001 — ORDER nasce somente após pagamento aprovado.
+- RN-002 — ORDER deve estar associado a uma PURCHASE_REQUEST confirmada.
+- RN-003 — ORDER pode conter itens de vários STORE.
+- RN-004 — ORDER pode gerar vários SHIPMENT.
+- RN-005 — ORD_NUMBER deve ser único.
+- RN-006 — ORD_PUBLIC_ID deve ser CHAR(32).
+- RN-007 — APIs externas usam ORD_PUBLIC_ID, nunca ORD_ID.
+- RN-008 — A exclusão deve ser lógica via ORD_STATUS.
+
+## Relacionamentos
+
+- PROFILE (N:1)
+- PURCHASE_REQUEST (1:1)
+- ORDER_ITEM (1:N)
+- PAYMENT (1:N futuro)
+- SHIPMENT (1:N futuro)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| ORD_ID | NUMBER Identity | Sim |
+| ORD_PUBLIC_ID | CHAR(32) | Sim |
+| PUR_ID | NUMBER | Sim |
+| PFL_ID | NUMBER | Sim |
+| ORD_NUMBER | VARCHAR2(50) | Sim |
+| ORD_SUBTOTAL_AMOUNT | NUMBER(12,2) | Sim |
+| ORD_DISCOUNT_AMOUNT | NUMBER(12,2) | Sim |
+| ORD_SHIPPING_AMOUNT | NUMBER(12,2) | Sim |
+| ORD_TOTAL_AMOUNT | NUMBER(12,2) | Sim |
+| ORD_STATUS | VARCHAR2(20) | Sim |
+| ORD_PAID_AT | TIMESTAMP | Não |
+| ORD_CREATED_AT | TIMESTAMP | Sim |
+| ORD_UPDATED_AT | TIMESTAMP | Sim |
+| ORD_CREATED_BY | NUMBER | Não |
+| ORD_UPDATED_BY | NUMBER | Não |
+
+ORD_CREATED_BY e ORD_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_ORDER
+- UK_ORDER_PUBLIC_ID
+- UK_ORDER_NUMBER
+- IDX_ORDER_PROFILE
+- IDX_ORDER_PURCHASE_REQUEST
+- IDX_ORDER_STATUS
+
+## Packages Oracle
+
+- ORD_API_PKG
+- ORD_RULE_PKG
+
+## APIs
+
+- GET /orders
+- GET /orders/{publicId}
+- POST /orders
+- PUT /orders/{publicId}
+
+## Flutter
+
+- OrderModel
+- OrderRepository
+- OrderController
+- OrderPage
+
+## Observações
+
+ORDER é uma entidade transacional do módulo Compra.
+
+Ela representa o pedido final após confirmação comercial e aprovação de pagamento.
+
+# ORDER_ITEM
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | ORDER_ITEM |
+| Prefixo | ORI |
+| Tipo | TRANSACTION |
+| Responsável | Compra |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Sim |
+| Cache | Não |
+
+## Objetivo
+
+Representar cada item confirmado dentro de um pedido, preservando a quantidade, o preço e o fornecedor.
+
+## Classificação
+
+TRANSACTION
+
+## Responsabilidades
+
+- Registrar um PRODUCT confirmado em um pedido.
+- Preservar a quantidade, o preço e o valor total do item.
+- Manter a referência ao STORE fornecedor.
+- Servir como base para logística e pós-venda.
+- Suportar desconto próprio por item quando houver regra comercial aplicável.
+
+## Não é responsabilidade
+
+- Confirmar pagamento.
+- Substituir a entidade PRODUCT.
+- Substituir a entidade SHIPMENT.
+
+## Dono da Informação
+
+Compra
+
+## Regras de Negócio
+
+- RN-001 — ORDER_ITEM representa um PRODUCT confirmado no pedido.
+- RN-002 — ORDER_ITEM deve refletir a quantidade confirmada da Purchase Request.
+- RN-003 — ORI_TOTAL_PRICE deve representar quantidade vezes preço unitário.
+- RN-004 — ORDER_ITEM preserva o STORE fornecedor.
+- RN-005 — ORI_PUBLIC_ID deve ser CHAR(32).
+- RN-006 — APIs externas usam ORI_PUBLIC_ID, nunca ORI_ID.
+- RN-007 — A exclusão deve ser lógica via ORI_STATUS.
+
+## Relacionamentos
+
+- ORDER (N:1)
+- PRODUCT (N:1)
+- STORE (N:1)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| ORI_ID | NUMBER Identity | Sim |
+| ORI_PUBLIC_ID | CHAR(32) | Sim |
+| ORD_ID | NUMBER | Sim |
+| PRD_ID | NUMBER | Sim |
+| STR_ID | NUMBER | Sim |
+| ORI_QUANTITY | NUMBER | Sim |
+| ORI_UNIT_PRICE | NUMBER(12,2) | Sim |
+| ORI_DISCOUNT_AMOUNT | NUMBER(12,2) | Não |
+| ORI_TOTAL_PRICE | NUMBER(12,2) | Sim |
+| ORI_STATUS | VARCHAR2(20) | Sim |
+| ORI_CREATED_AT | TIMESTAMP | Sim |
+| ORI_UPDATED_AT | TIMESTAMP | Sim |
+| ORI_CREATED_BY | NUMBER | Não |
+| ORI_UPDATED_BY | NUMBER | Não |
+
+ORI_CREATED_BY e ORI_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_ORDER_ITEM
+- UK_ORDER_ITEM_PUBLIC_ID
+- IDX_ORDER_ITEM_ORDER
+- IDX_ORDER_ITEM_PRODUCT
+- IDX_ORDER_ITEM_STORE
+- IDX_ORDER_ITEM_STATUS
+
+## Packages Oracle
+
+- ORI_API_PKG
+- ORI_RULE_PKG
+
+## APIs
+
+- GET /order-items
+- GET /order-items/{publicId}
+- POST /order-items
+- PUT /order-items/{publicId}
+
+## Flutter
+
+- OrderItemModel
+- OrderItemRepository
+- OrderItemController
+- OrderItemPage
+
+## Observações
+
+ORDER_ITEM é uma entidade transacional do módulo Compra.
+
+Ela representa cada item confirmado dentro de um pedido final após a confirmação comercial.
