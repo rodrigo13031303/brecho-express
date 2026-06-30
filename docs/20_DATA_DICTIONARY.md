@@ -1277,3 +1277,546 @@ Uso interno para gestão de sessão e autenticação.
 SESSION é uma entidade transacional do módulo Identidade.
 
 Ela representa o estado autenticado de uma Account sem substituir os conceitos de Account e Profile.
+
+# CATEGORY
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | CATEGORY |
+| Prefixo | CAT |
+| Tipo | CONFIGURATION |
+| Responsável | Catálogo |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Sim |
+| Cache | Sim |
+
+## Objetivo
+
+Representar categorias de Achados para organização, navegação e filtragem do catálogo.
+
+## Classificação
+
+CONFIGURATION
+
+## Responsabilidades
+
+- Definir categorias oficiais de Achados.
+- Apoiar filtros e navegação no catálogo.
+- Organizar produtos por contexto comercial.
+- Servir como referência para classificação do catálogo.
+
+## Não é responsabilidade
+
+- Representar produtos.
+- Definir regras de estoque.
+- Armazenar dados de clientes.
+- Substituir a entidade PRODUCT.
+
+## Dono da Informação
+
+Catálogo
+
+## Regras de Negócio
+
+- RN-001 — CATEGORY representa categorias de Achados.
+- RN-002 — CAT_SLUG deve ser único.
+- RN-003 — CATEGORY é exibida na interface como Categoria.
+- RN-004 — CATEGORY pode ser utilizada para filtros e navegação.
+- RN-005 — CAT_PUBLIC_ID deve ser CHAR(32).
+- RN-006 — APIs externas usam CAT_PUBLIC_ID, nunca CAT_ID.
+- RN-007 — A exclusão deve ser lógica via CAT_STATUS.
+
+## Relacionamentos
+
+- PRODUCT (1:N)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| CAT_ID | NUMBER Identity | Sim |
+| CAT_PUBLIC_ID | CHAR(32) | Sim |
+| CAT_NAME | VARCHAR2(200) | Sim |
+| CAT_SLUG | VARCHAR2(120) | Sim |
+| CAT_DESCRIPTION | VARCHAR2(1000) | Não |
+| CAT_STATUS | VARCHAR2(20) | Sim |
+| CAT_CREATED_AT | TIMESTAMP | Sim |
+| CAT_UPDATED_AT | TIMESTAMP | Sim |
+| CAT_CREATED_BY | NUMBER | Não |
+| CAT_UPDATED_BY | NUMBER | Não |
+
+CAT_CREATED_BY e CAT_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_CATEGORY
+- UK_CATEGORY_PUBLIC_ID
+- UK_CATEGORY_SLUG
+- IDX_CATEGORY_STATUS
+
+## Packages Oracle
+
+- CAT_API_PKG
+- CAT_RULE_PKG
+
+## APIs
+
+- GET /categories
+- GET /categories/{publicId}
+- POST /categories
+- PUT /categories/{publicId}
+
+## Flutter
+
+- CategoryModel
+- CategoryRepository
+- CategoryController
+- CategoryPage
+
+## Observações
+
+CATEGORY é uma entidade de configuração do módulo Catálogo.
+
+Ela organiza os Achados por categorias oficiais, com foco em navegação e filtragem.
+
+# BRAND
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | BRAND |
+| Prefixo | BRD |
+| Tipo | CONFIGURATION |
+| Responsável | Catálogo |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Sim |
+| Cache | Sim |
+
+## Objetivo
+
+Representar marcas de Achados para organização, navegação e filtragem do catálogo.
+
+## Classificação
+
+CONFIGURATION
+
+## Responsabilidades
+
+- Definir marcas oficiais de Achados.
+- Apoiar filtros e navegação no catálogo.
+- Organizar produtos por marca.
+- Servir como referência para classificação do catálogo.
+
+## Não é responsabilidade
+
+- Representar produtos.
+- Definir regras de estoque.
+- Armazenar dados de clientes.
+- Substituir a entidade PRODUCT.
+
+## Dono da Informação
+
+Catálogo
+
+## Regras de Negócio
+
+- RN-001 — BRAND representa marcas de Achados.
+- RN-002 — BRD_SLUG deve ser único.
+- RN-003 — BRAND é exibida na interface como Marca.
+- RN-004 — BRAND pode ser utilizada para filtros e navegação.
+- RN-005 — BRD_PUBLIC_ID deve ser CHAR(32).
+- RN-006 — APIs externas usam BRD_PUBLIC_ID, nunca BRD_ID.
+- RN-007 — A exclusão deve ser lógica via BRD_STATUS.
+
+## Relacionamentos
+
+- PRODUCT (1:N)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| BRD_ID | NUMBER Identity | Sim |
+| BRD_PUBLIC_ID | CHAR(32) | Sim |
+| BRD_NAME | VARCHAR2(200) | Sim |
+| BRD_SLUG | VARCHAR2(120) | Sim |
+| BRD_DESCRIPTION | VARCHAR2(1000) | Não |
+| BRD_STATUS | VARCHAR2(20) | Sim |
+| BRD_CREATED_AT | TIMESTAMP | Sim |
+| BRD_UPDATED_AT | TIMESTAMP | Sim |
+| BRD_CREATED_BY | NUMBER | Não |
+| BRD_UPDATED_BY | NUMBER | Não |
+
+BRD_CREATED_BY e BRD_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_BRAND
+- UK_BRAND_PUBLIC_ID
+- UK_BRAND_SLUG
+- IDX_BRAND_STATUS
+
+## Packages Oracle
+
+- BRD_API_PKG
+- BRD_RULE_PKG
+
+## APIs
+
+- GET /brands
+- GET /brands/{publicId}
+- POST /brands
+- PUT /brands/{publicId}
+
+## Flutter
+
+- BrandModel
+- BrandRepository
+- BrandController
+- BrandPage
+
+## Observações
+
+BRAND é uma entidade de configuração do módulo Catálogo.
+
+Ela organiza os Achados por marcas oficiais, com foco em navegação e filtragem.
+
+# PRODUCT_STATUS
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | PRODUCT_STATUS |
+| Prefixo | PST |
+| Tipo | CONFIGURATION |
+| Responsável | Catálogo |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Não |
+| Cache | Sim |
+
+## Objetivo
+
+Representar os status oficiais de ciclo de vida de um Achado, controlando visibilidade e disponibilidade.
+
+## Classificação
+
+CONFIGURATION
+
+## Responsabilidades
+
+- Definir os status oficiais de um Achado.
+- Controlar visibilidade e disponibilidade do catálogo.
+- Apoiar regras de negócio de ciclo de vida.
+- Servir como referência para operação do produto.
+
+## Não é responsabilidade
+
+- Representar produtos.
+- Armazenar dados de estoque.
+- Definir regras comerciais complexas.
+- Substituir a entidade PRODUCT.
+
+## Dono da Informação
+
+Catálogo
+
+## Regras de Negócio
+
+- RN-001 — PRODUCT_STATUS representa os status oficiais de um Achado.
+- RN-002 — PST_CODE deve ser único.
+- RN-003 — Exemplos oficiais: ACTIVE, RESERVED, SOLD, INACTIVE, ARCHIVED.
+- RN-004 — PRODUCT_STATUS controla visibilidade e disponibilidade do Achado.
+- RN-005 — PRODUCT_STATUS não deve ser excluído fisicamente.
+- RN-006 — PST_PUBLIC_ID deve ser CHAR(32).
+- RN-007 — A exclusão deve ser lógica via PST_STATUS.
+
+## Relacionamentos
+
+- PRODUCT (1:N)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| PST_ID | NUMBER Identity | Sim |
+| PST_PUBLIC_ID | CHAR(32) | Sim |
+| PST_CODE | VARCHAR2(50) | Sim |
+| PST_NAME | VARCHAR2(100) | Sim |
+| PST_DESCRIPTION | VARCHAR2(500) | Não |
+| PST_STATUS | VARCHAR2(20) | Sim |
+| PST_CREATED_AT | TIMESTAMP | Sim |
+| PST_UPDATED_AT | TIMESTAMP | Sim |
+| PST_CREATED_BY | NUMBER | Não |
+| PST_UPDATED_BY | NUMBER | Não |
+
+PST_CREATED_BY e PST_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_PRODUCT_STATUS
+- UK_PRODUCT_STATUS_PUBLIC_ID
+- UK_PRODUCT_STATUS_CODE
+- IDX_PRODUCT_STATUS_STATUS
+
+## Packages Oracle
+
+- PST_API_PKG
+- PST_RULE_PKG
+
+## APIs
+
+Nenhuma API pública prevista no MVP.
+As operações de status serão tratadas internamente por regras de catálogo.
+
+## Flutter
+
+Uso interno para controle de status e visibilidade.
+
+## Observações
+
+PRODUCT_STATUS é uma entidade de configuração do módulo Catálogo.
+
+Ela controla o ciclo de vida dos Achados de forma uniforme e governada.
+
+# PRODUCT
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | PRODUCT |
+| Prefixo | PRD |
+| Tipo | MASTER |
+| Responsável | Catálogo |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Sim |
+| Cache | Sim |
+
+## Objetivo
+
+Representar o Achado anunciado por um Brechó, incluindo dados de identificação, classificação, preço, quantidade e estado físico.
+
+## Classificação
+
+MASTER
+
+## Responsabilidades
+
+- Representar os Achados anunciados no catálogo.
+- Organizar os dados comerciais e descritivos de um Achado.
+- Apoiar a navegação, filtros, carrinho e pedidos.
+- Vincular um Achado a um Brechó, categoria, marca e status.
+
+## Não é responsabilidade
+
+- Gerenciar autenticação.
+- Armazenar dados de pagamento.
+- Reservar itens no carrinho.
+- Substituir a entidade STORE.
+
+## Dono da Informação
+
+Catálogo
+
+## Regras de Negócio
+
+- RN-001 — PRODUCT é o termo técnico; na interface o termo oficial é Achado.
+- RN-002 — Um PRODUCT pertence a um STORE.
+- RN-003 — Um PRODUCT deve possuir CATEGORY.
+- RN-004 — BRAND pode ser opcional caso a marca seja desconhecida.
+- RN-005 — PRODUCT_STATUS controla ciclo de vida e visibilidade.
+- RN-006 — Carrinho não reserva PRODUCT.
+- RN-007 — PRODUCT pode ser peça única ou possuir quantidade em estoque.
+- RN-008 — PRODUCT nunca deve ser excluído fisicamente.
+- RN-009 — PRD_PUBLIC_ID deve ser CHAR(32).
+- RN-010 — APIs externas usam PRD_PUBLIC_ID, nunca PRD_ID.
+- RN-011 — PRD_SLUG deve ser único por STORE.
+- RN-012 — Preço deve ser maior ou igual a zero.
+- RN-013 — Quantidade deve ser maior ou igual a zero.
+
+## Relacionamentos
+
+- STORE (N:1)
+- CATEGORY (N:1)
+- BRAND (N:1)
+- PRODUCT_STATUS (N:1)
+- PRODUCT_IMAGE (1:N)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| PRD_ID | NUMBER Identity | Sim |
+| PRD_PUBLIC_ID | CHAR(32) | Sim |
+| STR_ID | NUMBER | Sim |
+| CAT_ID | NUMBER | Sim |
+| BRD_ID | NUMBER | Não |
+| PST_ID | NUMBER | Sim |
+| PRD_TITLE | VARCHAR2(200) | Sim |
+| PRD_SLUG | VARCHAR2(200) | Sim |
+| PRD_DESCRIPTION | VARCHAR2(4000) | Não |
+| PRD_PRICE | NUMBER(12,2) | Sim |
+| PRD_QUANTITY | NUMBER | Sim |
+| PRD_CONDITION | VARCHAR2(50) | Sim |
+| PRD_WEIGHT | NUMBER(10,3) | Não |
+| PRD_WIDTH | NUMBER(10,3) | Não |
+| PRD_HEIGHT | NUMBER(10,3) | Não |
+| PRD_LENGTH | NUMBER(10,3) | Não |
+| PRD_STATUS | VARCHAR2(20) | Sim |
+| PRD_CREATED_AT | TIMESTAMP | Sim |
+| PRD_UPDATED_AT | TIMESTAMP | Sim |
+| PRD_CREATED_BY | NUMBER | Não |
+| PRD_UPDATED_BY | NUMBER | Não |
+
+PRD_CREATED_BY e PRD_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_PRODUCT
+- UK_PRODUCT_PUBLIC_ID
+- UK_PRODUCT_STORE_SLUG
+- IDX_PRODUCT_STORE
+- IDX_PRODUCT_CATEGORY
+- IDX_PRODUCT_BRAND
+- IDX_PRODUCT_STATUS
+- IDX_PRODUCT_PRICE
+
+## Packages Oracle
+
+- PRD_API_PKG
+- PRD_RULE_PKG
+
+## APIs
+
+- GET /products
+- GET /products/{publicId}
+- POST /products
+- PUT /products/{publicId}
+
+## Flutter
+
+- ProductModel
+- ProductRepository
+- ProductController
+- ProductPage
+
+## Observações
+
+PRODUCT é a entidade principal do módulo Catálogo.
+
+Na interface, o termo oficial é Achado, mesmo sendo modelado tecnicamente como PRODUCT.
+
+# PRODUCT_IMAGE
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | PRODUCT_IMAGE |
+| Prefixo | PIM |
+| Tipo | SUPPORT |
+| Responsável | Catálogo |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Sim |
+| Cache | Sim |
+
+## Objetivo
+
+Representar imagens de um Achado, incluindo a imagem principal e as demais imagens de apoio.
+
+## Classificação
+
+SUPPORT
+
+## Responsabilidades
+
+- Armazenar links ou referências de imagens de um Achado.
+- Definir a ordem de exibição das imagens.
+- Marcar uma imagem como principal.
+- Apoiar a apresentação visual do catálogo.
+
+## Não é responsabilidade
+
+- Armazenar dados pessoais.
+- Definir regras comerciais.
+- Substituir a entidade PRODUCT.
+- Armazenar conteúdo binário diretamente.
+
+## Dono da Informação
+
+Catálogo
+
+## Regras de Negócio
+
+- RN-001 — Um PRODUCT pode possuir várias imagens.
+- RN-002 — Uma imagem pertence a exatamente um PRODUCT.
+- RN-003 — Um PRODUCT pode possuir apenas uma imagem principal ativa.
+- RN-004 — PIM_SORT_ORDER define ordem de exibição.
+- RN-005 — PIM_PUBLIC_ID deve ser CHAR(32).
+- RN-006 — APIs externas usam PIM_PUBLIC_ID, nunca PIM_ID.
+- RN-007 — A exclusão deve ser lógica via PIM_STATUS.
+
+## Relacionamentos
+
+- PRODUCT (N:1)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| PIM_ID | NUMBER Identity | Sim |
+| PIM_PUBLIC_ID | CHAR(32) | Sim |
+| PRD_ID | NUMBER | Sim |
+| PIM_URL | VARCHAR2(1000) | Sim |
+| PIM_ALT_TEXT | VARCHAR2(200) | Não |
+| PIM_SORT_ORDER | NUMBER | Sim |
+| PIM_IS_PRIMARY | NUMBER(1) | Sim |
+| PIM_STATUS | VARCHAR2(20) | Sim |
+| PIM_CREATED_AT | TIMESTAMP | Sim |
+| PIM_UPDATED_AT | TIMESTAMP | Sim |
+| PIM_CREATED_BY | NUMBER | Não |
+| PIM_UPDATED_BY | NUMBER | Não |
+
+PIM_CREATED_BY e PIM_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_PRODUCT_IMAGE
+- UK_PRODUCT_IMAGE_PUBLIC_ID
+- IDX_PRODUCT_IMAGE_PRODUCT
+- IDX_PRODUCT_IMAGE_PRIMARY
+- IDX_PRODUCT_IMAGE_STATUS
+
+## Packages Oracle
+
+- PIM_API_PKG
+- PIM_RULE_PKG
+
+## APIs
+
+- GET /product-images
+- GET /product-images/{publicId}
+- POST /product-images
+- PUT /product-images/{publicId}
+
+## Flutter
+
+- ProductImageModel
+- ProductImageRepository
+- ProductImageController
+- ProductImagePage
+
+## Observações
+
+PRODUCT_IMAGE é uma entidade de suporte do módulo Catálogo.
+
+Ela representa as imagens associadas aos Achados, incluindo a imagem principal.
