@@ -131,7 +131,7 @@ Usuário
 | Campo | Tipo | Obrigatório |
 |--------|------|-------------|
 | PFL_ID | NUMBER Identity | Sim |
-| PFL_PUBLIC_ID | VARCHAR2(32) | Sim |
+| PFL_PUBLIC_ID | CHAR(32) | Sim |
 | PFL_NAME | VARCHAR2(200) | Sim |
 | PFL_DISPLAY_NAME | VARCHAR2(120) | Não |
 | PFL_PHONE | VARCHAR2(20) | Não |
@@ -167,3 +167,201 @@ PFL_CREATED_BY e PFL_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações
 
 ## Observações
 PROFILE será a entidade modelo utilizada para padronizar todas as demais entidades do Data Dictionary.
+
+# ROLE
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | ROLE |
+| Prefixo | ROL |
+| Tipo | CONFIGURATION |
+| Responsável | Identidade |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Não |
+| Cache | Sim |
+
+## Objetivo
+
+Representar os papéis oficiais que um Profile pode assumir dentro da plataforma.
+
+## Classificação
+
+CONFIGURATION
+
+## Responsabilidades
+
+- Definir papéis de acesso.
+- Apoiar autorização e controle de permissões.
+- Permitir que um Profile atue como cliente, dono de brechó, atendente, administrador ou sistema.
+
+## Não é responsabilidade
+
+- Autenticação.
+- Dados pessoais.
+- Dados do Brechó.
+- Regras comerciais.
+- Sessão de usuário.
+
+## Dono da Informação
+
+Sistema
+
+## Regras de Negócio
+
+- RN-001 — Um Role representa um papel oficial da plataforma.
+- RN-002 — Um Profile pode possuir vários Roles através de PROFILE_ROLE.
+- RN-003 — Roles não devem ser excluídos fisicamente.
+- RN-004 — Roles podem ser ativados ou inativados por status.
+- RN-005 — O Role SYSTEM será utilizado para operações automáticas.
+
+## Relacionamentos
+
+- PROFILE (N:N através de PROFILE_ROLE)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| ROL_ID | NUMBER Identity | Sim |
+| ROL_PUBLIC_ID | CHAR(32) | Sim |
+| ROL_CODE | VARCHAR2(50) | Sim |
+| ROL_NAME | VARCHAR2(100) | Sim |
+| ROL_DESCRIPTION | VARCHAR2(500) | Não |
+| ROL_STATUS | VARCHAR2(20) | Sim |
+| ROL_CREATED_AT | TIMESTAMP | Sim |
+| ROL_UPDATED_AT | TIMESTAMP | Sim |
+| ROL_CREATED_BY | NUMBER | Não |
+| ROL_UPDATED_BY | NUMBER | Não |
+
+ROL_CREATED_BY e ROL_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_ROLE
+- UK_ROLE_PUBLIC_ID
+- UK_ROLE_CODE
+- IDX_ROLE_STATUS
+
+## Packages Oracle
+
+- ROL_API_PKG
+- ROL_RULE_PKG
+
+## APIs
+
+Nenhuma API pública prevista no MVP.
+
+## Flutter
+
+Uso interno para controle de acesso e permissões.
+
+## Observações
+
+Roles iniciais sugeridos:
+- SYSTEM
+- ADMIN
+- CUSTOMER
+- STORE_OWNER
+- STORE_ATTENDANT
+
+ROLE é uma entidade de configuração e deve ser cacheável.
+
+# PROFILE_ROLE
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | PROFILE_ROLE |
+| Prefixo | PRL |
+| Tipo | SUPPORT |
+| Responsável | Identidade |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Não |
+| Cache | Sim |
+
+## Objetivo
+
+Representar a associação entre um Profile e um Role dentro do domínio do Brechó Express.
+
+## Classificação
+
+SUPPORT
+
+## Responsabilidades
+
+- Registrar a associação entre um Profile e um Role.
+- Suportar a composição de papéis de um Profile.
+- Permitir futuros cenários de expiração, auditoria e histórico da associação.
+- Servir como base para autorização e controle de atuação na plataforma.
+
+## Não é responsabilidade
+
+- Autenticação.
+- Dados pessoais.
+- Dados do Brechó.
+- Regras comerciais.
+- Sessão de usuário.
+
+## Dono da Informação
+
+Sistema
+
+## Regras de Negócio
+
+- RN-001 — Um Profile pode possuir vários Roles.
+- RN-002 — Um Role pode pertencer a vários Profiles.
+- RN-003 — A combinação (PFL_ID, ROL_ID) deve ser única.
+- RN-004 — O relacionamento deve suportar futuras expansões como expiração, auditoria e histórico.
+- RN-005 — A entidade não deve simplificar o relacionamento para uma associação apenas lógica sem rastreio.
+
+## Relacionamentos
+
+- PROFILE (N:1)
+- ROLE (N:1)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| PRL_ID | NUMBER Identity | Sim |
+| PRL_PUBLIC_ID | CHAR(32) | Sim |
+| PFL_ID | NUMBER | Sim |
+| ROL_ID | NUMBER | Sim |
+| PRL_STATUS | VARCHAR2(20) | Sim |
+| PRL_GRANTED_AT | TIMESTAMP | Sim |
+| PRL_EXPIRES_AT | TIMESTAMP | Não |
+| PRL_CREATED_AT | TIMESTAMP | Sim |
+| PRL_UPDATED_AT | TIMESTAMP | Sim |
+| PRL_CREATED_BY | NUMBER | Não |
+| PRL_UPDATED_BY | NUMBER | Não |
+
+PRL_CREATED_BY e PRL_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_PROFILE_ROLE
+- UK_PROFILE_ROLE_PUBLIC_ID
+- UK_PROFILE_ROLE_PROFILE_ROLE
+- IDX_PROFILE_ROLE_STATUS
+
+## Packages Oracle
+
+- PRL_API_PKG
+- PRL_RULE_PKG
+
+## APIs
+
+Nenhuma API pública prevista no MVP.
+
+## Flutter
+
+Uso interno para controle de associação de papéis e permissões.
+
+## Observações
+
+PROFILE_ROLE é uma entidade de suporte, com papel estrutural no relacionamento entre Profile e Role, e deve ser tratada como uma associação com rastreio e potencial evolução.

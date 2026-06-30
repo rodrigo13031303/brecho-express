@@ -73,10 +73,11 @@ O propósito principal é garantir consistência técnica, alinhamento com o dom
 - Padrão:
   <SIGLA>_PUBLIC_ID
 - Tipo:
-  VARCHAR2(32)
+  CHAR(32)
 - Deve ser único.
-- APIs externas devem usar PUBLIC_ID, nunca o ID interno.
-- O ID interno é exclusivo do Oracle.
+- Utilizado para identificadores públicos de tamanho fixo.
+- APIs externas utilizam exclusivamente PUBLIC_ID.
+- O ID interno permanece exclusivo do Oracle.
 
 ## 8. Auditoria
 
@@ -102,7 +103,7 @@ O propósito principal é garantir consistência técnica, alinhamento com o dom
 ## 10. Tipos de dados padrão
 
 - IDs: NUMBER(19)
-- PUBLIC_ID: VARCHAR2(32)
+- PUBLIC_ID: CHAR(32)
 - Textos curtos: VARCHAR2
 - Descrições longas: CLOB
 - Valores monetários: NUMBER(12,2)
