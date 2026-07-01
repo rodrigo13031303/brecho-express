@@ -4006,6 +4006,124 @@ STORE_REVIEW representa a percepção pública do cliente sobre sua experiência
 
 As avaliações são um dos principais mecanismos de confiança do Brechó Express e constituem a base para a reputação dos Brechós.
 
+# RETURN_ATTACHMENT
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | RETURN_ATTACHMENT |
+| Prefixo | RAT |
+| Tipo | SUPPORT |
+| Responsável | Pós-venda |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Sim |
+| Cache | Não |
+
+## Objetivo
+
+Representar evidências anexadas a uma ocorrência de pós-venda, como fotos, vídeos, comprovantes, embalagens, etiquetas ou documentos.
+
+## Classificação
+
+SUPPORT
+
+## Responsabilidades
+
+- Registrar evidências associadas a uma ocorrência de pós-venda.
+- Apoiar análise, mediação e resolução da ocorrência.
+- Manter rastreio do autor do anexo.
+- Permitir classificação e controle de status das evidências.
+
+## Não é responsabilidade
+
+- Decidir a ocorrência.
+- Armazenar conteúdo binário diretamente.
+- Substituir RETURN_REQUEST.
+- Definir regras operacionais sem apoio de BUSINESS_CONFIGURATION.
+
+## Dono da Informação
+
+Pós-venda / Operação
+
+## Regras de Negócio
+
+- RN-001 — Todo RETURN_ATTACHMENT pertence a um RETURN_REQUEST.
+- RN-002 — RETURN_ATTACHMENT representa evidência de uma ocorrência.
+- RN-003 — Um RETURN_REQUEST pode possuir vários anexos.
+- RN-004 — Um anexo pode ser enviado pelo cliente, Brechó, administrador ou sistema.
+- RN-005 — RAT_TYPE deve permitir classificar o anexo, como PHOTO, VIDEO, RECEIPT, PACKAGE, LABEL, DOCUMENT ou OTHER.
+- RN-006 — RAT_URL armazena a referência do arquivo, não o conteúdo binário.
+- RN-007 — Evidências não devem ser excluídas fisicamente.
+- RN-008 — Evidências podem ser moderadas ou ocultadas por status.
+- RN-009 — RAT_PUBLIC_ID deve ser CHAR(32).
+- RN-010 — APIs utilizam RAT_PUBLIC_ID, nunca RAT_ID.
+- RN-011 — A validade e obrigatoriedade dos anexos devem respeitar BUSINESS_CONFIGURATION.
+- RN-012 — RETURN_ATTACHMENT não decide a ocorrência; apenas registra evidências.
+
+## Relacionamentos
+
+- RETURN_REQUEST (N:1)
+- PROFILE (autor do anexo) (N:1)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| RAT_ID | NUMBER Identity | Sim |
+| RAT_PUBLIC_ID | CHAR(32) | Sim |
+| RRQ_ID | NUMBER | Sim |
+| PFL_ID | NUMBER | Sim |
+| RAT_TYPE | VARCHAR2(50) | Sim |
+| RAT_URL | VARCHAR2(1000) | Sim |
+| RAT_FILENAME | VARCHAR2(255) | Não |
+| RAT_MIME_TYPE | VARCHAR2(100) | Não |
+| RAT_SIZE_BYTES | NUMBER | Não |
+| RAT_DESCRIPTION | VARCHAR2(2000) | Não |
+| RAT_UPLOADED_AT | TIMESTAMP | Sim |
+| RAT_STATUS | VARCHAR2(20) | Sim |
+| RAT_CREATED_AT | TIMESTAMP | Sim |
+| RAT_UPDATED_AT | TIMESTAMP | Sim |
+| RAT_CREATED_BY | NUMBER | Não |
+| RAT_UPDATED_BY | NUMBER | Não |
+
+RAT_CREATED_BY e RAT_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_RETURN_ATTACHMENT
+- UK_RETURN_ATTACHMENT_PUBLIC_ID
+- IDX_RETURN_ATTACHMENT_REQUEST
+- IDX_RETURN_ATTACHMENT_PROFILE
+- IDX_RETURN_ATTACHMENT_TYPE
+- IDX_RETURN_ATTACHMENT_STATUS
+
+## Packages Oracle
+
+- RAT_API_PKG
+- RAT_RULE_PKG
+
+## APIs
+
+- GET /return-attachments
+- GET /return-attachments/{publicId}
+- POST /return-attachments
+- PUT /return-attachments/{publicId}
+
+## Flutter
+
+- ReturnAttachmentModel
+- ReturnAttachmentRepository
+- ReturnAttachmentController
+- ReturnAttachmentPage
+
+## Observações
+
+RETURN_ATTACHMENT complementa RETURN_REQUEST armazenando evidências objetivas para análise, mediação e resolução de ocorrências.
+
+Não armazenar arquivo binário diretamente nesta entidade.
+
 # STORE_REPUTATION
 
 ## Ficha Técnica
