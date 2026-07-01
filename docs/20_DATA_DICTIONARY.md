@@ -27,6 +27,7 @@ O documento abaixo organiza as entidades por módulos de negócio, preservando a
 - BRAND
 - PRODUCT
 - PRODUCT_IMAGE
+- PRODUCT_QUESTION
 - PRODUCT_STATUS
 
 ### COMPRA
@@ -43,8 +44,13 @@ O documento abaixo organiza as entidades por módulos de negócio, preservando a
 - DELIVERY_PROFILE
 
 ### FINANCEIRO
+- PAYMENT_PROVIDER
 - PAYMENT
+- PAYMENT_EVENT
+- STORE_BALANCE_TRANSACTION
+- STORE_BALANCE
 - COMMISSION
+- PAYOUT
 
 ### PÓS-VENDA
 - STORE_REVIEW
@@ -1821,6 +1827,562 @@ PRODUCT_IMAGE é uma entidade de suporte do módulo Catálogo.
 
 Ela representa as imagens associadas aos Achados, incluindo a imagem principal.
 
+# PRODUCT_QUESTION
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | PRODUCT_QUESTION |
+| Prefixo | PQA |
+| Tipo | SUPPORT |
+| Responsável | Catálogo |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Sim |
+| Cache | Não |
+
+## Objetivo
+
+Representar perguntas públicas feitas por clientes em um Achado e as respectivas respostas fornecidas pelo Brechó.
+
+## Classificação
+
+SUPPORT
+
+## Responsabilidades
+
+- Registrar perguntas públicas feitas por clientes em um Achado.
+- Registrar respostas fornecidas por um Profile autorizado a operar o STORE.
+- Preservar o contexto de pré-venda associado ao Achado.
+- Apoiar a transparência da comunicação entre cliente e Brechó.
+
+## Não é responsabilidade
+
+- Substituir STORE_REVIEW.
+- Representar avaliação pós-venda.
+- Armazenar dados pessoais sensíveis.
+- Definir regras comerciais do pedido.
+
+## Dono da Informação
+
+Catálogo
+
+## Regras de Negócio
+
+- RN-001 — Toda PRODUCT_QUESTION pertence a um PRODUCT.
+- RN-002 — Toda PRODUCT_QUESTION deve preservar o STORE responsável pelo PRODUCT.
+- RN-003 — Um PROFILE pode fazer perguntas em vários PRODUCT.
+- RN-004 — A resposta deve ser fornecida por um PROFILE autorizado a operar o STORE.
+- RN-005 — A pergunta pode existir sem resposta.
+- RN-006 — Perguntas e respostas ficam públicas para outros usuários quando ativas.
+- RN-007 — Perguntas ofensivas, spam ou contendo dados pessoais podem ser moderadas.
+- RN-008 — PRODUCT_QUESTION não substitui STORE_REVIEW.
+- RN-009 — PRODUCT_QUESTION não representa avaliação pós-venda.
+- RN-010 — PRODUCT_QUESTION faz parte do pré-venda.
+- RN-011 — PQA_PUBLIC_ID deve ser CHAR(32).
+- RN-012 — APIs externas usam PQA_PUBLIC_ID, nunca PQA_ID.
+- RN-013 — A exclusão deve ser lógica via PQA_STATUS.
+
+## Relacionamentos
+
+- PRODUCT (N:1)
+- STORE (N:1)
+- PROFILE como autor da pergunta (N:1)
+- PROFILE como autor da resposta (N:1 opcional)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| PQA_ID | NUMBER Identity | Sim |
+| PQA_PUBLIC_ID | CHAR(32) | Sim |
+| PRD_ID | NUMBER | Sim |
+| STR_ID | NUMBER | Sim |
+| PFL_QUESTION_BY | NUMBER | Sim |
+| PFL_ANSWERED_BY | NUMBER | Não |
+| PQA_QUESTION_TEXT | VARCHAR2(4000) | Sim |
+| PQA_ANSWER_TEXT | VARCHAR2(4000) | Não |
+| PQA_ASKED_AT | TIMESTAMP | Sim |
+| PQA_ANSWERED_AT | TIMESTAMP | Não |
+| PQA_STATUS | VARCHAR2(20) | Sim |
+| PQA_CREATED_AT | TIMESTAMP | Sim |
+| PQA_UPDATED_AT | TIMESTAMP | Sim |
+| PQA_CREATED_BY | NUMBER | Não |
+| PQA_UPDATED_BY | NUMBER | Não |
+
+PQA_CREATED_BY e PQA_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_PRODUCT_QUESTION
+- UK_PRODUCT_QUESTION_PUBLIC_ID
+- IDX_PRODUCT_QUESTION_PRODUCT
+- IDX_PRODUCT_QUESTION_STORE
+- IDX_PRODUCT_QUESTION_QUESTION_BY
+- IDX_PRODUCT_QUESTION_ANSWERED_BY
+- IDX_PRODUCT_QUESTION_STATUS
+
+## Packages Oracle
+
+- PQA_API_PKG
+- PQA_RULE_PKG
+
+## APIs
+
+- GET /product-questions
+- GET /product-questions/{publicId}
+- POST /product-questions
+- PUT /product-questions/{publicId}
+
+## Flutter
+
+- ProductQuestionModel
+- ProductQuestionRepository
+- ProductQuestionController
+- ProductQuestionPage
+
+## Observações
+
+PRODUCT_QUESTION pertence ao módulo Catálogo e representa interação pública de pré-venda no Achado.
+
+Ela complementa o contexto de descoberta e esclarecimento do produto, sem substituir avaliações ou feedback pós-venda.
+
+# STORE_BALANCE_TRANSACTION
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | STORE_BALANCE_TRANSACTION |
+| Prefixo | SBT |
+| Tipo | TRANSACTION |
+| Responsável | Financeiro |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Não |
+| Cache | Não |
+
+## Objetivo
+
+Registrar cada movimentação financeira que afeta o saldo interno de um Brechó.
+
+## Classificação
+
+TRANSACTION
+
+## Responsabilidades
+
+- Registrar créditos, débitos, bloqueios, liberações e payouts relacionados ao saldo do Brechó.
+- Servir como livro razão financeiro do Brechó.
+- Apoiar o cálculo do saldo disponível e do saldo bloqueado.
+
+## Não é responsabilidade
+
+- Alterar saldo manualmente.
+- Substituir STORE_BALANCE.
+- Representar uma solicitação de saque.
+- Definir regras comerciais do pedido.
+
+## Dono da Informação
+
+Financeiro
+
+## Regras de Negócio
+
+- RN-001 — STORE_BALANCE_TRANSACTION é o livro razão financeiro do Brechó.
+- RN-002 — Todo crédito, débito, comissão, taxa, bloqueio, liberação ou payout deve gerar uma movimentação.
+- RN-003 — SBT_DIRECTION deve indicar CREDIT ou DEBIT.
+- RN-004 — SBT_AMOUNT deve ser sempre positivo.
+- RN-005 — O efeito no saldo é definido por SBT_DIRECTION.
+- RN-006 — Movimentações não devem ser excluídas fisicamente.
+- RN-007 — Movimentações não devem ser alteradas após consolidadas.
+- RN-008 — SBT_AVAILABLE_AT indica quando o valor poderá compor saldo disponível.
+- RN-009 — SBT_PUBLIC_ID deve ser CHAR(32).
+- RN-010 — APIs externas usam SBT_PUBLIC_ID, nunca SBT_ID.
+
+## Relacionamentos
+
+- STORE (N:1)
+- ORDER (N:1 opcional)
+- PAYMENT (N:1 opcional)
+- PAYOUT (N:1 opcional futuro)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| SBT_ID | NUMBER Identity | Sim |
+| SBT_PUBLIC_ID | CHAR(32) | Sim |
+| STR_ID | NUMBER | Sim |
+| ORD_ID | NUMBER | Não |
+| PAY_ID | NUMBER | Não |
+| POT_ID | NUMBER | Não |
+| SBT_TYPE | VARCHAR2(50) | Sim |
+| SBT_AMOUNT | NUMBER(12,2) | Sim |
+| SBT_DIRECTION | VARCHAR2(10) | Sim |
+| SBT_AVAILABLE_AT | TIMESTAMP | Não |
+| SBT_DESCRIPTION | VARCHAR2(1000) | Não |
+| SBT_STATUS | VARCHAR2(20) | Sim |
+| SBT_CREATED_AT | TIMESTAMP | Sim |
+| SBT_UPDATED_AT | TIMESTAMP | Sim |
+| SBT_CREATED_BY | NUMBER | Não |
+| SBT_UPDATED_BY | NUMBER | Não |
+
+SBT_CREATED_BY e SBT_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_STORE_BALANCE_TRANSACTION
+- UK_STORE_BALANCE_TRANSACTION_PUBLIC_ID
+- IDX_STORE_BALANCE_TRANSACTION_STORE
+- IDX_STORE_BALANCE_TRANSACTION_ORDER
+- IDX_STORE_BALANCE_TRANSACTION_PAYMENT
+- IDX_STORE_BALANCE_TRANSACTION_STATUS
+
+## Packages Oracle
+
+- SBT_API_PKG
+- SBT_RULE_PKG
+
+## APIs
+
+Nenhuma API pública prevista no MVP.
+
+## Flutter
+
+Uso interno para o módulo financeiro.
+
+## Observações
+
+STORE_BALANCE_TRANSACTION representa o livro razão financeiro interno do Brechó Express.
+
+Cada alteração de saldo deve ser registrada através desta entidade, preservando rastreabilidade e auditoria.
+
+# STORE_BALANCE
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | STORE_BALANCE |
+| Prefixo | SBL |
+| Tipo | SUPPORT |
+| Responsável | Financeiro |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Sim |
+| Cache | Não |
+
+## Objetivo
+
+Representar o resumo financeiro atual de um Brechó, derivado das movimentações do livro razão.
+
+## Classificação
+
+SUPPORT
+
+## Responsabilidades
+
+- Resumir os valores bloqueados, disponíveis, pendentes e pagos de um Brechó.
+- Servir como visão consolidada do estado financeiro do Brechó.
+- Apoiar consultas de saldo e repasses.
+
+## Não é responsabilidade
+
+- Substituir STORE_BALANCE_TRANSACTION.
+- Ser alterado manualmente sem movimentação correspondente.
+- Representar uma solicitação de saque.
+
+## Dono da Informação
+
+Financeiro
+
+## Regras de Negócio
+
+- RN-001 — STORE_BALANCE representa um resumo derivado de STORE_BALANCE_TRANSACTION.
+- RN-002 — Um STORE deve possuir no máximo um STORE_BALANCE ativo.
+- RN-003 — Saldos não devem ser alterados manualmente sem movimentação correspondente.
+- RN-004 — SBL_BLOCKED_AMOUNT representa valores ainda em retenção.
+- RN-005 — SBL_AVAILABLE_AMOUNT representa valores liberados para saque.
+- RN-006 — SBL_PENDING_PAYOUT_AMOUNT representa valores em solicitação de saque.
+- RN-007 — SBL_PAID_AMOUNT representa valores já repassados ao Brechó.
+- RN-008 — STORE_BALANCE não substitui STORE_BALANCE_TRANSACTION.
+- RN-009 — SBL_PUBLIC_ID deve ser CHAR(32).
+- RN-010 — APIs externas usam SBL_PUBLIC_ID, nunca SBL_ID.
+
+## Relacionamentos
+
+- STORE (1:1)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| SBL_ID | NUMBER Identity | Sim |
+| SBL_PUBLIC_ID | CHAR(32) | Sim |
+| STR_ID | NUMBER | Sim |
+| SBL_BLOCKED_AMOUNT | NUMBER(12,2) | Sim |
+| SBL_AVAILABLE_AMOUNT | NUMBER(12,2) | Sim |
+| SBL_PENDING_PAYOUT_AMOUNT | NUMBER(12,2) | Sim |
+| SBL_PAID_AMOUNT | NUMBER(12,2) | Sim |
+| SBL_STATUS | VARCHAR2(20) | Sim |
+| SBL_CREATED_AT | TIMESTAMP | Sim |
+| SBL_UPDATED_AT | TIMESTAMP | Sim |
+| SBL_CREATED_BY | NUMBER | Não |
+| SBL_UPDATED_BY | NUMBER | Não |
+
+SBL_CREATED_BY e SBL_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_STORE_BALANCE
+- UK_STORE_BALANCE_PUBLIC_ID
+- UK_STORE_BALANCE_STORE
+- IDX_STORE_BALANCE_STATUS
+
+## Packages Oracle
+
+- SBL_API_PKG
+- SBL_RULE_PKG
+
+## APIs
+
+- GET /store-balances
+- GET /store-balances/{publicId}
+- PUT /store-balances/{publicId}
+
+## Flutter
+
+- StoreBalanceModel
+- StoreBalanceRepository
+- StoreBalanceController
+- StoreBalancePage
+
+## Observações
+
+STORE_BALANCE é o resumo financeiro consolidado de um Brechó.
+
+Ele é derivado das movimentações registradas em STORE_BALANCE_TRANSACTION e não substitui o livro razão financeiro.
+
+# COMMISSION
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | COMMISSION |
+| Prefixo | COM |
+| Tipo | TRANSACTION |
+| Responsável | Financeiro |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Não |
+| Cache | Não |
+
+## Objetivo
+
+Registrar a comissão da plataforma e taxas descontadas do saldo do Brechó.
+
+## Classificação
+
+TRANSACTION
+
+## Responsabilidades
+
+- Registrar os descontos financeiros aplicados ao Brechó.
+- Documentar a base de cálculo, a comissão e as taxas do gateway.
+- Gerar a movimentação financeira correspondente no saldo interno.
+
+## Não é responsabilidade
+
+- Alterar saldo manualmente.
+- Substituir STORE_BALANCE_TRANSACTION.
+- Definir regras de negócio de pedido.
+
+## Dono da Informação
+
+Financeiro
+
+## Regras de Negócio
+
+- RN-001 — COMMISSION registra os descontos financeiros aplicados ao Brechó.
+- RN-002 — A comissão da plataforma é descontada do valor do Brechó.
+- RN-003 — A taxa do Gateway também é descontada do valor do Brechó.
+- RN-004 — COM_BASE_AMOUNT representa a base de cálculo.
+- RN-005 — COM_COMMISSION_AMOUNT representa o valor da comissão da plataforma.
+- RN-006 — COM_GATEWAY_FEE_AMOUNT representa a taxa do gateway.
+- RN-007 — COM_NET_AMOUNT representa o valor líquido destinado ao Brechó.
+- RN-008 — COMMISSION deve gerar movimentações correspondentes em STORE_BALANCE_TRANSACTION.
+- RN-009 — COM_PUBLIC_ID deve ser CHAR(32).
+- RN-010 — APIs externas usam COM_PUBLIC_ID, nunca COM_ID.
+
+## Relacionamentos
+
+- STORE (N:1)
+- ORDER (N:1)
+- PAYMENT (N:1 opcional)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| COM_ID | NUMBER Identity | Sim |
+| COM_PUBLIC_ID | CHAR(32) | Sim |
+| STR_ID | NUMBER | Sim |
+| ORD_ID | NUMBER | Sim |
+| PAY_ID | NUMBER | Não |
+| COM_BASE_AMOUNT | NUMBER(12,2) | Sim |
+| COM_COMMISSION_RATE | NUMBER(5,2) | Não |
+| COM_COMMISSION_AMOUNT | NUMBER(12,2) | Sim |
+| COM_GATEWAY_FEE_AMOUNT | NUMBER(12,2) | Sim |
+| COM_NET_AMOUNT | NUMBER(12,2) | Sim |
+| COM_STATUS | VARCHAR2(20) | Sim |
+| COM_CREATED_AT | TIMESTAMP | Sim |
+| COM_UPDATED_AT | TIMESTAMP | Sim |
+| COM_CREATED_BY | NUMBER | Não |
+| COM_UPDATED_BY | NUMBER | Não |
+
+COM_CREATED_BY e COM_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_COMMISSION
+- UK_COMMISSION_PUBLIC_ID
+- IDX_COMMISSION_STORE
+- IDX_COMMISSION_ORDER
+- IDX_COMMISSION_PAYMENT
+- IDX_COMMISSION_STATUS
+
+## Packages Oracle
+
+- COM_API_PKG
+- COM_RULE_PKG
+
+## APIs
+
+Nenhuma API pública prevista no MVP.
+
+## Flutter
+
+Uso interno para o módulo financeiro.
+
+## Observações
+
+COMMISSION registra os descontos financeiros aplicados ao Brechó e preserva rastreabilidade do cálculo de repasse.
+
+# PAYOUT
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | PAYOUT |
+| Prefixo | POT |
+| Tipo | TRANSACTION |
+| Responsável | Financeiro |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Sim |
+| Cache | Não |
+
+## Objetivo
+
+Representar uma solicitação de saque/repasse PIX feita por um Brechó.
+
+## Classificação
+
+TRANSACTION
+
+## Responsabilidades
+
+- Registrar solicitações de repasse ao Brechó.
+- Controlar o estado da solicitação de saque.
+- Apoiar o fluxo manual de pagamento ao Brechó.
+
+## Não é responsabilidade
+
+- Alterar saldo diretamente.
+- Substituir STORE_BALANCE_TRANSACTION.
+- Processar pagamentos bancários automaticamente.
+
+## Dono da Informação
+
+Financeiro
+
+## Regras de Negócio
+
+- RN-001 — PAYOUT representa uma solicitação de repasse ao Brechó.
+- RN-002 — PAYOUT só pode ser solicitado se houver saldo disponível suficiente.
+- RN-003 — Ao solicitar PAYOUT, o valor deve sair de saldo disponível e ir para saldo em payout pendente.
+- RN-004 — Quando pago, o valor deve ser marcado como repassado.
+- RN-005 — Quando rejeitado, o valor deve retornar ao saldo disponível.
+- RN-006 — PAYOUT inicialmente será processado manualmente.
+- RN-007 — Futuramente poderá ser processado automaticamente por API bancária ou gateway.
+- RN-008 — POT_PUBLIC_ID deve ser CHAR(32).
+- RN-009 — APIs externas usam POT_PUBLIC_ID, nunca POT_ID.
+- RN-010 — Exclusão deve ser lógica via POT_STATUS.
+
+## Relacionamentos
+
+- STORE (N:1)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| POT_ID | NUMBER Identity | Sim |
+| POT_PUBLIC_ID | CHAR(32) | Sim |
+| STR_ID | NUMBER | Sim |
+| POT_AMOUNT | NUMBER(12,2) | Sim |
+| POT_PIX_KEY | VARCHAR2(200) | Sim |
+| POT_PIX_KEY_TYPE | VARCHAR2(20) | Sim |
+| POT_REQUESTED_AT | TIMESTAMP | Sim |
+| POT_APPROVED_AT | TIMESTAMP | Não |
+| POT_PAID_AT | TIMESTAMP | Não |
+| POT_REJECTED_AT | TIMESTAMP | Não |
+| POT_REJECT_REASON | VARCHAR2(1000) | Não |
+| POT_STATUS | VARCHAR2(20) | Sim |
+| POT_CREATED_AT | TIMESTAMP | Sim |
+| POT_UPDATED_AT | TIMESTAMP | Sim |
+| POT_CREATED_BY | NUMBER | Não |
+| POT_UPDATED_BY | NUMBER | Não |
+
+POT_CREATED_BY e POT_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_PAYOUT
+- UK_PAYOUT_PUBLIC_ID
+- IDX_PAYOUT_STORE
+- IDX_PAYOUT_STATUS
+- IDX_PAYOUT_REQUESTED_AT
+
+## Packages Oracle
+
+- POT_API_PKG
+- POT_RULE_PKG
+
+## APIs
+
+- GET /payouts
+- GET /payouts/{publicId}
+- POST /payouts
+- PUT /payouts/{publicId}
+
+## Flutter
+
+- PayoutModel
+- PayoutRepository
+- PayoutController
+- PayoutPage
+
+## Observações
+
+PAYOUT representa a solicitação de repasse ao Brechó e é o ponto de entrada do fluxo de saque inicial do módulo financeiro.
+
+Ele depende do saldo disponível consolidado e do livro razão financeiro para garantir consistência do fluxo.
+
 # CART
 
 ## Ficha Técnica
@@ -2496,3 +3058,680 @@ ORI_CREATED_BY e ORI_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações
 ORDER_ITEM é uma entidade transacional do módulo Compra.
 
 Ela representa cada item confirmado dentro de um pedido final após a confirmação comercial.
+
+# SHIPMENT
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | SHIPMENT |
+| Prefixo | SHP |
+| Tipo | TRANSACTION |
+| Responsável | Logística |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Sim |
+| Cache | Não |
+
+## Objetivo
+
+Representar uma remessa gerada a partir de um Order, controlando o fluxo operacional da entrega.
+
+## Classificação
+
+TRANSACTION
+
+## Responsabilidades
+
+- Registrar uma remessa operacional derivada de um pedido.
+- Associar uma remessa a um Order, Store, endereço e perfil de entrega.
+- Acompanhar o ciclo logístico da entrega.
+- Servir de base para rastreio e execução operacional.
+
+## Não é responsabilidade
+
+- Representar um pedido completo.
+- Substituir ORDER.
+- Definir regras comerciais.
+- Armazenar dados pessoais sensíveis.
+
+## Dono da Informação
+
+Logística
+
+## Regras de Negócio
+
+- RN-001 — Um ORDER pode gerar vários SHIPMENT.
+- RN-002 — Um SHIPMENT pertence a um ORDER.
+- RN-003 — Um SHIPMENT pode estar associado a um STORE fornecedor.
+- RN-004 — Um SHIPMENT deve possuir endereço de destino.
+- RN-005 — Um SHIPMENT deve possuir um DELIVERY_PROFILE.
+- RN-006 — A modalidade de entrega é definida no SHIPMENT.
+- RN-007 — A escolha da entrega pode ser automática ou manual.
+- RN-008 — A escolha pode considerar distância, endereço, peso, volume, disponibilidade do provedor e regra operacional do Brechó.
+- RN-009 — SHIPMENT representa a entrega concreta aplicada ao pedido.
+- RN-010 — DELIVERY_PROFILE representa a modalidade/configuração de entrega.
+- RN-011 — Futuramente, SHIPMENT poderá se relacionar com CARRIER para representar o provedor logístico executor.
+- RN-012 — SHIPMENT controla o fluxo logístico da entrega.
+- RN-013 — SHP_PUBLIC_ID deve ser CHAR(32).
+- RN-014 — APIs externas usam SHP_PUBLIC_ID, nunca SHP_ID.
+- RN-015 — A exclusão deve ser lógica via SHP_STATUS.
+
+## Relacionamentos
+
+- ORDER (N:1)
+- STORE (N:1)
+- ADDRESS (N:1)
+- DELIVERY_PROFILE (N:1)
+- SHIPMENT_ITEM (1:N)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| SHP_ID | NUMBER Identity | Sim |
+| SHP_PUBLIC_ID | CHAR(32) | Sim |
+| ORD_ID | NUMBER | Sim |
+| STR_ID | NUMBER | Sim |
+| ADR_ID | NUMBER | Sim |
+| DLP_ID | NUMBER | Sim |
+| SHP_TRACKING_CODE | VARCHAR2(100) | Não |
+| SHP_ESTIMATED_DELIVERY_AT | TIMESTAMP | Não |
+| SHP_DELIVERED_AT | TIMESTAMP | Não |
+| SHP_STATUS | VARCHAR2(20) | Sim |
+| SHP_CREATED_AT | TIMESTAMP | Sim |
+| SHP_UPDATED_AT | TIMESTAMP | Sim |
+| SHP_CREATED_BY | NUMBER | Não |
+| SHP_UPDATED_BY | NUMBER | Não |
+
+SHP_CREATED_BY e SHP_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_SHIPMENT
+- UK_SHIPMENT_PUBLIC_ID
+- IDX_SHIPMENT_ORDER
+- IDX_SHIPMENT_STORE
+- IDX_SHIPMENT_ADDRESS
+- IDX_SHIPMENT_DELIVERY_PROFILE
+- IDX_SHIPMENT_STATUS
+
+## Packages Oracle
+
+- SHP_API_PKG
+- SHP_RULE_PKG
+
+## APIs
+
+- GET /shipments
+- GET /shipments/{publicId}
+- POST /shipments
+- PUT /shipments/{publicId}
+
+## Flutter
+
+- ShipmentModel
+- ShipmentRepository
+- ShipmentController
+- ShipmentPage
+
+## Observações
+
+SHIPMENT é uma entidade transacional do módulo Logística.
+
+Ela representa a remessa operacional concreta gerada a partir de um pedido.
+
+SHIPMENT é o ponto onde a decisão logística é aplicada ao pedido. Um mesmo pedido pode gerar diferentes remessas com perfis de entrega distintos.
+
+Futuramente SHIPMENT poderá registrar eventos operacionais através da entidade SHIPMENT_EVENT, permitindo integração com provedores logísticos externos e histórico completo do ciclo de entrega.
+
+A execução física da entrega poderá ser realizada por diferentes provedores logísticos, mantendo SHIPMENT desacoplado de integrações específicas.
+
+# SHIPMENT_ITEM
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | SHIPMENT_ITEM |
+| Prefixo | SHI |
+| Tipo | TRANSACTION |
+| Responsável | Logística |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Sim |
+| Cache | Não |
+
+## Objetivo
+
+Representar os itens de pedido incluídos em uma remessa, vinculando itens concretos a uma entrega operacional.
+
+## Classificação
+
+TRANSACTION
+
+## Responsabilidades
+
+- Registrar quais ORDER_ITEM fazem parte de uma SHIPMENT.
+- Acompanhar a quantidade enviada em cada remessa.
+- Apoiar a execução operacional da logística.
+- Manter a rastreabilidade da entrega.
+
+## Não é responsabilidade
+
+- Definir o pedido completo.
+- Substituir ORDER_ITEM.
+- Substituir PRODUCT.
+
+## Dono da Informação
+
+Logística
+
+## Regras de Negócio
+
+- RN-001 — SHIPMENT_ITEM representa um ORDER_ITEM dentro de um SHIPMENT.
+- RN-002 — Um SHIPMENT pode possuir vários SHIPMENT_ITEM.
+- RN-003 — Um ORDER_ITEM pode estar em apenas um SHIPMENT ativo.
+- RN-004 — A quantidade enviada deve ser maior que zero.
+- RN-005 — SHI_PUBLIC_ID deve ser CHAR(32).
+- RN-006 — APIs externas usam SHI_PUBLIC_ID, nunca SHI_ID.
+- RN-007 — A exclusão deve ser lógica via SHI_STATUS.
+
+## Relacionamentos
+
+- SHIPMENT (N:1)
+- ORDER_ITEM (N:1)
+- PRODUCT (N:1)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| SHI_ID | NUMBER Identity | Sim |
+| SHI_PUBLIC_ID | CHAR(32) | Sim |
+| SHP_ID | NUMBER | Sim |
+| ORI_ID | NUMBER | Sim |
+| PRD_ID | NUMBER | Sim |
+| SHI_QUANTITY | NUMBER | Sim |
+| SHI_STATUS | VARCHAR2(20) | Sim |
+| SHI_CREATED_AT | TIMESTAMP | Sim |
+| SHI_UPDATED_AT | TIMESTAMP | Sim |
+| SHI_CREATED_BY | NUMBER | Não |
+| SHI_UPDATED_BY | NUMBER | Não |
+
+SHI_CREATED_BY e SHI_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_SHIPMENT_ITEM
+- UK_SHIPMENT_ITEM_PUBLIC_ID
+- IDX_SHIPMENT_ITEM_SHIPMENT
+- IDX_SHIPMENT_ITEM_ORDER_ITEM
+- IDX_SHIPMENT_ITEM_PRODUCT
+- IDX_SHIPMENT_ITEM_STATUS
+
+## Packages Oracle
+
+- SHI_API_PKG
+- SHI_RULE_PKG
+
+## APIs
+
+- GET /shipment-items
+- GET /shipment-items/{publicId}
+- POST /shipment-items
+- PUT /shipment-items/{publicId}
+
+## Flutter
+
+- ShipmentItemModel
+- ShipmentItemRepository
+- ShipmentItemController
+- ShipmentItemPage
+
+## Observações
+
+SHIPMENT_ITEM é uma entidade transacional do módulo Logística.
+
+Ela representa os itens concretos que compõem uma remessa operacional.
+
+# DELIVERY_PROFILE
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | DELIVERY_PROFILE |
+| Prefixo | DLP |
+| Tipo | CONFIGURATION |
+| Responsável | Logística |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Sim |
+| Cache | Sim |
+
+## Objetivo
+
+Representar modalidades e configurações de entrega disponíveis para as remessas da plataforma, sem representar uma entrega concreta e sem representar um provedor logístico.
+
+## Classificação
+
+CONFIGURATION
+
+## Responsabilidades
+
+- Definir modalidades de entrega disponíveis.
+- Parametrizar regras de entrega, como preço base, distância máxima e peso máximo.
+- Apoiar a escolha da modalidade de entrega em cada SHIPMENT.
+- Servir como referência operacional para logística.
+
+## Não é responsabilidade
+
+- Representar uma entrega específica.
+- Armazenar dados de pedido.
+- Substituir SHIPMENT.
+- Definir regras comerciais de produto.
+
+## Dono da Informação
+
+Logística
+
+## Regras de Negócio
+
+- RN-001 — DELIVERY_PROFILE define modalidades disponíveis.
+- RN-002 — Exemplos oficiais: PICKUP, LOCAL, EXPRESS, NATIONAL.
+- RN-003 — DLP_CODE deve ser único.
+- RN-004 — DELIVERY_PROFILE pode definir preço base, distância máxima e peso máximo.
+- RN-005 — DLP_IS_EXPRESS indica entrega rápida ou local.
+- RN-006 — DELIVERY_PROFILE não executa a entrega.
+- RN-007 — A execução concreta acontece em SHIPMENT.
+- RN-008 — A escolha final do perfil ocorre no SHIPMENT.
+- RN-009 — DELIVERY_PROFILE representa apenas a modalidade da entrega. O provedor responsável pela execução poderá ser definido futuramente através da entidade CARRIER.
+- RN-010 — Futuramente, a execução poderá ser delegada a CARRIER.
+- RN-011 — DLP_PUBLIC_ID deve ser CHAR(32).
+- RN-012 — APIs externas usam DLP_PUBLIC_ID, nunca DLP_ID.
+- RN-013 — A exclusão deve ser lógica via DLP_STATUS.
+
+## Relacionamentos
+
+- SHIPMENT (1:N)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| DLP_ID | NUMBER Identity | Sim |
+| DLP_PUBLIC_ID | CHAR(32) | Sim |
+| DLP_CODE | VARCHAR2(50) | Sim |
+| DLP_NAME | VARCHAR2(100) | Sim |
+| DLP_DESCRIPTION | VARCHAR2(500) | Não |
+| DLP_BASE_PRICE | NUMBER(12,2) | Não |
+| DLP_MAX_DISTANCE_KM | NUMBER(10,2) | Não |
+| DLP_MAX_WEIGHT_KG | NUMBER(10,2) | Não |
+| DLP_IS_EXPRESS | NUMBER(1) | Sim |
+| DLP_STATUS | VARCHAR2(20) | Sim |
+| DLP_CREATED_AT | TIMESTAMP | Sim |
+| DLP_UPDATED_AT | TIMESTAMP | Sim |
+| DLP_CREATED_BY | NUMBER | Não |
+| DLP_UPDATED_BY | NUMBER | Não |
+
+DLP_CREATED_BY e DLP_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_DELIVERY_PROFILE
+- UK_DELIVERY_PROFILE_PUBLIC_ID
+- UK_DELIVERY_PROFILE_CODE
+- IDX_DELIVERY_PROFILE_STATUS
+
+## Packages Oracle
+
+- DLP_API_PKG
+- DLP_RULE_PKG
+
+## APIs
+
+- GET /delivery-profiles
+- GET /delivery-profiles/{publicId}
+- POST /delivery-profiles
+- PUT /delivery-profiles/{publicId}
+
+## Flutter
+
+- DeliveryProfileModel
+- DeliveryProfileRepository
+- DeliveryProfileController
+- DeliveryProfilePage
+
+## Observações
+
+DELIVERY_PROFILE é uma entidade de configuração do módulo Logística.
+
+Ela funciona como catálogo de modalidades logísticas. SHIPMENT registra qual modalidade foi aplicada ao pedido.
+
+Exemplos de provedores logísticos como Correios, Lalamove, 99 Entrega, Uber Direct ou Motoboy Próprio não pertencem ao conceito de DELIVERY_PROFILE. Esses provedores poderão ser representados futuramente pela entidade CARRIER.
+
+# PAYMENT_PROVIDER
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | PAYMENT_PROVIDER |
+| Prefixo | PPR |
+| Tipo | CONFIGURATION |
+| Responsável | Financeiro |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Sim |
+| Cache | Sim |
+
+## Objetivo
+
+Representar provedores responsáveis pelo processamento financeiro da plataforma.
+
+Exemplos oficiais:
+- PagSeguro
+- Mercado Pago
+- Asaas
+- Stripe
+
+## Classificação
+
+CONFIGURATION
+
+## Responsabilidades
+
+- Cadastrar os Gateways de Pagamento utilizados pela plataforma.
+- Armazenar a configuração operacional associada a cada provedor.
+- Identificar qual provedor foi utilizado em cada pagamento.
+
+## Não é responsabilidade
+
+- Receber pagamentos diretamente.
+- Confirmar pagamentos.
+- Definir regras comerciais de pedidos.
+- Armazenar dados de clientes para fins de cobrança.
+
+## Dono da Informação
+
+Financeiro
+
+## Regras de Negócio
+
+- RN-001 — Um Gateway representa apenas um provedor.
+- RN-002 — PAYMENT referencia exatamente um PAYMENT_PROVIDER.
+- RN-003 — PPR_PUBLIC_ID deve ser CHAR(32).
+- RN-004 — APIs utilizam apenas PUBLIC_ID.
+- RN-005 — A exclusão deve ser lógica via PPR_STATUS.
+
+## Relacionamentos
+
+- PAYMENT (1:N)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| PPR_ID | NUMBER Identity | Sim |
+| PPR_PUBLIC_ID | CHAR(32) | Sim |
+| PPR_CODE | VARCHAR2(50) | Sim |
+| PPR_NAME | VARCHAR2(100) | Sim |
+| PPR_STATUS | VARCHAR2(20) | Sim |
+| PPR_CREATED_AT | TIMESTAMP | Sim |
+| PPR_UPDATED_AT | TIMESTAMP | Sim |
+| PPR_CREATED_BY | NUMBER | Não |
+| PPR_UPDATED_BY | NUMBER | Não |
+
+PPR_CREATED_BY e PPR_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_PAYMENT_PROVIDER
+- UK_PAYMENT_PROVIDER_PUBLIC_ID
+- UK_PAYMENT_PROVIDER_CODE
+- IDX_PAYMENT_PROVIDER_STATUS
+
+## Packages Oracle
+
+- PPR_API_PKG
+- PPR_RULE_PKG
+
+## APIs
+
+- GET /payment-providers
+- GET /payment-providers/{publicId}
+- POST /payment-providers
+- PUT /payment-providers/{publicId}
+
+## Flutter
+
+- PaymentProviderModel
+- PaymentProviderRepository
+- PaymentProviderController
+- PaymentProviderPage
+
+## Observações
+
+PAYMENT_PROVIDER é a entidade de configuração do módulo financeiro que representa os provedores externos utilizados para processar pagamentos.
+
+Ela não representa o pagamento em si, mas a referência oficial do gateway utilizado por cada operação.
+
+# PAYMENT
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | PAYMENT |
+| Prefixo | PAY |
+| Tipo | TRANSACTION |
+| Responsável | Financeiro |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Sim |
+| Cache | Não |
+
+## Objetivo
+
+Representar um pagamento realizado pelo cliente e registrado pela plataforma.
+
+## Classificação
+
+TRANSACTION
+
+## Responsabilidades
+
+- Registrar um pagamento associado a um pedido.
+- Vincular o pagamento ao provedor financeiro utilizado.
+- Apoiar o acompanhamento do fluxo de cobrança.
+- Permitir a integração com eventos de confirmação emitidos pelos Gateways.
+
+## Não é responsabilidade
+
+- Confirmar pagamentos sozinho.
+- Executar integração com Gateways diretamente.
+- Definir comissão ou repasse financeiro.
+- Substituir ORDER.
+
+## Dono da Informação
+
+Financeiro
+
+## Regras de Negócio
+
+- RN-001 — Todo PAYMENT pertence a um ORDER.
+- RN-002 — Todo PAYMENT utiliza um PAYMENT_PROVIDER.
+- RN-003 — PAYMENT nunca confirma pagamento sozinho.
+- RN-004 — A confirmação ocorre exclusivamente através de PAYMENT_EVENT.
+- RN-005 — APIs nunca utilizam PAY_ID.
+- RN-006 — PAY_PUBLIC_ID deve ser CHAR(32).
+- RN-007 — A exclusão deve ser lógica via PAY_STATUS.
+
+## Relacionamentos
+
+- ORDER (N:1)
+- PAYMENT_PROVIDER (N:1)
+- PAYMENT_EVENT (1:N)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| PAY_ID | NUMBER Identity | Sim |
+| PAY_PUBLIC_ID | CHAR(32) | Sim |
+| ORD_ID | NUMBER | Sim |
+| PPR_ID | NUMBER | Sim |
+| PAY_EXTERNAL_ID | VARCHAR2(100) | Não |
+| PAY_AMOUNT | NUMBER(12,2) | Sim |
+| PAY_METHOD | VARCHAR2(20) | Sim |
+| PAY_STATUS | VARCHAR2(20) | Sim |
+| PAY_CREATED_AT | TIMESTAMP | Sim |
+| PAY_UPDATED_AT | TIMESTAMP | Sim |
+| PAY_CREATED_BY | NUMBER | Não |
+| PAY_UPDATED_BY | NUMBER | Não |
+
+PAY_CREATED_BY e PAY_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_PAYMENT
+- UK_PAYMENT_PUBLIC_ID
+- IDX_PAYMENT_ORDER
+- IDX_PAYMENT_PROVIDER
+- IDX_PAYMENT_STATUS
+
+## Packages Oracle
+
+- PAY_API_PKG
+- PAY_RULE_PKG
+
+## APIs
+
+- GET /payments
+- GET /payments/{publicId}
+- POST /payments
+- PUT /payments/{publicId}
+
+## Flutter
+
+- PaymentModel
+- PaymentRepository
+- PaymentController
+- PaymentPage
+
+## Observações
+
+PAYMENT é a entidade transacional central do módulo financeiro.
+
+Ela representa a intenção e o registro do pagamento realizado pelo cliente, mas a confirmação do estado financeiro ocorre exclusivamente por meio de PAYMENT_EVENT.
+
+Os meios aceitos inicialmente incluem PIX, Cartão, Débito, Crédito e outros meios futuros.
+
+# PAYMENT_EVENT
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | PAYMENT_EVENT |
+| Prefixo | PEV |
+| Tipo | TRANSACTION |
+| Responsável | Financeiro |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Sim |
+| Cache | Não |
+
+## Objetivo
+
+Registrar todos os eventos enviados pelos Gateways de Pagamento e recebidos por Webhook.
+
+## Classificação
+
+TRANSACTION
+
+## Responsabilidades
+
+- Registrar cada evento recebido do provedor financeiro.
+- Preservar o payload bruto para auditoria.
+- Acompanhar a evolução do estado de um pagamento.
+- Permitir múltiplos eventos para o mesmo pagamento.
+
+## Não é responsabilidade
+
+- Alterar o estado de um pagamento sem evento válido.
+- Interpretar o pagamento sem contexto de auditoria.
+- Substituir PAYMENT.
+- Definir comissão ou saldo.
+
+## Dono da Informação
+
+Financeiro
+
+## Regras de Negócio
+
+- RN-001 — PAYMENT_EVENT representa um evento recebido por Webhook.
+- RN-002 — Nenhum PAYMENT muda de estado sem um PAYMENT_EVENT correspondente.
+- RN-003 — O payload recebido deve ser preservado para auditoria.
+- RN-004 — O sistema deve aceitar múltiplos eventos para o mesmo PAYMENT.
+- RN-005 — PEV_PUBLIC_ID deve ser CHAR(32).
+- RN-006 — APIs utilizam apenas PUBLIC_ID.
+- RN-007 — A exclusão deve ser lógica via PEV_STATUS.
+
+## Relacionamentos
+
+- PAYMENT (N:1)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| PEV_ID | NUMBER Identity | Sim |
+| PEV_PUBLIC_ID | CHAR(32) | Sim |
+| PAY_ID | NUMBER | Sim |
+| PEV_EVENT_TYPE | VARCHAR2(50) | Sim |
+| PEV_EXTERNAL_EVENT_ID | VARCHAR2(100) | Não |
+| PEV_EVENT_AT | TIMESTAMP | Sim |
+| PEV_RAW_PAYLOAD | CLOB | Sim |
+| PEV_STATUS | VARCHAR2(20) | Sim |
+| PEV_CREATED_AT | TIMESTAMP | Sim |
+| PEV_UPDATED_AT | TIMESTAMP | Sim |
+| PEV_CREATED_BY | NUMBER | Não |
+| PEV_UPDATED_BY | NUMBER | Não |
+
+PEV_CREATED_BY e PEV_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_PAYMENT_EVENT
+- UK_PAYMENT_EVENT_PUBLIC_ID
+- IDX_PAYMENT_EVENT_PAYMENT
+- IDX_PAYMENT_EVENT_STATUS
+- IDX_PAYMENT_EVENT_EVENT_AT
+
+## Packages Oracle
+
+- PEV_API_PKG
+- PEV_RULE_PKG
+
+## APIs
+
+- GET /payment-events
+- GET /payment-events/{publicId}
+- POST /payment-events
+- PUT /payment-events/{publicId}
+
+## Flutter
+
+- PaymentEventModel
+- PaymentEventRepository
+- PaymentEventController
+- PaymentEventPage
+
+## Observações
+
+PAYMENT_EVENT é a entidade de auditoria e rastreabilidade do módulo financeiro.
+
+Ela registra a origem dos estados de pagamento e garante que toda mudança significativa seja rastreada a partir de eventos recebidos dos Gateways de Pagamento.

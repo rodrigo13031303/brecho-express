@@ -191,3 +191,88 @@ O Flutter nunca acessa SQL, nunca conhece a estrutura interna do banco e deve co
 - A aplicação fica mais segura e desacoplada.
 - Mudanças internas no banco não impactam diretamente a interface.
 - A responsabilidade de integração fica concentrada na camada de dados da aplicação.
+
+## ADR-011 — Arquitetura Financeira baseada em Livro Razão
+
+| Campo | Valor |
+|------|-------|
+| Status | Aceito |
+| Data | 2026-07-01 |
+| Área | Financeiro |
+
+### Contexto
+O módulo financeiro precisa de rastreabilidade completa, auditoria e suporte a retenção, estornos e conciliação.
+
+### Decisão
+O Brechó Express utilizará STORE_BALANCE_TRANSACTION como Ledger Financeiro oficial.
+
+STORE_BALANCE será apenas uma visão consolidada derivada das movimentações.
+
+### Consequências
+- Auditoria completa.
+- Rastreabilidade.
+- Facilidade para estornos.
+- Facilidade para conciliação.
+- Escalabilidade financeira.
+
+## ADR-012 — Tipos de Movimentação Financeira serão Parametrizáveis
+
+| Campo | Valor |
+|------|-------|
+| Status | Aceito |
+| Data | 2026-07-01 |
+| Área | Financeiro |
+
+### Contexto
+O módulo financeiro pode evoluir com diferentes tipos de movimentação e é importante não sobrecarregar o MVP com complexidade prematura.
+
+### Decisão
+Neste momento SBT_TYPE permanece como VARCHAR2.
+
+Futuramente poderá ser substituído por uma entidade de configuração, como BALANCE_TRANSACTION_TYPE, caso a quantidade de tipos de movimentação aumente.
+
+### Motivação
+Evitar complexidade desnecessária no MVP, mantendo possibilidade de evolução.
+
+## ADR-013 — Conta Financeira do Brechó
+
+| Campo | Valor |
+|------|-------|
+| Status | Aceito |
+| Data | 2026-07-01 |
+| Área | Financeiro |
+
+### Contexto
+O fluxo inicial de repasse precisa ser simples, mas deve permitir evolução futura para múltiplos canais financeiros.
+
+### Decisão
+Inicialmente PAYOUT armazenará diretamente a chave PIX.
+
+Futuramente poderá existir uma entidade STORE_PAYMENT_ACCOUNT para suportar:
+- PIX
+- Conta Bancária
+- Mercado Pago
+- PagBank
+- Outros provedores financeiros.
+
+### Motivação
+Manter simplicidade no MVP e permitir expansão futura.
+
+## ADR-014 — Estados Financeiros de Retenção
+
+| Campo | Valor |
+|------|-------|
+| Status | Aceito |
+| Data | 2026-07-01 |
+| Área | Financeiro |
+
+### Contexto
+Valores recebidos poderão permanecer temporariamente bloqueados antes de ficarem disponíveis ao Brechó.
+
+### Decisão
+A retenção será representada através de movimentações financeiras, como HOLD e RELEASE, no Ledger Financeiro.
+
+Nenhuma entidade adicional será criada neste momento.
+
+### Motivação
+Permitir retenção de valores para devoluções e disputas utilizando a própria arquitetura do Ledger.

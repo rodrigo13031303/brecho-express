@@ -2,15 +2,18 @@
 
 ## 1. Objetivo
 
-Este documento apresenta a visão arquitetural oficial do domínio modelado até a Sprint 2 do Brechó Express.
+Este documento apresenta a visão arquitetural oficial do domínio modelado até a Sprint 5A do Brechó Express.
 
-A proposta é consolidar, de forma objetiva, a estrutura conceitual dos módulos de Identidade, Brechós e Catálogo, sem detalhar implementação Oracle, SQL ou Flutter.
+A proposta é consolidar, de forma objetiva, a estrutura conceitual dos módulos de Identidade, Brechós, Catálogo, Compra, Logística e Financeiro, sem detalhar implementação Oracle, SQL ou Flutter.
 
 ## 2. Módulos contemplados
 
 - Identidade
 - Brechós
 - Catálogo
+- Compra
+- Logística
+- Financeiro
 
 ## 3. Identidade
 
@@ -85,12 +88,9 @@ STORE
       ▼
 PRODUCT
       │
- ┌────┼───────────────┐
- ▼    ▼               ▼
-CATEGORY BRAND PRODUCT_STATUS
-                     │
-                     ▼
-               PRODUCT_IMAGE
+ ┌────┼──────────────┬──────────────┬──────────────┐
+ ▼    ▼              ▼              ▼              ▼
+CATEGORY BRAND   PRODUCT_STATUS   PRODUCT_IMAGE   PRODUCT_QUESTION
 ```
 
 Resumo do módulo:
@@ -101,6 +101,8 @@ Resumo do módulo:
 - BRAND organiza os Achados por marca.
 - PRODUCT_STATUS controla o ciclo de vida e a visibilidade do Achado.
 - PRODUCT_IMAGE representa as imagens associadas ao Achado.
+- PRODUCT_QUESTION representa o contexto de interação pública de pré-venda entre clientes e Brechós.
+- PRODUCT_QUESTION não substitui STORE_REVIEW e não representa avaliação pós-venda; faz parte do processo de descoberta e decisão de compra.
 
 ## 6. Aggregate Roots do Domínio
 
@@ -109,12 +111,14 @@ Os Aggregate Roots atuais do domínio são:
 - PROFILE
 - STORE
 - PRODUCT
+- ORDER
 
 Esses conceitos funcionam como raízes de agregação porque concentram a identidade e a consistência interna de seus respectivos contextos:
 
 - PROFILE é a raiz de identidade da pessoa no domínio.
 - STORE é a raiz organizacional do contexto de Brechós.
 - PRODUCT é a raiz do catálogo e representa o principal objeto de negócio do módulo de Achados.
+- ORDER é a raiz do contexto de Compra e concentra a consistência do ciclo de pedido, desde a confirmação da compra até a evolução do processamento comercial.
 
 ## 7. Classificação das Entidades
 
@@ -220,15 +224,13 @@ STORE
   ▼
 PRODUCT
   │
-  ├───────────────┐
-  │               │
-  ▼               ▼
-CATEGORY        BRAND
-  │               │
-  │               ▼
-  │           PRODUCT_STATUS
-  ▼
-PRODUCT_IMAGE
+  ├───────────────┬───────────────┬───────────────┐
+  │               │               │               │
+  ▼               ▼               ▼               ▼
+CATEGORY        BRAND      PRODUCT_STATUS   PRODUCT_IMAGE
+                                                    │
+                                                    ▼
+                                             PRODUCT_QUESTION
 
 ACCOUNT
   │
@@ -252,15 +254,19 @@ A evolução arquitetural do Brechó Express pode ser acompanhada por sprints.
 
 ### Sprint 3
 
-⬜ Compra
+✔ Compra
 
 ### Sprint 4
 
-⬜ Logística
+✔ Logística
 
-### Sprint 5
+### Sprint 5A
 
-⬜ Financeiro
+✔ Infraestrutura Financeira
+
+### Sprint 5B
+
+⬜ Wallet Financeira
 
 ### Sprint 6
 
@@ -282,5 +288,7 @@ A evolução arquitetural do Brechó Express pode ser acompanhada por sprints.
 - PRODUCT é apresentado na interface como Achado, embora o modelo técnico utilize o termo PRODUCT.
 - CATEGORY, BRAND e PRODUCT_STATUS são configurações do catálogo.
 - PRODUCT_IMAGE é o suporte visual do Achado.
-- O domínio modelado até a Sprint 2 ainda não contempla Compra, Logística, Financeiro ou Pós-venda.
-- Esses módulos serão modelados em sprints futuras.
+- Compra já está modelada no domínio.
+- Logística já está modelada no domínio.
+- A Infraestrutura Financeira foi modelada na Sprint 5A.
+- A Wallet Financeira, incluindo saldo, comissão e payout, será modelada na Sprint 5B.
