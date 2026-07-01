@@ -3735,3 +3735,420 @@ PEV_CREATED_BY e PEV_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações
 PAYMENT_EVENT é a entidade de auditoria e rastreabilidade do módulo financeiro.
 
 Ela registra a origem dos estados de pagamento e garante que toda mudança significativa seja rastreada a partir de eventos recebidos dos Gateways de Pagamento.
+
+# RETURN_REQUEST
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | RETURN_REQUEST |
+| Prefixo | RRQ |
+| Tipo | TRANSACTION |
+| Responsável | Pós-venda |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Sim |
+| Cache | Não |
+
+## Objetivo
+
+Representar oficialmente um processo de pós-venda iniciado após um pedido, permitindo análise, mediação, resolução e encerramento de uma ocorrência.
+
+## Classificação
+
+TRANSACTION
+
+## Responsabilidades
+
+- Registrar oficialmente uma ocorrência de pós-venda vinculada a um pedido.
+- Acompanhar o ciclo de abertura, análise, decisão e encerramento de uma solicitação.
+- Servir como aggregate root do módulo de Pós-venda.
+- Dar suporte à mediação, evidência e resolução de problemas após a compra.
+- Registrar a resposta do Brechó quando aplicável.
+- Registrar a origem da ocorrência.
+- Registrar a decisão separadamente do encerramento.
+- Diferenciar prioridade operacional de severidade da ocorrência.
+
+## Não é responsabilidade
+
+- Garantir automaticamente a devolução ou estorno.
+- Substituir a lógica financeira ou operacional do módulo de pagamento.
+- Definir regras operacionais específicas sem apoio de BUSINESS_CONFIGURATION.
+- Armazenar evidências diretamente sem o uso de uma entidade complementar.
+
+## Dono da Informação
+
+Pós-venda / Operação
+
+## Regras de Negócio
+
+- RN-001 — Todo RETURN_REQUEST pertence a um ORDER.
+- RN-002 — Nem todo RETURN_REQUEST resulta em devolução.
+- RN-003 — RETURN_REQUEST representa um processo de pós-venda e não apenas uma devolução técnica.
+- RN-004 — Evidências deverão ser armazenadas em RETURN_ATTACHMENT.
+- RN-005 — RRQ_REASON_CODE deverá permitir futura parametrização.
+- RN-006 — RRQ_STATUS representa o estado do processo.
+- RN-007 — RRQ_RESULT representa a decisão final.
+- RN-008 — RRQ_DECIDED_AT registra quando a decisão foi tomada.
+- RN-009 — RRQ_DECIDED_BY registra quem tomou a decisão.
+- RN-010 — RRQ_CLOSED_AT registra quando o processo foi encerrado.
+- RN-011 — Decisão e encerramento são momentos distintos.
+- RN-012 — RRQ_STORE_RESPONSE registra a resposta formal do Brechó durante a análise.
+- RN-013 — RRQ_SOURCE indica a origem da ocorrência, como CUSTOMER, STORE, SYSTEM ou ADMIN.
+- RN-014 — RRQ_SEVERITY indica a gravidade da ocorrência.
+- RN-015 — RRQ_PRIORITY indica prioridade operacional de atendimento.
+- RN-016 — RRQ_RESULT só deve ser preenchido quando houver decisão ou estado final compatível.
+- RN-017 — RRQ_CLOSED_AT só deve ser preenchido quando o processo estiver em estado final.
+- RN-018 — Um ORDER pode possuir várias RETURN_REQUEST ao longo do tempo, desde que representem ocorrências distintas.
+- RN-019 — RRQ_PUBLIC_ID deve ser CHAR(32).
+- RN-020 — APIs utilizam RRQ_PUBLIC_ID.
+- RN-021 — Toda ocorrência deve possuir histórico auditável.
+- RN-022 — Toda resolução deverá respeitar a ADR_POST_SALES_POLICY.
+- RN-023 — Regras operacionais específicas deverão ser controladas por BUSINESS_CONFIGURATION.
+
+## Relacionamentos
+
+- ORDER (N:1)
+- STORE (N:1)
+- PROFILE (Cliente) (N:1)
+- PROFILE (Responsável pela análise) (N:1 opcional)
+- PROFILE (Responsável pela decisão) (N:1 opcional)
+- STORE_USER (Responsável operacional do Brechó) (N:1 opcional futuro)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| RRQ_ID | NUMBER Identity | Sim |
+| RRQ_PUBLIC_ID | CHAR(32) | Sim |
+| ORD_ID | NUMBER | Sim |
+| STR_ID | NUMBER | Sim |
+| PFL_ID | NUMBER | Sim |
+| RRQ_REASON_CODE | VARCHAR2(50) | Sim |
+| RRQ_DESCRIPTION | VARCHAR2(2000) | Não |
+| RRQ_STATUS | VARCHAR2(20) | Sim |
+| RRQ_RESULT | VARCHAR2(50) | Não |
+| RRQ_PRIORITY | VARCHAR2(20) | Não |
+| RRQ_SEVERITY | VARCHAR2(20) | Não |
+| RRQ_SOURCE | VARCHAR2(50) | Sim |
+| RRQ_REQUESTED_AT | TIMESTAMP | Sim |
+| RRQ_DECIDED_AT | TIMESTAMP | Não |
+| RRQ_DECIDED_BY | NUMBER | Não |
+| RRQ_CLOSED_AT | TIMESTAMP | Não |
+| RRQ_CLOSED_BY | NUMBER | Não |
+| RRQ_STORE_RESPONSE | VARCHAR2(2000) | Não |
+| RRQ_CREATED_AT | TIMESTAMP | Sim |
+| RRQ_UPDATED_AT | TIMESTAMP | Sim |
+| RRQ_CREATED_BY | NUMBER | Não |
+| RRQ_UPDATED_BY | NUMBER | Não |
+
+RRQ_CREATED_BY e RRQ_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_RETURN_REQUEST
+- UK_RETURN_REQUEST_PUBLIC_ID
+- IDX_RETURN_REQUEST_ORDER
+- IDX_RETURN_REQUEST_STORE
+- IDX_RETURN_REQUEST_STATUS
+- IDX_RETURN_REQUEST_SOURCE
+- IDX_RETURN_REQUEST_SEVERITY
+- IDX_RETURN_REQUEST_PRIORITY
+
+## Packages Oracle
+
+- RRQ_API_PKG
+- RRQ_RULE_PKG
+
+## APIs
+
+- GET /return-requests
+- GET /return-requests/{publicId}
+- POST /return-requests
+- PUT /return-requests/{publicId}
+
+## Flutter
+
+- ReturnRequestModel
+- ReturnRequestRepository
+- ReturnRequestController
+- ReturnRequestPage
+
+## Observações
+
+RETURN_REQUEST representa o Aggregate Root do módulo de Pós-venda.
+
+Ele separa abertura, análise, decisão e encerramento, permitindo evolução futura para mediação, disputa, fraude e resolução financeira.
+
+Nem toda ocorrência resultará em devolução, estorno ou compensação financeira.
+
+# STORE_REVIEW
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | STORE_REVIEW |
+| Prefixo | SRV |
+| Tipo | TRANSACTION |
+| Responsável | Experiência do Cliente |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Sim |
+| Cache | Sim |
+
+## Objetivo
+
+Representar a avaliação realizada pelo cliente após a conclusão de um pedido, registrando sua experiência de compra e contribuindo para a reputação do Brechó.
+
+## Classificação
+
+TRANSACTION
+
+## Responsabilidades
+
+- Registrar a experiência do cliente.
+- Avaliar a qualidade da compra.
+- Permitir comentário público.
+- Permitir resposta pública do Brechó.
+- Alimentar STORE_REPUTATION.
+- Alimentar indicadores de qualidade.
+- Futuramente integrar com o programa de fidelidade.
+
+## Não é responsabilidade
+
+- Resolver disputas.
+- Gerenciar devoluções.
+- Movimentar financeiro.
+- Armazenar reputação consolidada.
+
+## Dono da Informação
+
+Cliente / Experiência do Cliente
+
+## Regras de Negócio
+
+- RN-001 — Cada ORDER pode possuir no máximo uma STORE_REVIEW.
+- RN-002 — Apenas pedidos concluídos podem ser avaliados.
+- RN-003 — O cliente pode editar sua avaliação dentro do período definido em BUSINESS_CONFIGURATION.
+- RN-004 — O Brechó pode responder publicamente à avaliação.
+- RN-005 — A resposta do Brechó não altera a avaliação do cliente.
+- RN-006 — STORE_REVIEW alimenta STORE_REPUTATION.
+- RN-007 — APIs utilizam SRV_PUBLIC_ID.
+- RN-008 — SRV_PUBLIC_ID deve ser CHAR(32).
+- RN-009 — Fotos da avaliação poderão ser adicionadas futuramente por entidade específica.
+- RN-010 — Regras de prazo, edição e pontuação deverão ser controladas por BUSINESS_CONFIGURATION.
+
+## Relacionamentos
+
+- ORDER (N:1)
+- STORE (N:1)
+- PROFILE (Cliente) (N:1)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| SRV_ID | NUMBER Identity | Sim |
+| SRV_PUBLIC_ID | CHAR(32) | Sim |
+| ORD_ID | NUMBER | Sim |
+| STR_ID | NUMBER | Sim |
+| PFL_ID | NUMBER | Sim |
+| SRV_OVERALL_RATE | NUMBER | Sim |
+| SRV_PRODUCT_MATCH_RATE | NUMBER | Não |
+| SRV_CONSERVATION_RATE | NUMBER | Não |
+| SRV_SERVICE_RATE | NUMBER | Não |
+| SRV_DELIVERY_RATE | NUMBER | Não |
+| SRV_PACKAGING_RATE | NUMBER | Não |
+| SRV_WOULD_BUY_AGAIN | CHAR(1) | Não |
+| SRV_COMMENT | VARCHAR2(2000) | Não |
+| SRV_STORE_REPLY | VARCHAR2(2000) | Não |
+| SRV_STATUS | VARCHAR2(20) | Sim |
+| SRV_REVIEWED_AT | TIMESTAMP | Sim |
+| SRV_CREATED_AT | TIMESTAMP | Sim |
+| SRV_UPDATED_AT | TIMESTAMP | Sim |
+| SRV_CREATED_BY | NUMBER | Não |
+| SRV_UPDATED_BY | NUMBER | Não |
+
+SRV_CREATED_BY e SRV_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_STORE_REVIEW
+- UK_STORE_REVIEW_PUBLIC_ID
+- UK_STORE_REVIEW_ORDER
+- IDX_STORE_REVIEW_STORE
+- IDX_STORE_REVIEW_RATE
+
+## Packages Oracle
+
+- SRV_API_PKG
+- SRV_RULE_PKG
+
+## APIs
+
+- GET /reviews
+- GET /reviews/{publicId}
+- POST /reviews
+- PUT /reviews/{publicId}
+
+## Flutter
+
+- StoreReviewModel
+- StoreReviewRepository
+- StoreReviewController
+- StoreReviewPage
+
+## Observações
+
+STORE_REVIEW representa a percepção pública do cliente sobre sua experiência de compra.
+
+As avaliações são um dos principais mecanismos de confiança do Brechó Express e constituem a base para a reputação dos Brechós.
+
+# STORE_REPUTATION
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | STORE_REPUTATION |
+| Prefixo | SRP |
+| Tipo | SUPPORT |
+| Responsável | Experiência do Cliente |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Sim |
+| Cache | Sim |
+
+## Objetivo
+
+Representar os indicadores consolidados de reputação de um Brechó, derivados de avaliações, pedidos, ocorrências, entregas e comportamento operacional.
+
+## Classificação
+
+SUPPORT
+
+## Responsabilidades
+
+- Consolidar indicadores públicos de confiança do Brechó.
+- Diferenciar reputação percebida pelo cliente de confiança operacional calculada pela plataforma.
+- Apoiar níveis de reputação do Brechó.
+- Apoiar selos especiais de qualidade e confiança.
+- Apoiar ranking com base em relevância, confiança e histórico operacional.
+- Ser alimentada por STORE_REVIEW, ORDER, RETURN_REQUEST, SHIPMENT e outros indicadores operacionais.
+- Servir como visão otimizada para exibição da reputação.
+
+## Não é responsabilidade
+
+- Armazenar avaliações individuais.
+- Substituir STORE_REVIEW.
+- Resolver disputas.
+- Movimentar financeiro.
+- Definir regras de reputação diretamente sem apoio de BUSINESS_CONFIGURATION.
+
+## Dono da Informação
+
+Experiência do Cliente / Operação
+
+## Regras de Negócio
+
+- RN-001 — Cada STORE deve possuir no máximo uma STORE_REPUTATION ativa.
+- RN-002 — STORE_REPUTATION é derivada de dados operacionais e avaliações.
+- RN-003 — STORE_REPUTATION não substitui STORE_REVIEW.
+- RN-004 — STORE_REPUTATION deve ser recalculada por processo controlado.
+- RN-005 — Indicadores devem ser rastreáveis até suas origens.
+- RN-006 — A reputação pode considerar avaliações, pedidos concluídos, ocorrências, cancelamentos, devoluções, tempo de resposta e tempo de confirmação.
+- RN-007 — SRP_TRUST_SCORE representa a confiabilidade operacional calculada pela plataforma.
+- RN-008 — SRP_REPUTATION_SCORE representa a pontuação consolidada de reputação.
+- RN-009 — SRP_LEVEL_CODE representa o nível geral do Brechó, como BEGINNER, BRONZE, SILVER, GOLD ou PLATINUM.
+- RN-010 — SRP_BADGE_CODE representa selos especiais, como FAST_SHIPPING, TOP_RATED, TRUSTED_STORE, EXCELLENT_SERVICE, MOST_RECOMMENDED ou SUSTAINABLE_STORE.
+- RN-011 — SRP_FIRST_ORDER_AT registra a primeira venda concluída do Brechó.
+- RN-012 — SRP_LAST_ORDER_AT registra a venda mais recente do Brechó.
+- RN-013 — SRP_LAST_REVIEW_AT registra a avaliação mais recente recebida pelo Brechó.
+- RN-014 — SRP_LAST_RECALCULATED_AT deve ser atualizado a cada processamento de reputação.
+- RN-015 — STORE_REPUTATION representa dados derivados e não deve ser alterada manualmente.
+- RN-016 — SRP_TRUST_SCORE e SRP_REPUTATION_SCORE devem ser calculados exclusivamente por processos internos.
+- RN-017 — Regras de cálculo, pesos, níveis e selos deverão ser controladas futuramente por BUSINESS_CONFIGURATION.
+- RN-018 — APIs utilizam SRP_PUBLIC_ID.
+- RN-019 — SRP_PUBLIC_ID deve ser CHAR(32).
+
+## Relacionamentos
+
+- STORE (1:1)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| SRP_ID | NUMBER Identity | Sim |
+| SRP_PUBLIC_ID | CHAR(32) | Sim |
+| STR_ID | NUMBER | Sim |
+| SRP_OVERALL_RATE | NUMBER | Não |
+| SRP_PRODUCT_MATCH_RATE | NUMBER | Não |
+| SRP_CONSERVATION_RATE | NUMBER | Não |
+| SRP_SERVICE_RATE | NUMBER | Não |
+| SRP_DELIVERY_RATE | NUMBER | Não |
+| SRP_PACKAGING_RATE | NUMBER | Não |
+| SRP_REVIEW_COUNT | NUMBER | Não |
+| SRP_ORDER_COUNT | NUMBER | Não |
+| SRP_RETURN_REQUEST_COUNT | NUMBER | Não |
+| SRP_RETURN_RATE | NUMBER | Não |
+| SRP_WOULD_BUY_AGAIN_RATE | NUMBER | Não |
+| SRP_RESPONSE_TIME_AVG_MIN | NUMBER | Não |
+| SRP_CONFIRMATION_TIME_AVG_MIN | NUMBER | Não |
+| SRP_CANCELLATION_RATE | NUMBER | Não |
+| SRP_TRUST_SCORE | NUMBER | Não |
+| SRP_REPUTATION_SCORE | NUMBER | Não |
+| SRP_LEVEL_CODE | VARCHAR2(50) | Não |
+| SRP_BADGE_CODE | VARCHAR2(50) | Não |
+| SRP_FIRST_ORDER_AT | TIMESTAMP | Não |
+| SRP_LAST_ORDER_AT | TIMESTAMP | Não |
+| SRP_LAST_REVIEW_AT | TIMESTAMP | Não |
+| SRP_LAST_RECALCULATED_AT | TIMESTAMP | Não |
+| SRP_STATUS | VARCHAR2(20) | Sim |
+| SRP_CREATED_AT | TIMESTAMP | Sim |
+| SRP_UPDATED_AT | TIMESTAMP | Sim |
+| SRP_CREATED_BY | NUMBER | Não |
+| SRP_UPDATED_BY | NUMBER | Não |
+
+SRP_CREATED_BY e SRP_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_STORE_REPUTATION
+- UK_STORE_REPUTATION_PUBLIC_ID
+- UK_STORE_REPUTATION_STORE
+- IDX_STORE_REPUTATION_SCORE
+- IDX_STORE_REPUTATION_TRUST_SCORE
+- IDX_STORE_REPUTATION_LEVEL
+- IDX_STORE_REPUTATION_BADGE
+- IDX_STORE_REPUTATION_STATUS
+- IDX_STORE_REPUTATION_LAST_ORDER
+- IDX_STORE_REPUTATION_LAST_REVIEW
+
+## Packages Oracle
+
+- SRP_API_PKG
+- SRP_RULE_PKG
+
+## APIs
+
+- GET /store-reputations
+- GET /store-reputations/{publicId}
+- GET /stores/{publicId}/reputation
+
+## Flutter
+
+- StoreReputationModel
+- StoreReputationRepository
+- StoreReputationController
+- StoreReputationWidget
+
+## Observações
+
+STORE_REPUTATION representa uma visão consolidada e otimizada da confiança do Brechó.
+
+Ela separa percepção do cliente, confiança operacional, nível do Brechó e selos especiais.
+
+Ela deve ser tratada como uma consequência dos eventos e experiências da plataforma, nunca como substituta das avaliações individuais.
