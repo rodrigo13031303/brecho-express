@@ -873,3 +873,114 @@ Esta estratégia de transações está integrada com:
 
 - As convenções de banco de dados: Soft delete, audit fields e PUBLIC_ID são operações transacionais que ocorrem dentro do escopo definido pela camada externa.
 
+## 9. Estratégia de Tratamento de Erros
+
+O Brechó Express adotará uma estratégia centralizada para tratamento de erros.
+
+Nenhuma camada deverá utilizar `RAISE_APPLICATION_ERROR` diretamente de forma espalhada pelo sistema.
+
+Todo erro da plataforma deverá ser lançado por meio de um package centralizado de erro, responsável por padronizar código, categoria, mensagem, severidade, rastreabilidade e resposta para consumidores externos.
+
+### 9.1 Decisão Arquitetural A-004
+
+A plataforma utilizará um package central de erros, chamado conceitualmente de `ERR_PKG`.
+
+Este package será responsável por:
+
+- lançar erros de negócio;
+- lançar erros de validação;
+- lançar erros de segurança;
+- lançar erros de recurso não encontrado;
+- lançar erros técnicos;
+- padronizar códigos;
+- padronizar mensagens;
+- registrar logs quando necessário;
+- preparar respostas consistentes para ORDS e Flutter.
+
+### 9.2 Catálogo de Erros
+
+Os erros oficiais da plataforma deverão ser catalogados.
+
+Cada erro deverá possuir:
+
+- código único;
+- categoria;
+- mensagem funcional;
+- mensagem técnica quando aplicável;
+- severidade;
+- indicação se é recuperável;
+- indicação se deve gerar log técnico.
+
+Exemplo conceitual de código:
+
+- `BEX-ACC-001`
+- `BEX-PRD-001`
+- `BEX-ORD-001`
+- `BEX-PAY-001`
+
+### 9.3 Categorias de Erro
+
+As categorias iniciais serão:
+
+- BUSINESS_ERROR
+- VALIDATION_ERROR
+- NOT_FOUND
+- SECURITY_ERROR
+- AUTHENTICATION_ERROR
+- AUTHORIZATION_ERROR
+- CONFLICT_ERROR
+- TECHNICAL_ERROR
+- INTEGRATION_ERROR
+
+### 9.4 Regras Obrigatórias
+
+- `RAISE_APPLICATION_ERROR` não deve ser usado diretamente nas regras de negócio.
+- Erros devem ser lançados pelo package central de erro.
+- Flutter nunca deve depender de mensagens técnicas Oracle.
+- ORDS deve retornar resposta padronizada.
+- Erros técnicos devem ser registrados em `ERROR_LOG`.
+- Mensagens para usuário e mensagens técnicas devem ser separadas.
+- Códigos de erro devem ser estáveis e documentados.
+- Cada erro deve possuir uma intenção clara.
+
+### 9.5 Resposta Padronizada
+
+Toda resposta de erro para consumidores externos deverá seguir uma estrutura padronizada, contendo conceitualmente:
+
+- sucesso/falha;
+- código do erro;
+- mensagem amigável;
+- categoria;
+- rastreabilidade;
+- indicação se pode tentar novamente.
+
+### 9.6 Logs de Erro
+
+Erros técnicos e inesperados deverão ser registrados em estrutura própria de log.
+
+O registro de erro poderá utilizar `AUTONOMOUS_TRANSACTION` para garantir que informações de diagnóstico sobrevivam ao rollback da transação principal.
+
+Essa regra se aplica apenas a logs técnicos e nunca a alterações funcionais do domínio.
+
+### 9.7 Benefícios
+
+- Padronização para Flutter e ORDS.
+- Menor acoplamento entre interface e banco.
+- Melhor rastreabilidade.
+- Facilidade de suporte.
+- Facilidade de internacionalização futura.
+- Menor risco de mensagens técnicas vazarem ao usuário.
+- Catálogo claro de erros oficiais da plataforma.
+
+### 9.8 Trade-offs
+
+- Exige disciplina na criação de novos erros.
+- Exige manutenção de catálogo.
+- Exige padronização entre packages.
+- Pode parecer mais burocrático no início.
+
+### 9.9 Princípio Arquitetural
+
+Erro também é contrato.
+
+Todo erro exposto pela plataforma deve ser previsível, rastreável e compreensível.
