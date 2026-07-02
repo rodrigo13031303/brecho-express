@@ -1130,3 +1130,185 @@ Log técnico responde:
 Auditoria não é mágica.
 
 Toda auditoria relevante deve nascer de uma intenção explícita do domínio.
+
+## 11. Estratégia de Jobs
+
+O Brechó Express utilizará jobs para executar processos recorrentes, assíncronos ou em lote que não dependem diretamente de uma requisição do usuário.
+
+Jobs devem seguir a mesma arquitetura de camadas da plataforma, preservando separação de responsabilidades, rastreabilidade e reutilização de regras.
+
+### 11.1 Decisão Arquitetural A-006
+
+`DBMS_SCHEDULER` será utilizado apenas como mecanismo de agendamento e disparo.
+
+O Scheduler não deve conter regra de negócio, SQL de domínio ou lógica operacional relevante.
+
+O fluxo oficial será:
+
+DBMS_SCHEDULER  
+↓  
+`*_JOB_PKG`  
+↓  
+`*_SERVICE_PKG`  
+↓  
+`*_RULE_PKG`  
+↓  
+`*_REPOSITORY_PKG`  
+↓  
+Oracle Database
+
+### 11.2 Responsabilidade do Scheduler
+
+O Scheduler é apenas o relógio da plataforma.
+
+Ele deve:
+
+- disparar jobs no horário configurado;
+- controlar agenda;
+- executar o package responsável;
+- registrar metadados técnicos da execução quando aplicável.
+
+Ele não deve:
+
+- executar SQL de domínio diretamente;
+- implementar regra de negócio;
+- chamar `RULE_PKG` ou `REPOSITORY_PKG` diretamente;
+- conter lógica condicional relevante.
+
+### 11.3 Responsabilidade do JOB_PKG
+
+`*_JOB_PKG` representa processos internos da plataforma.
+
+Ele deve:
+
+- iniciar a execução do processo;
+- registrar início e fim;
+- controlar escopo transacional do job;
+- chamar `SERVICE_PKG`;
+- registrar resultado da execução;
+- registrar falhas técnicas;
+- garantir reexecução segura quando aplicável.
+
+Ele não deve:
+
+- implementar regra de negócio;
+- acessar tabelas diretamente;
+- chamar `REPOSITORY_PKG` diretamente;
+- substituir `SERVICE_PKG`.
+
+### 11.4 Nomeação de Jobs
+
+Jobs devem representar processos, não tabelas.
+
+Exemplos conceituais:
+
+- `PURCHASE_JOB_PKG`
+- `SESSION_JOB_PKG`
+- `PAYMENT_JOB_PKG`
+- `NOTIFICATION_JOB_PKG`
+- `REPUTATION_JOB_PKG`
+
+Evitar packages genéricos como:
+
+- `SYSTEM_JOB_PKG`
+- `GENERAL_JOB_PKG`
+- `UTIL_JOB_PKG`
+
+### 11.5 Logs Obrigatórios
+
+Todo job deve registrar sua execução.
+
+Cada execução deve possuir, conceitualmente:
+
+- identificador da execução;
+- nome do job;
+- data/hora de início;
+- data/hora de fim;
+- duração;
+- status;
+- quantidade de registros processados;
+- quantidade de sucessos;
+- quantidade de falhas;
+- mensagem de erro quando aplicável.
+
+Logs de job poderão utilizar `AUTONOMOUS_TRANSACTION`, pois precisam sobreviver ao rollback da transação principal.
+
+### 11.6 Idempotência
+
+Todo job deve ser projetado para ser reexecutável.
+
+Executar o mesmo job mais de uma vez não deve:
+
+- duplicar efeitos;
+- corromper dados;
+- gerar saldos duplicados;
+- reenviar notificações indevidas;
+- recriar eventos já processados.
+
+A idempotência é obrigatória para jobs críticos.
+
+### 11.7 Processamento Parcial
+
+Jobs em lote não devem abortar toda a execução por causa de um único registro com erro, quando o domínio permitir continuidade segura.
+
+O padrão preferencial será:
+
+- processar item a item;
+- registrar sucesso individual;
+- registrar falha individual;
+- continuar os próximos itens;
+- consolidar o resultado ao final.
+
+Quando uma falha comprometer a consistência global do processo, o job poderá abortar a execução inteira, desde que isso seja documentado.
+
+### 11.8 Controle Transacional
+
+Jobs e rotinas do Scheduler controlam suas próprias transações.
+
+`SERVICE_PKG`, `RULE_PKG` e `REPOSITORY_PKG` continuam proibidos de executar `COMMIT` ou `ROLLBACK`.
+
+Cada job deve definir claramente sua fronteira transacional:
+
+- por execução completa;
+- por lote;
+- por item processado.
+
+A escolha deve considerar consistência, volume, risco e possibilidade de reprocessamento.
+
+### 11.9 Exemplos de Jobs Futuros
+
+Exemplos conceituais de processos candidatos a jobs:
+
+- expiração de sessões;
+- expiração de carrinhos;
+- expiração de Purchase Requests;
+- timeout de pagamento;
+- liberação de saldo após retenção;
+- reprocessamento de integrações;
+- envio de notificações pendentes;
+- atualização de reputação de brechós;
+- consolidação de métricas.
+
+### 11.10 Benefícios
+
+- Processos internos padronizados.
+- Menor duplicação de regras.
+- Melhor rastreabilidade.
+- Maior segurança em reprocessamentos.
+- Melhor suporte operacional.
+- Separação clara entre agendamento e execução.
+- Facilidade para evoluir para filas no futuro.
+
+### 11.11 Trade-offs
+
+- Exige criação de packages específicos para jobs.
+- Exige disciplina no desenho de idempotência.
+- Exige logs bem estruturados.
+- Pode gerar mais código inicial.
+- Exige cuidado com volume, locks e duração das execuções.
+
+### 11.12 Princípio Arquitetural
+
+Scheduler não trabalha.
+
+Scheduler apenas acorda o processo certo para trabalhar.
