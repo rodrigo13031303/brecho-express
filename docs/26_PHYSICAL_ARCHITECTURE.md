@@ -984,3 +984,149 @@ Essa regra se aplica apenas a logs técnicos e nunca a alterações funcionais d
 Erro também é contrato.
 
 Todo erro exposto pela plataforma deve ser previsível, rastreável e compreensível.
+
+## 10. Estratégia de Auditoria
+
+O Brechó Express adotará uma estratégia explícita de auditoria, orientada pelo domínio e pelos casos de uso da plataforma.
+
+Auditoria não será tratada como efeito colateral invisível de alterações em tabelas.
+
+A auditoria deve registrar não apenas que um dado mudou, mas também o contexto da mudança, sua origem, sua intenção e o responsável pela operação.
+
+### 10.1 Decisão Arquitetural A-005
+
+A auditoria será iniciada pelas camadas de domínio e aplicação, principalmente por `RULE_PKG` e `SERVICE_PKG`, conforme o contexto do caso de uso.
+
+Triggers não serão a estratégia principal de auditoria de negócio.
+
+Triggers poderão existir apenas para auditoria técnica mínima, proteção estrutural ou cenários excepcionais devidamente documentados.
+
+### 10.2 Princípios
+
+- Auditoria deve ser explícita.
+- Auditoria deve possuir contexto de negócio.
+- Auditoria deve registrar a intenção da alteração.
+- Auditoria deve registrar o responsável pela operação.
+- Auditoria deve ser rastreável por usuário, sessão, origem e caso de uso.
+- Auditoria não deve esconder regra de negócio.
+- Auditoria não deve executar fluxos funcionais.
+- Auditoria não substitui logs técnicos.
+
+### 10.3 Auditoria de Negócio
+
+Auditoria de negócio registra eventos relevantes do domínio.
+
+Exemplos conceituais:
+
+- Achado publicado.
+- Achado arquivado.
+- Brechó aprovado.
+- Pedido criado.
+- Pedido cancelado.
+- Pagamento confirmado.
+- Saldo liberado.
+- Solicitação de pós-venda aberta.
+
+Esse tipo de auditoria deve ser acionado explicitamente pelo fluxo de negócio responsável.
+
+### 10.4 Auditoria de Dados
+
+Auditoria de dados registra alterações relevantes em entidades críticas.
+
+Ela poderá armazenar, conforme necessidade:
+
+- entidade afetada;
+- identificador público;
+- operação realizada;
+- valores anteriores;
+- valores novos;
+- usuário responsável;
+- origem;
+- sessão;
+- data e hora;
+- caso de uso;
+- justificativa ou motivo.
+
+A auditoria de dados deve ser usada principalmente em entidades sensíveis, financeiras, operacionais ou de governança.
+
+### 10.5 Triggers
+
+Triggers não devem conter regra de negócio.
+
+Triggers não devem executar fluxos funcionais.
+
+Triggers não devem chamar services de negócio.
+
+Triggers não devem alterar status de entidades por decisão de negócio.
+
+Triggers não devem executar integrações externas.
+
+O uso de triggers deve ser restrito a cenários técnicos controlados, como:
+
+- proteção estrutural;
+- preenchimento técnico mínimo quando necessário;
+- validações técnicas simples;
+- auditoria técnica excepcional.
+
+Qualquer trigger com impacto funcional deverá possuir justificativa arquitetural.
+
+### 10.6 Packages de Auditoria
+
+A plataforma deverá possuir packages específicos para auditoria, conceitualmente:
+
+- `AUDIT_PKG`
+- `ACTIVITY_LOG_PKG`
+- `ERROR_LOG_PKG`
+- `JOB_LOG_PKG`
+- `INTEGRATION_LOG_PKG`
+
+Cada package deverá possuir responsabilidade clara e não substituir regras de negócio.
+
+### 10.7 AUTONOMOUS_TRANSACTION em Auditoria
+
+Auditorias e logs técnicos que precisam sobreviver ao rollback da transação principal poderão utilizar `AUTONOMOUS_TRANSACTION`.
+
+Esse uso deve ser restrito a registros técnicos, diagnósticos e rastreabilidade.
+
+`AUTONOMOUS_TRANSACTION` não deve ser usado para alterar estado funcional do domínio.
+
+### 10.8 Diferença entre Auditoria e Log
+
+Auditoria responde:
+
+- Quem fez?
+- Quando fez?
+- O que mudou?
+- Por que mudou?
+- Qual caso de uso originou a alteração?
+
+Log técnico responde:
+
+- O que aconteceu internamente?
+- Qual erro ocorreu?
+- Qual package executou?
+- Quanto tempo demorou?
+- Qual integração falhou?
+
+### 10.9 Benefícios
+
+- Maior rastreabilidade.
+- Menor risco de regra escondida em trigger.
+- Melhor suporte operacional.
+- Melhor governança.
+- Melhor alinhamento com LGPD e auditorias futuras.
+- Maior clareza sobre intenção de negócio.
+- Facilidade para investigar problemas.
+
+### 10.10 Trade-offs
+
+- Exige disciplina dos desenvolvedores.
+- Exige chamadas explícitas de auditoria nos fluxos relevantes.
+- Pode gerar mais código nos services e rules.
+- Exige padronização dos eventos auditáveis.
+
+### 10.11 Princípio Arquitetural
+
+Auditoria não é mágica.
+
+Toda auditoria relevante deve nascer de uma intenção explícita do domínio.
