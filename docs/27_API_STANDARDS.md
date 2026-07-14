@@ -48,7 +48,8 @@ Este documento complementa a Arquitetura Física do Brechó Express, especialmen
 
 ### 3.6 Padrão JSON
 - Consolidar as regras gerais para payloads de requisição e resposta.
-- Organizar os tipos, estruturas e convenções que formarão os contratos externos.
+- Definir os princípios de independência entre contratos JSON e implementação interna Oracle.
+- Organizar tipos, ausência de valores, coleções vazias e cuidados com valores monetários.
 
 ### 3.7 camelCase
 - Estabelecer `camelCase` como padrão de nomenclatura dos atributos JSON.
@@ -60,7 +61,7 @@ Este documento complementa a Arquitetura Física do Brechó Express, especialmen
 
 ### 3.9 Datas ISO-8601
 - Estabelecer ISO-8601 como formato oficial para datas e horários nos contratos de API.
-- Reservar o detalhamento futuro das convenções temporais necessárias à plataforma.
+- Definir o uso preferencial de UTC para instantes globais e a separação entre contrato técnico e formatação visual.
 
 ### 3.10 Boolean
 - Definir que valores booleanos sejam representados em JSON por `true` ou `false`.
@@ -68,7 +69,7 @@ Este documento complementa a Arquitetura Física do Brechó Express, especialmen
 
 ### 3.11 Enums
 - Definir que enums sejam representados por texto nos contratos externos.
-- Organizar futuramente os critérios de estabilidade e evolução dos valores aceitos.
+- Organizar critérios de estabilidade, evolução e compatibilidade dos valores publicados.
 
 ### 3.12 Métodos HTTP
 - Documentar o uso semântico dos métodos HTTP nas operações REST.
@@ -377,6 +378,318 @@ Os contratos externos utilizarão `/api/v1` como base URL inicial, versão princ
 - Novos contratos devem ser definidos antes da implementação Oracle ou Flutter.
 - Alterações incompatíveis exigem nova versão principal.
 - A versão `v1` deve ser mantida enquanto atender às necessidades reais da plataforma.
+
+### 4.9 Padrão JSON
+
+JSON é o formato oficial de comunicação das APIs REST externas do Brechó Express.
+
+Os contratos JSON devem representar conceitos do domínio e necessidades dos consumidores. Eles não devem reproduzir automaticamente:
+
+- estrutura física das tabelas;
+- nomes de colunas;
+- prefixos Oracle;
+- tipos internos do banco;
+- estrutura interna dos packages;
+- detalhes de persistência.
+
+O contrato JSON deve permanecer independente da implementação interna. Alterações internas no Oracle não devem obrigar alteração do contrato externo quando o significado funcional permanecer o mesmo.
+
+Os contratos devem utilizar tipos JSON nativos:
+
+- `string`;
+- `number`;
+- `boolean`;
+- `object`;
+- `array`;
+- `null`.
+
+Números não devem ser representados como texto sem necessidade contratual. Valores monetários exigem cuidado para evitar perda de precisão, mas o padrão definitivo de representação monetária ainda não será definido nesta etapa. Essa representação deverá ser consolidada antes da implementação dos endpoints financeiros.
+
+#### Null, Campos Ausentes e Coleções Vazias
+
+Cada contrato deve definir claramente a diferença entre campo ausente, campo com valor `null` e coleção vazia.
+
+Campo ausente significa que a propriedade não foi retornada naquele contrato ou contexto.
+
+`null` significa ausência conhecida de valor para uma propriedade aplicável.
+
+Coleções sem elementos devem ser retornadas como:
+
+```json
+[]
+```
+
+e nunca como:
+
+```json
+null
+```
+
+Objetos opcionais sem valor podem ser `null` quando isso fizer parte do contrato. Propriedades sem significado não devem ser retornadas apenas para preencher o payload. A semântica de ausência deve ser documentada por contrato.
+
+### 4.10 camelCase
+
+Todos os atributos JSON devem utilizar `camelCase`.
+
+Exemplos conceituais:
+
+```text
+publicId
+createdAt
+updatedAt
+storeId
+purchaseRequestId
+isActive
+```
+
+Não devem ser utilizados nomes como:
+
+```text
+PUBLIC_ID
+CREATED_AT
+STORE_ID
+purchase_request_id
+```
+
+Prefixos físicos, siglas de coluna e abreviações técnicas internas não devem ser expostos nos contratos JSON.
+
+### 4.11 PUBLIC_ID
+
+APIs externas utilizam exclusivamente `PUBLIC_ID` para identificação de recursos.
+
+No contrato JSON, o identificador público do próprio recurso deve ser representado como:
+
+```text
+publicId
+```
+
+Quando um recurso referenciar outro recurso, deve ser utilizado um nome funcional em `camelCase`.
+
+Exemplos conceituais:
+
+```text
+storeId
+productId
+orderId
+```
+
+Esses atributos representam o `PUBLIC_ID` externo do recurso relacionado. Eles nunca representam o identificador numérico interno do Oracle.
+
+IDs internos não podem ser expostos:
+
+- em requests;
+- em responses;
+- em URLs;
+- em headers públicos;
+- em mensagens de erro.
+
+### 4.12 Datas ISO-8601
+
+Datas e horários devem utilizar ISO-8601.
+
+Instantes globais devem ser retornados preferencialmente em UTC, utilizando o sufixo `Z`.
+
+Exemplo conceitual:
+
+```text
+2026-07-13T18:30:15Z
+```
+
+Quando o offset for funcionalmente relevante, ele poderá ser informado explicitamente.
+
+Exemplo conceitual:
+
+```text
+2026-07-13T15:30:15-03:00
+```
+
+Datas sem componente de horário devem utilizar `YYYY-MM-DD`.
+
+Exemplo conceitual:
+
+```text
+2026-07-13
+```
+
+Não devem ser utilizados formatos locais ou ambíguos, como:
+
+```text
+13/07/2026
+07/13/2026
+```
+
+Datas formatadas para exibição não pertencem ao contrato técnico. A formatação visual é responsabilidade do consumidor.
+
+### 4.13 Boolean
+
+Valores booleanos devem ser representados exclusivamente pelos tipos JSON:
+
+```json
+true
+false
+```
+
+Não devem ser utilizadas representações como:
+
+```text
+"S"
+"N"
+"Y"
+"1"
+"0"
+1
+0
+```
+
+O modo de armazenamento interno no Oracle não deve aparecer no contrato externo.
+
+### 4.14 Enums
+
+Enums devem ser representados por valores textuais estáveis e semanticamente claros.
+
+Exemplos conceituais:
+
+```text
+"ACTIVE"
+"PENDING"
+"APPROVED"
+"CANCELLED"
+```
+
+Não devem ser utilizados códigos numéricos sem significado explícito, códigos físicos ou abreviações internas do Oracle.
+
+Valores de enum fazem parte do contrato público. Um valor publicado não deve ser renomeado ou reutilizado com outro significado dentro da mesma versão principal.
+
+Novos valores de enum devem ser avaliados quanto à compatibilidade dos consumidores. Consumidores devem ser preparados para tratar valores futuros desconhecidos de forma segura.
+
+### 4.15 Contrato Padrão de Sucesso
+
+Toda resposta de sucesso com conteúdo deve utilizar envelope padronizado.
+
+Estrutura conceitual:
+
+```json
+{
+  "success": true,
+  "data": {},
+  "meta": {
+    "traceId": "..."
+  }
+}
+```
+
+Para coleções:
+
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "traceId": "..."
+  }
+}
+```
+
+O atributo `success` deve ser boolean. `data` representa o resultado funcional da operação. `meta` contém metadados técnicos ou de navegação que não pertencem ao domínio.
+
+`traceId` deve estar presente em `meta`.
+
+Metadados específicos, como paginação, poderão ser adicionados ao contrato quando aplicáveis. O padrão definitivo de paginação ainda não será definido nesta etapa.
+
+Para operações HTTP que não retornem conteúdo, o uso semântico de HTTP 204 deverá ser avaliado quando as seções de métodos e status HTTP forem consolidadas. Respostas HTTP 204 não devem ser obrigadas a retornar envelope JSON.
+
+### 4.16 Contrato Padrão de Erro
+
+Toda resposta de erro deve utilizar envelope padronizado.
+
+Estrutura conceitual:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "BEX-ORD-001",
+    "category": "BUSINESS_ERROR",
+    "message": "Não foi possível concluir o pedido.",
+    "retryable": false
+  },
+  "meta": {
+    "traceId": "..."
+  }
+}
+```
+
+`success` deve ser `false`.
+
+`error.code` é o código estável do catálogo oficial de erros. `error.category` identifica a categoria padronizada. `error.message` é uma mensagem segura e compreensível para o consumidor. `error.retryable` informa se uma nova tentativa poderá ser realizada. `meta.traceId` permite localizar a execução nos mecanismos de observabilidade.
+
+Nunca devem ser retornados ao consumidor:
+
+- SQL;
+- `SQLERRM` bruto;
+- stack trace;
+- backtrace;
+- nome interno de package;
+- nome de procedure;
+- nome de tabela;
+- nome de coluna;
+- identificador interno;
+- detalhes de infraestrutura;
+- informações sensíveis.
+
+Mensagens técnicas completas devem permanecer nos logs internos. A mensagem externa e a mensagem técnica podem ser diferentes.
+
+Erros de validação poderão futuramente possuir uma coleção de detalhes por campo. A estrutura definitiva dessa coleção ainda não será definida nesta etapa.
+
+### 4.17 TraceId
+
+Toda requisição processada deve possuir um `traceId`.
+
+O `traceId` deve:
+
+- identificar tecnicamente uma execução;
+- acompanhar a requisição pelas camadas;
+- ser incluído nas respostas de sucesso;
+- ser incluído nas respostas de erro;
+- permitir correlação com `ERROR_LOG`;
+- permitir correlação com `INTEGRATION_LOG`;
+- permitir correlação com auditoria e observabilidade quando aplicável.
+
+O `traceId` não deve conter informação de negócio, dado pessoal ou informação sensível.
+
+O `traceId` deve ser tratado como identificador técnico opaco. O consumidor pode informar o `traceId` ao suporte, mas não deve interpretar sua estrutura.
+
+Nesta etapa, não serão definidos algoritmo definitivo de geração, tamanho definitivo, formato definitivo ou relação definitiva entre `traceId` e `correlationId`. Esses detalhes serão consolidados na seção de rastreabilidade e observabilidade.
+
+### 4.18 Compatibilidade dos Contratos JSON
+
+Adicionar campos opcionais em objetos de resposta é considerado normalmente compatível.
+
+Consumidores devem ignorar propriedades JSON desconhecidas.
+
+A ordem dos atributos JSON não faz parte do contrato. Consumidores não devem depender da ordem das propriedades.
+
+Remover, renomear ou alterar o tipo de um campo continua sendo mudança incompatível. Alterar o significado funcional de um campo também é mudança incompatível.
+
+### 4.19 Benefícios e Trade-offs dos Contratos JSON
+
+Os padrões de contrato JSON trazem os seguintes benefícios:
+
+- contratos previsíveis;
+- menor acoplamento com Oracle;
+- consumo simplificado no Flutter;
+- melhor rastreabilidade;
+- tratamento uniforme de erros;
+- evolução mais segura;
+- preparação para consumidores futuros.
+
+Também introduzem os seguintes trade-offs:
+
+- necessidade de mapeamento entre Oracle e JSON;
+- disciplina na evolução dos contratos;
+- manutenção dos envelopes padronizados;
+- necessidade de documentação dos campos e enums;
+- maior cuidado com compatibilidade.
 
 ---
 
