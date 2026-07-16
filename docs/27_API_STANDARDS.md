@@ -562,7 +562,280 @@ Valores de enum fazem parte do contrato público. Um valor publicado não deve s
 
 Novos valores de enum devem ser avaliados quanto à compatibilidade dos consumidores. Consumidores devem ser preparados para tratar valores futuros desconhecidos de forma segura.
 
-### 4.15 Contrato Padrão de Sucesso
+### 4.15 Métodos HTTP
+
+Os métodos HTTP devem expressar a intenção do contrato. Sua escolha não deve ser determinada pela procedure PL/SQL, pela tabela ou pela operação SQL executada internamente. O mesmo método deve possuir semântica consistente em toda a plataforma.
+
+#### GET
+
+GET deve ser utilizado exclusivamente para leitura e consulta. Deve ser seguro do ponto de vista funcional, idempotente e não pode alterar o estado funcional do domínio.
+
+GET não deve:
+
+- criar registros;
+- atualizar status;
+- reservar produto;
+- confirmar pedido;
+- registrar pagamento;
+- disparar ações de negócio;
+- produzir efeitos funcionais ocultos.
+
+Consultas podem registrar logs técnicos de acesso e observabilidade, desde que isso não represente alteração funcional do domínio.
+
+Exemplos conceituais:
+
+```text
+GET /api/v1/products
+GET /api/v1/products/{publicId}
+```
+
+#### POST
+
+POST deve ser utilizado para:
+
+- criação de recursos;
+- início de casos de uso;
+- comandos de negócio;
+- ações que não representem substituição completa ou alteração parcial simples;
+- operações cuja repetição possa produzir novo efeito, salvo quando protegidas por idempotência.
+
+POST é o método preferencial para endpoints de ação de negócio. A necessidade de idempotência deve ser avaliada e documentada por contrato.
+
+Exemplos conceituais:
+
+```text
+POST /api/v1/orders
+POST /api/v1/orders/{publicId}/cancel
+POST /api/v1/purchase-requests/{publicId}/confirm
+```
+
+#### PUT
+
+PUT deve ser utilizado apenas quando o consumidor enviar uma representação completa para substituir integralmente o estado editável de um recurso. Não deve ser utilizado como sinônimo genérico de atualização.
+
+Regras:
+
+- o contrato deve deixar claro que a representação é completa;
+- campos omitidos devem possuir semântica definida;
+- o uso de PUT deve ser raro e justificado;
+- PUT deve ser idempotente.
+
+Quando a operação alterar apenas parte do recurso, deve ser utilizado PATCH.
+
+#### PATCH
+
+PATCH deve ser utilizado para alterações parciais de um recurso e deve modificar apenas os campos explicitamente permitidos pelo contrato.
+
+Exemplos conceituais:
+
+```text
+PATCH /api/v1/profiles/{publicId}
+PATCH /api/v1/stores/{publicId}
+```
+
+O contrato deve distinguir:
+
+- campo ausente: não alterar;
+- campo com `null`: remover ou limpar o valor, quando permitido;
+- campo com valor: atualizar.
+
+PATCH não deve permitir alteração arbitrária de qualquer coluna física. Alterações de estado que representem intenção forte do domínio devem preferir endpoint de ação com POST.
+
+Exemplo conceitual:
+
+```text
+POST /api/v1/orders/{publicId}/cancel
+```
+
+Esse formato deve ser preferido a uma alteração genérica do atributo `status` por PATCH quando o cancelamento exigir regras, validações, motivo, auditoria ou efeitos relacionados.
+
+#### DELETE
+
+DELETE físico não será utilizado para entidades de negócio do Brechó Express. A plataforma utiliza soft delete, arquivamento, inativação ou transições explícitas de estado.
+
+Quando a remoção representar intenção de domínio, deve ser utilizado endpoint de ação.
+
+Exemplos conceituais:
+
+```text
+POST /api/v1/products/{publicId}/archive
+POST /api/v1/accounts/{publicId}/deactivate
+```
+
+DELETE poderá ser utilizado futuramente apenas para recursos técnicos ou temporários cuja remoção física seja permitida e documentada. Nenhum caso real é definido nesta etapa.
+
+### 4.16 Status HTTP
+
+O status HTTP representa a categoria do resultado no protocolo. O código do catálogo oficial de erros representa a causa funcional ou técnica específica.
+
+#### Status de Sucesso
+
+**200 OK**
+
+- consulta realizada com sucesso;
+- atualização concluída com resposta;
+- ação concluída com resposta.
+
+**201 Created**
+
+- recurso identificável criado com sucesso.
+
+**202 Accepted**
+
+- requisição aceita para processamento assíncrono;
+- não significa que o processamento foi concluído.
+
+**204 No Content**
+
+- operação concluída sem corpo de resposta;
+- não deve retornar envelope JSON.
+
+#### Status de Erro
+
+**400 Bad Request**
+
+- request malformado;
+- JSON inválido;
+- parâmetro com formato inválido;
+- contrato tecnicamente inválido.
+
+**401 Unauthorized**
+
+- autenticação ausente, inválida ou expirada.
+
+**403 Forbidden**
+
+- consumidor autenticado, mas sem permissão para a operação.
+
+**404 Not Found**
+
+- recurso público não encontrado ou não visível ao consumidor.
+
+Quando revelar a existência de um recurso puder expor informação indevida, a API poderá retornar 404 em vez de 403. Essa decisão deve ser aplicada de forma consistente por contrato.
+
+**409 Conflict**
+
+- conflito com o estado atual do recurso;
+- concorrência;
+- operação incompatível com o estado;
+- duplicidade funcional;
+- idempotency key já utilizada com payload incompatível.
+
+**422 Unprocessable Content**
+
+- request tecnicamente válido, mas rejeitado por validação funcional ou regra de negócio.
+
+**429 Too Many Requests**
+
+- limite de requisições excedido.
+
+**500 Internal Server Error**
+
+- erro técnico inesperado interno.
+
+**502 Bad Gateway**
+
+- falha ao obter resposta válida de integração externa, quando aplicável.
+
+**503 Service Unavailable**
+
+- serviço temporariamente indisponível.
+
+**504 Gateway Timeout**
+
+- timeout em dependência ou integração externa, quando aplicável.
+
+#### Validação: 400 ou 422
+
+Deve ser utilizado 400 quando o request não puder ser interpretado corretamente pelo contrato.
+
+Exemplos:
+
+- JSON inválido;
+- tipo incorreto;
+- data em formato inválido;
+- campo obrigatório ausente;
+- query parameter inválido.
+
+Deve ser utilizado 422 quando o request for tecnicamente válido, mas não puder ser executado por regra funcional.
+
+Exemplos:
+
+- produto indisponível;
+- pedido em estado incompatível;
+- prazo expirado;
+- valor fora de regra de negócio.
+
+Conflitos de estado ou concorrência poderão utilizar 409 quando essa classificação for semanticamente mais adequada.
+
+#### Relação com o Catálogo de Erros
+
+Não deve ser utilizado HTTP 200 para respostas funcionais de erro. Também não deve ser retornado apenas o status HTTP sem o contrato de erro, exceto quando o protocolo ou a infraestrutura impedir a geração da resposta padronizada.
+
+Exemplo conceitual:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "BEX-ORD-007",
+    "category": "CONFLICT_ERROR",
+    "message": "O pedido não pode ser cancelado no estado atual.",
+    "retryable": false
+  },
+  "meta": {
+    "traceId": "..."
+  }
+}
+```
+
+Nesse exemplo, o envelope acompanha o status HTTP 409 Conflict.
+
+### 4.17 Endpoints de Ação
+
+Endpoints de ação representam comandos ou intenções explícitas do domínio que não são adequadamente expressos por CRUD simples.
+
+Padrão conceitual:
+
+```text
+POST /api/v1/{resources}/{publicId}/{action}
+```
+
+Regras:
+
+- a ação deve utilizar verbo em inglês;
+- deve usar letras minúsculas;
+- deve usar kebab-case quando composta;
+- deve representar intenção clara do domínio;
+- deve possuir contrato próprio;
+- deve documentar precondições, efeitos, erros e idempotência;
+- não deve ser genérica.
+
+Exemplos conceituais válidos:
+
+```text
+/confirm
+/cancel
+/archive
+/approve
+/reject
+/retry
+```
+
+Exemplos proibidos:
+
+```text
+/execute
+/process
+/action
+/do
+/update-status
+/change
+```
+
+Não deve ser criado endpoint de ação quando um método HTTP padrão representar corretamente a operação.
+
+### 4.18 Contrato Padrão de Sucesso
 
 Toda resposta de sucesso com conteúdo deve utilizar envelope padronizado.
 
@@ -596,9 +869,9 @@ O atributo `success` deve ser boolean. `data` representa o resultado funcional d
 
 Metadados específicos, como paginação, poderão ser adicionados ao contrato quando aplicáveis. O padrão definitivo de paginação ainda não será definido nesta etapa.
 
-Para operações HTTP que não retornem conteúdo, o uso semântico de HTTP 204 deverá ser avaliado quando as seções de métodos e status HTTP forem consolidadas. Respostas HTTP 204 não devem ser obrigadas a retornar envelope JSON.
+Operações concluídas sem conteúdo podem utilizar HTTP 204. Respostas HTTP 204 não devem retornar envelope JSON.
 
-### 4.16 Contrato Padrão de Erro
+### 4.19 Contrato Padrão de Erro
 
 Toda resposta de erro deve utilizar envelope padronizado.
 
@@ -641,7 +914,7 @@ Mensagens técnicas completas devem permanecer nos logs internos. A mensagem ext
 
 Erros de validação poderão futuramente possuir uma coleção de detalhes por campo. A estrutura definitiva dessa coleção ainda não será definida nesta etapa.
 
-### 4.17 TraceId
+### 4.20 TraceId
 
 Toda requisição processada deve possuir um `traceId`.
 
@@ -661,7 +934,7 @@ O `traceId` deve ser tratado como identificador técnico opaco. O consumidor pod
 
 Nesta etapa, não serão definidos algoritmo definitivo de geração, tamanho definitivo, formato definitivo ou relação definitiva entre `traceId` e `correlationId`. Esses detalhes serão consolidados na seção de rastreabilidade e observabilidade.
 
-### 4.18 Compatibilidade dos Contratos JSON
+### 4.21 Compatibilidade dos Contratos JSON
 
 Adicionar campos opcionais em objetos de resposta é considerado normalmente compatível.
 
@@ -671,7 +944,7 @@ A ordem dos atributos JSON não faz parte do contrato. Consumidores não devem d
 
 Remover, renomear ou alterar o tipo de um campo continua sendo mudança incompatível. Alterar o significado funcional de um campo também é mudança incompatível.
 
-### 4.19 Benefícios e Trade-offs dos Contratos JSON
+### 4.22 Benefícios e Trade-offs dos Contratos JSON
 
 Os padrões de contrato JSON trazem os seguintes benefícios:
 
@@ -690,6 +963,26 @@ Também introduzem os seguintes trade-offs:
 - manutenção dos envelopes padronizados;
 - necessidade de documentação dos campos e enums;
 - maior cuidado com compatibilidade.
+
+### 4.23 Benefícios e Trade-offs dos Métodos, Status HTTP e Endpoints de Ação
+
+Os padrões de métodos, status HTTP e endpoints de ação acrescentam os seguintes benefícios:
+
+- semântica HTTP consistente;
+- contratos previsíveis;
+- melhor integração com Flutter e futuros consumidores;
+- melhor observabilidade;
+- tratamento uniforme de erros;
+- menor dependência de CRUD;
+- endpoints alinhados ao domínio.
+
+Também introduzem os seguintes trade-offs:
+
+- exigem análise antes da escolha de método e status;
+- regras funcionais podem exigir decisão entre 409 e 422;
+- endpoints de ação precisam de governança;
+- PUT será pouco utilizado e requer representação completa;
+- soft delete exige ações explícitas em vez de DELETE simples.
 
 ---
 
