@@ -2,10 +2,16 @@ CREATE OR REPLACE PACKAGE BODY core_error_pkg AS
   FUNCTION is_valid_code(
     p_code IN t_error_code
   ) RETURN BOOLEAN IS
+    l_code t_error_code;
   BEGIN
-    RETURN p_code IS NOT NULL
-       AND REGEXP_LIKE(
-             p_code,
+    IF p_code IS NULL THEN
+      RETURN FALSE;
+    END IF;
+
+    l_code := UPPER(TRIM(p_code));
+
+    RETURN REGEXP_LIKE(
+             l_code,
              '^BEX-[A-Z0-9]{3,20}-[0-9]{3}$',
              'c'
            );
@@ -80,6 +86,7 @@ CREATE OR REPLACE PACKAGE BODY core_error_pkg AS
     o_public_error     OUT NOCOPY t_public_error,
     o_error_policy     OUT NOCOPY t_error_policy
   ) IS
+    l_code      t_error_code;
     l_category  t_category;
     l_severity  t_severity;
     l_has_trace BOOLEAN;
@@ -93,10 +100,11 @@ CREATE OR REPLACE PACKAGE BODY core_error_pkg AS
     o_error_policy.severity := NULL;
     o_error_policy.should_log := NULL;
 
+    l_code := UPPER(TRIM(p_code));
     l_category := normalize_category(p_category);
     l_severity := normalize_severity(p_severity);
 
-    IF NOT is_valid_code(p_code) THEN
+    IF NOT is_valid_code(l_code) THEN
       RAISE e_invalid_error_code;
     END IF;
 
@@ -119,7 +127,7 @@ CREATE OR REPLACE PACKAGE BODY core_error_pkg AS
       l_trace_id := core_trace_pkg.current_trace_id;
     END IF;
 
-    o_public_error.code := UPPER(TRIM(p_code));
+    o_public_error.code := l_code;
     o_public_error.category := l_category;
     o_public_error.external_message := p_external_message;
     o_public_error.retryable := p_retryable;
