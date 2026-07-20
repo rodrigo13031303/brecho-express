@@ -13,6 +13,7 @@ END;
 @@test_core_context_pkg.sql
 @@test_core_security_context_pkg.sql
 @@test_core_json_pkg.sql
+@@test_core_response_pkg.sql
 
 BEGIN
   core_security_context_pkg.clear;

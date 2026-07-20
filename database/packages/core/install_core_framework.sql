@@ -6,6 +6,7 @@ WHENEVER SQLERROR EXIT SQL.SQLCODE
 @@install_core_context_pkg.sql
 @@install_core_security_context_pkg.sql
 @@install_core_json_pkg.sql
+@@install_core_response_pkg.sql
 
 DECLARE
   l_invalid_count PLS_INTEGER;
@@ -33,6 +34,10 @@ BEGIN
       SELECT 'CORE_JSON_PKG', 'PACKAGE' FROM dual
       UNION ALL
       SELECT 'CORE_JSON_PKG', 'PACKAGE BODY' FROM dual
+      UNION ALL
+      SELECT 'CORE_RESPONSE_PKG', 'PACKAGE' FROM dual
+      UNION ALL
+      SELECT 'CORE_RESPONSE_PKG', 'PACKAGE BODY' FROM dual
     ) expected
     LEFT JOIN user_objects actual
       ON actual.object_name = expected.object_name
@@ -48,7 +53,8 @@ BEGIN
            'CORE_ERROR_PKG',
            'CORE_CONTEXT_PKG',
            'CORE_SECURITY_CONTEXT_PKG',
-           'CORE_JSON_PKG'
+           'CORE_JSON_PKG',
+           'CORE_RESPONSE_PKG'
          )
      AND type IN ('PACKAGE', 'PACKAGE BODY');
 
