@@ -17,9 +17,9 @@ Este documento é o contrato oficial da Sprint 9. Ele orienta a implementação 
 
 ## 2. Objetivo
 
-Implementar a primeira versão do módulo ACCOUNT no banco Oracle, limitada à entidade `BEX_ACCOUNT`, aos packages `ACC_RULE_PKG` e `ACC_API_PKG`, aos respectivos instaladores e aos testes automatizados.
+Implementar a infraestrutura Oracle completa da primeira versão do módulo ACCOUNT, compreendendo `BEX_ACCOUNT`, `ACC_RULE_PKG`, `ACC_PASSWORD_PKG`, `ACC_REPOSITORY_PKG`, `ACC_SERVICE_PKG`, `ACC_API_PKG`, seus instaladores e testes individuais e a consolidação do módulo.
 
-A implementação deve materializar apenas contratos já aprovados, respeitando a separação entre credenciais e identidade pessoal e utilizando o Core Framework conforme a responsabilidade de cada componente.
+A implementação deve materializar somente contratos aprovados, preservar a separação entre credenciais e identidade pessoal e utilizar o Core Framework apenas nas responsabilidades em que ele seja necessário.
 
 ---
 
@@ -27,9 +27,11 @@ A implementação deve materializar apenas contratos já aprovados, respeitando 
 
 A Sprint 8 foi encerrada com o Core Framework concluído e sua suíte consolidada aprovada. O baseline informado para o início desta Sprint é de 274 testes aprovados.
 
-A Sprint 9 inicia a implementação dos módulos de negócio pelo contexto de identidade. Seu objetivo é entregar exclusivamente a infraestrutura Oracle do módulo ACCOUNT prevista neste guia, sem antecipar PROFILE, autenticação completa, transporte ORDS ou clientes Flutter.
+A Sprint 9 inicia os módulos de negócio pelo contexto de identidade técnica. ACCOUNT representa credenciais e estado de acesso; PROFILE representa a identidade da pessoa e permanece reservado para outra Sprint.
 
-Durante a revisão da primeira specification de negócio foram identificadas lacunas sobre regras de ACCOUNT e sua tradução para erros públicos. A correção arquitetural foi aprovada e registrada no `ADR-015_ACCOUNT_DOMAIN_RULES.md` antes da implementação do body.
+As regras de domínio foram formalizadas em `ADR-015_ACCOUNT_DOMAIN_RULES.md`. As decisões físicas, de concorrência, geração de public ID e fronteiras de persistência foram formalizadas em `ADR-016_ACCOUNT_PERSISTENCE.md` antes do DDL e das packages dependentes.
+
+`ACC_PASSWORD_PKG` pertence ao módulo ACCOUNT nesta Sprint. Sua eventual extração futura para o Core dependerá de reutilização comprovada, ADR e evolução arquitetural próprios.
 
 ---
 
@@ -37,13 +39,19 @@ Durante a revisão da primeira specification de negócio foram identificadas lac
 
 A Sprint 9 implementará exclusivamente:
 
-- tabela `BEX_ACCOUNT`;
-- package `ACC_RULE_PKG`;
-- package `ACC_API_PKG`;
-- instaladores individuais e consolidado do módulo;
-- testes automatizados individuais e suíte consolidada do módulo.
+- DDL de `BEX_ACCOUNT`, suas constraints e índices diretamente necessários;
+- `ACC_RULE_PKG`;
+- `ACC_PASSWORD_PKG`, limitada à geração e verificação segura de hash de senha;
+- `ACC_REPOSITORY_PKG`;
+- `ACC_SERVICE_PKG`;
+- `ACC_API_PKG`;
+- instaladores individuais das packages;
+- instalador consolidado do módulo;
+- teste individual da tabela e testes individuais das packages;
+- suíte consolidada de ACCOUNT;
+- validação completa dos objetos e testes no Oracle AI Database.
 
-Qualquer comportamento implementado deve estar respaldado pelos documentos oficiais relacionados na seção 6 e permanecer dentro dos arquivos autorizados na seção 9.
+Qualquer comportamento deve estar respaldado pelos documentos da seção 6 e permanecer nos arquivos autorizados na seção 9.
 
 ---
 
@@ -52,18 +60,19 @@ Qualquer comportamento implementado deve estar respaldado pelos documentos ofici
 Não fazem parte da Sprint 9:
 
 - PROFILE;
-- JWT;
-- Refresh Token;
+- login ou autenticação completa;
+- sessão;
+- JWT e Refresh Token;
 - MFA;
 - Social Login;
 - OAuth;
 - Flutter;
 - ORDS;
-- recuperação de senha;
 - confirmação de e-mail;
+- recuperação de senha;
 - integrações externas.
 
-Esses itens não devem ser parcialmente implementados, simulados ou antecipados nos objetos desta Sprint.
+`ACC_PASSWORD_PKG` não representa login, sessão ou autorização. Os itens fora do escopo não devem ser parcialmente implementados, simulados ou antecipados.
 
 ---
 
@@ -85,25 +94,51 @@ Durante a implementação devem ser consultados, conforme a responsabilidade do 
 - `docs/29_EXECUTION_CONTEXT.md`;
 - `docs/30_DEVELOPMENT_STANDARD.md`;
 - `docs/ADR-015_ACCOUNT_DOMAIN_RULES.md`;
+- `docs/ADR-016_ACCOUNT_PERSISTENCE.md`;
 - este guia de implementação.
 
-As dependências acima devem ser referenciadas em sua fonte. Este guia não replica seus contratos detalhados nem altera sua hierarquia documental.
+As fontes devem ser consultadas segundo a hierarquia documental vigente. Este guia não replica seus contratos detalhados nem altera a autoridade dos documentos permanentes e das ADRs aceitas.
 
 ---
 
 ## 7. Arquitetura da Sprint
 
-ACCOUNT representa exclusivamente credenciais e estado de acesso. PROFILE representa a identidade da pessoa e será implementado em outro módulo. A separação entre esses conceitos é obrigatória.
+ACCOUNT representa identidade técnica, credenciais e estado de acesso. PROFILE representa identidade da pessoa. Essa separação é obrigatória.
 
-As responsabilidades desta Sprint são distribuídas da seguinte forma:
+```text
+ACC_API_PKG
+    ↓
+ACC_SERVICE_PKG
+    ├── ACC_RULE_PKG
+    ├── ACC_PASSWORD_PKG
+    └── ACC_REPOSITORY_PKG
+            ↓
+        BEX_ACCOUNT
+```
 
-- `BEX_ACCOUNT` materializa a entidade ACCOUNT conforme o Data Dictionary e as convenções físicas vigentes;
-- `ACC_RULE_PKG` concentra regras e validações de domínio pertencentes a ACCOUNT;
-- `ACC_API_PKG` constitui a fronteira PL/SQL do módulo e coordena os contratos autorizados sem absorver regras de domínio;
-- os instaladores criam e validam somente os objetos da Sprint;
-- os testes verificam contratos, regras, integração com o Core e ausência de efeitos proibidos.
+### 7.1 BEX_ACCOUNT
 
-Nenhuma regra pode contornar o Core Framework. Cada package do Core deve ser utilizado apenas quando necessário à responsabilidade do componente e segundo seus contratos públicos. Não serão criados packages, camadas, tabelas ou componentes além dos previstos neste guia.
+Materializa fisicamente ACCOUNT, armazena seu estado e protege constraints e integridade física. Não contém regras procedurais de domínio.
+
+### 7.2 ACC_RULE_PKG
+
+Executa regras puras, validações, normalizações e decisões de domínio. Não executa SQL e não conhece Core, JSON ou HTTP.
+
+### 7.3 ACC_PASSWORD_PKG
+
+Gera hashes seguros e verifica uma senha contra um hash armazenado. Não acessa `BEX_ACCOUNT`, não executa SQL, não representa autenticação completa e nunca registra senha ou hash em trace ou logs.
+
+### 7.4 ACC_REPOSITORY_PKG
+
+Contém exclusivamente SQL de ACCOUNT e recebe valores já preparados. Não gera `ACC_PUBLIC_ID`, não normaliza e-mail, não valida senha ou transições, não gera hash, não monta respostas públicas e não utiliza `CORE_RESPONSE_PKG`. Não executa `COMMIT` ou `ROLLBACK`.
+
+### 7.5 ACC_SERVICE_PKG
+
+Coordena os casos de uso utilizando RULE, PASSWORD e REPOSITORY. Normaliza e valida dados, gera `ACC_PUBLIC_ID`, produz o hash antes da persistência, interpreta resultados físicos e trata concorrência segundo os contratos aprovados. Não conhece ORDS ou HTTP e não monta resposta pública do Core.
+
+### 7.6 ACC_API_PKG
+
+Constitui a fronteira pública PL/SQL do módulo. Chama o Service, traduz exceções conhecidas para o contrato público, utiliza o Core Framework conforme necessário e retorna `CORE_RESPONSE_PKG.t_response_body`. Não executa SQL, não contém regras de domínio, não gera hash e não conhece ORDS ou Flutter.
 
 ---
 
@@ -112,54 +147,102 @@ Nenhuma regra pode contornar o Core Framework. Cada package do Core deve ser uti
 A sequência obrigatória é:
 
 ```text
-Arquitetura
+1. ACC_RULE_PKG
+2. ADR de persistência ACCOUNT
+3. DDL BEX_ACCOUNT
+4. ACC_PASSWORD_PKG
+5. ACC_REPOSITORY_PKG
+6. ACC_SERVICE_PKG
+7. ACC_API_PKG
+8. validação consolidada no Oracle
+9. Git
+```
+
+Cada componente PL/SQL deve cumprir, antes do avanço à etapa seguinte:
+
+```text
+arquitetura
     ↓
-Specification
+specification
     ↓
-Body
+body
     ↓
-Instaladores
+installer
     ↓
-Testes
+testes
     ↓
 Oracle
     ↓
-Git
+aprovação
 ```
 
-Antes da specification, deve ser verificada a coerência entre este guia e os documentos oficiais. Specification e body devem ser revisados antes da execução dos instaladores. A validação no Oracle e a aprovação dos testes precedem qualquer operação de Git que consolide a entrega. Falhas ou divergências devolvem o fluxo à etapa responsável, sem correção arquitetural silenciosa.
+O DDL deve materializar `ADR-016_ACCOUNT_PERSISTENCE.md` e o Data Dictionary. Falhas ou divergências devolvem o fluxo à etapa responsável, sem correção arquitetural silenciosa. Git somente sucede a validação consolidada e a aprovação.
 
 ---
 
 ## 9. Arquivos Autorizados
 
-Somente os arquivos relacionados nesta seção podem ser criados ou modificados durante a Sprint 9.
+Somente os arquivos desta seção podem ser criados ou modificados durante a Sprint 9.
 
 ### 9.1 Entregáveis Executáveis
 
-- `database/packages/account/acc_rule_pkg.pks`;
-- `database/packages/account/acc_rule_pkg.pkb`;
-- `database/packages/account/install_acc_rule_pkg.sql`;
-- `database/tests/account/test_acc_rule_pkg.sql`;
-- `database/packages/account/acc_api_pkg.pks`;
-- `database/packages/account/acc_api_pkg.pkb`;
-- `database/packages/account/install_acc_api_pkg.sql`;
-- `database/tests/account/test_acc_api_pkg.sql`;
-- `database/packages/account/install_account_module.sql`;
-- `database/tests/account/test_account_module.sql`.
+#### Tabela
 
-A criação de diretórios estritamente necessária para esses caminhos está autorizada. O DDL de `BEX_ACCOUNT` deve permanecer dentro do conjunto de instaladores autorizado, sem criar artefato adicional.
+1. `database/tables/account/bex_account.sql`;
+2. `database/tests/account/test_bex_account.sql`.
 
-### 9.2 Correção Arquitetural Aprovada
+#### ACC_RULE_PKG
 
-Exclusivamente para formalizar as decisões anteriores à implementação do body, estão autorizados:
+3. `database/packages/account/acc_rule_pkg.pks`;
+4. `database/packages/account/acc_rule_pkg.pkb`;
+5. `database/packages/account/install_acc_rule_pkg.sql`;
+6. `database/tests/account/test_acc_rule_pkg.sql`.
+
+#### ACC_PASSWORD_PKG
+
+7. `database/packages/account/acc_password_pkg.pks`;
+8. `database/packages/account/acc_password_pkg.pkb`;
+9. `database/packages/account/install_acc_password_pkg.sql`;
+10. `database/tests/account/test_acc_password_pkg.sql`.
+
+#### ACC_REPOSITORY_PKG
+
+11. `database/packages/account/acc_repository_pkg.pks`;
+12. `database/packages/account/acc_repository_pkg.pkb`;
+13. `database/packages/account/install_acc_repository_pkg.sql`;
+14. `database/tests/account/test_acc_repository_pkg.sql`.
+
+#### ACC_SERVICE_PKG
+
+15. `database/packages/account/acc_service_pkg.pks`;
+16. `database/packages/account/acc_service_pkg.pkb`;
+17. `database/packages/account/install_acc_service_pkg.sql`;
+18. `database/tests/account/test_acc_service_pkg.sql`.
+
+#### ACC_API_PKG
+
+19. `database/packages/account/acc_api_pkg.pks`;
+20. `database/packages/account/acc_api_pkg.pkb`;
+21. `database/packages/account/install_acc_api_pkg.sql`;
+22. `database/tests/account/test_acc_api_pkg.sql`.
+
+#### Consolidados
+
+23. `database/packages/account/install_account_module.sql`;
+24. `database/tests/account/test_account_module.sql`.
+
+A criação dos diretórios estritamente necessários a esses caminhos está autorizada. O caminho `database/tables/account/` é uma convenção local explícita desta Sprint para ACCOUNT e não institui regra automática para módulos futuros.
+
+### 9.2 Arquivos Documentais
+
+As correções documentais aprovadas da Sprint podem alcançar somente:
 
 - `docs/ADR-015_ACCOUNT_DOMAIN_RULES.md`;
+- `docs/ADR-016_ACCOUNT_PERSISTENCE.md`;
 - `docs/20_DATA_DICTIONARY.md`;
-- `docs/sprints/SPRINT_09_IMPLEMENTATION_GUIDE.md`;
-- `database/packages/account/acc_rule_pkg.pks`.
+- `docs/sprints/SPRINT_09_IMPLEMENTATION_GUIDE.md`.
 
-Esses documentos e a atualização da specification não constituem novos packages nem ampliam os dez entregáveis executáveis da seção 14.
+Esses arquivos documentais não integram a contagem dos 24 entregáveis executáveis.
 
 ---
 
@@ -169,13 +252,13 @@ Não podem ser criados ou modificados durante a Sprint 9:
 
 - arquivos de PROFILE ou de qualquer outro módulo de negócio;
 - packages, bodies, specifications, instaladores e testes do Core Framework;
-- documentos `00` a `30`, exceto o ajuste autorizado em `docs/20_DATA_DICTIONARY.md`;
-- Data Dictionary e documentos de modelagem de domínio;
+- documentos `00` a `30`, exceto `docs/20_DATA_DICTIONARY.md` conforme autorização específica;
 - documentos de arquitetura, padrões de API e contexto de execução;
-- artefatos ORDS, Flutter, autenticação por token ou integrações externas;
+- artefatos de login, sessão, token, ORDS, Flutter ou integrações externas;
+- migrations, scripts operacionais ou configurações não relacionados na seção 9;
 - qualquer arquivo não listado na seção 9.
 
-Este guia também não autoriza alteração retroativa em migrations, scripts operacionais ou configurações do projeto.
+`ACC_PASSWORD_PKG` pertence ao módulo ACCOUNT e não constitui alteração do Core Framework.
 
 ---
 
@@ -184,10 +267,13 @@ Este guia também não autoriza alteração retroativa em migrations, scripts op
 A implementação deve parar e solicitar revisão quando:
 
 - existir conflito entre documentos aplicáveis;
-- for necessária alteração arquitetural;
-- for necessária alteração no Core Framework;
+- for necessária alteração arquitetural ou evolução do Core Framework;
 - surgir decisão material que exija nova ADR;
-- existir inconsistência entre domínio, Data Dictionary e implementação pretendida;
+- existir divergência entre o DDL, o Data Dictionary e `ADR-016_ACCOUNT_PERSISTENCE.md`;
+- o contrato criptográfico de `ACC_PASSWORD_PKG` permanecer indefinido na etapa de sua implementação;
+- for necessária package em camada não autorizada;
+- o número ou a localização dos entregáveis precisar mudar sem autorização;
+- surgir regra de negócio não registrada em ADR ou documento superior;
 - um requisito somente puder ser atendido mediante arquivo não autorizado;
 - o contrato necessário não estiver suficientemente aprovado para implementação segura.
 
@@ -199,54 +285,81 @@ Nenhuma dessas situações pode ser resolvida por suposição, ampliação de es
 
 A Sprint somente será considerada aprovada quando:
 
-- todos os objetos autorizados compilarem com sucesso;
-- `USER_ERRORS` estiver vazio para os objetos da Sprint;
-- os testes individuais de `ACC_RULE_PKG` e `ACC_API_PKG` estiverem aprovados;
+- `BEX_ACCOUNT` estiver materializada conforme o Data Dictionary e `ADR-016_ACCOUNT_PERSISTENCE.md`;
+- tabela e packages compilarem ou forem criados com sucesso;
+- `USER_ERRORS` estiver vazio para todos os packages da Sprint;
+- constraints e índices estiverem aprovados e validados;
+- os testes individuais de tabela, RULE, PASSWORD, REPOSITORY, SERVICE e API estiverem aprovados;
 - a suíte consolidada de ACCOUNT estiver aprovada;
 - os 274 testes do baseline permanecerem aprovados;
-- o review técnico e arquitetural estiver aprovado;
+- nenhuma senha em texto puro for armazenada;
+- nenhuma senha ou hash for registrado em trace ou logs;
+- `ACC_ID` não for exposto às camadas superiores;
+- RULE e API não contiverem SQL de persistência;
+- as packages da Sprint não executarem `COMMIT` ou `ROLLBACK`;
+- os instaladores forem idempotentes e não ocultarem falhas;
 - a implementação estiver validada no Oracle AI Database;
-- não houver alteração fora do escopo autorizado.
+- o review técnico e arquitetural estiver aprovado;
+- não houver alteração fora dos arquivos autorizados.
 
 ---
 
 ## 13. Definition of Done
 
-A Sprint 9 estará concluída somente quando, conforme os padrões permanentes do projeto:
+A Sprint 9 estará concluída somente quando:
 
-- os dez entregáveis da seção 14 existirem e estiverem coerentes entre si;
-- specifications precederem e delimitarem seus respectivos bodies;
-- `BEX_ACCOUNT`, `ACC_RULE_PKG` e `ACC_API_PKG` respeitarem domínio, nomenclatura, segurança e direção de dependências;
-- credenciais não forem armazenadas em texto puro nem registradas em trace;
-- identificadores internos não forem expostos por contratos públicos;
-- erros conhecidos utilizarem o contrato público aprovado e erros inesperados forem tratados de forma segura;
-- packages de domínio e API não executarem `COMMIT` ou `ROLLBACK`;
-- SQL dinâmico, se excepcionalmente necessário, possuir justificativa e proteção conforme o padrão permanente;
-- instaladores forem idempotentes, falharem diante de erro de compilação e validarem os objetos instalados;
-- testes cobrirem regras, contratos, cenários de sucesso, erros conhecidos, falhas inesperadas relevantes e integração necessária com o Core;
-- testes não dependerem de frameworks externos e liberarem recursos temporários que criarem;
-- testes individuais e consolidados estiverem aprovados no Oracle AI Database;
-- o baseline anterior permanecer íntegro;
+- os 24 entregáveis executáveis da seção 14 existirem e estiverem coerentes entre si;
+- specifications públicas precederem e delimitarem seus respectivos bodies;
+- o DDL estiver coerente com o Data Dictionary e `ADR-016_ACCOUNT_PERSISTENCE.md`;
+- identity, constraints, índices, defaults e nulabilidade de `BEX_ACCOUNT` estiverem validados;
+- o mecanismo seguro de senha possuir contrato criptográfico aprovado, implementação e testes;
+- RULE, PASSWORD, REPOSITORY, SERVICE e API preservarem suas responsabilidades e dependências;
+- o Service gerar `ACC_PUBLIC_ID` e o Repository apenas persistir valores preparados;
+- concorrência e violações de unicidade forem tratadas nas camadas aprovadas;
+- senha em texto puro nunca for persistida e senha ou hash nunca forem registrados;
+- `ACC_ID` permanecer encapsulado na persistência;
+- SQL não existir em RULE ou API;
+- nenhuma package da Sprint executar `COMMIT` ou `ROLLBACK`;
+- instaladores individuais e consolidado forem idempotentes, previsíveis e validarem os objetos instalados;
+- testes individuais e consolidados cobrirem os contratos aprovados e liberarem os dados e recursos que criarem;
+- todos os testes estiverem aprovados no Oracle AI Database e `USER_ERRORS` estiver vazio;
+- o baseline de 274 testes permanecer íntegro;
 - o review técnico e arquitetural não possuir pendências bloqueantes;
 - o worktree não contiver mudanças da Sprint fora dos arquivos autorizados;
-- a consolidação em Git ocorrer somente após validação e autorização.
+- Git ocorrer somente depois da validação e autorização.
 
 ---
 
 ## 14. Entregáveis
 
-Os entregáveis da Sprint 9 são exatamente:
+Os entregáveis executáveis da Sprint 9 são exatamente:
 
-1. `acc_rule_pkg.pks`;
-2. `acc_rule_pkg.pkb`;
-3. `install_acc_rule_pkg.sql`;
-4. `test_acc_rule_pkg.sql`;
-5. `acc_api_pkg.pks`;
-6. `acc_api_pkg.pkb`;
-7. `install_acc_api_pkg.sql`;
-8. `test_acc_api_pkg.sql`;
-9. `install_account_module.sql`;
-10. `test_account_module.sql`.
+1. `database/tables/account/bex_account.sql`;
+2. `database/tests/account/test_bex_account.sql`;
+3. `database/packages/account/acc_rule_pkg.pks`;
+4. `database/packages/account/acc_rule_pkg.pkb`;
+5. `database/packages/account/install_acc_rule_pkg.sql`;
+6. `database/tests/account/test_acc_rule_pkg.sql`;
+7. `database/packages/account/acc_password_pkg.pks`;
+8. `database/packages/account/acc_password_pkg.pkb`;
+9. `database/packages/account/install_acc_password_pkg.sql`;
+10. `database/tests/account/test_acc_password_pkg.sql`;
+11. `database/packages/account/acc_repository_pkg.pks`;
+12. `database/packages/account/acc_repository_pkg.pkb`;
+13. `database/packages/account/install_acc_repository_pkg.sql`;
+14. `database/tests/account/test_acc_repository_pkg.sql`;
+15. `database/packages/account/acc_service_pkg.pks`;
+16. `database/packages/account/acc_service_pkg.pkb`;
+17. `database/packages/account/install_acc_service_pkg.sql`;
+18. `database/tests/account/test_acc_service_pkg.sql`;
+19. `database/packages/account/acc_api_pkg.pks`;
+20. `database/packages/account/acc_api_pkg.pkb`;
+21. `database/packages/account/install_acc_api_pkg.sql`;
+22. `database/tests/account/test_acc_api_pkg.sql`;
+23. `database/packages/account/install_account_module.sql`;
+24. `database/tests/account/test_account_module.sql`.
+
+Os quatro arquivos documentais da seção 9.2 são autorizações de suporte e não alteram essa quantidade.
 
 ---
 
