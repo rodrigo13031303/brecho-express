@@ -436,11 +436,12 @@ Sistema
 - RN-007 — APIs externas usam ACC_PUBLIC_ID, nunca ACC_ID.
 - RN-008 — ACC_PUBLIC_ID deve ser CHAR(32).
 - RN-009 — A exclusão deve ser lógica via ACC_STATUS.
-- RN-010 — Toda ACCOUNT possui exatamente um PROFILE.
+- RN-010 — Uma ACCOUNT pode existir antes da criação do PROFILE e possuir zero ou um PROFILE.
 
 ## Relacionamentos
 
-- PROFILE (1:1)
+- PROFILE (1:0..1) — uma ACCOUNT pode possuir zero ou um PROFILE; cada PROFILE pertence exatamente a uma ACCOUNT.
+- STORE (1:0..N) — uma ACCOUNT pode possuir zero, uma ou várias STORE; cada STORE possui exatamente uma ACCOUNT proprietária, registrada estruturalmente por STORE.ACC_ID.
 
 ## Atributos
 
@@ -628,14 +629,14 @@ ADR_LABEL pode ser utilizado para identificar o endereço de forma amigável, co
 | Prefixo | STR |
 | Tipo | MASTER |
 | Responsável | Brechós |
-| Soft Delete | Sim |
+| Soft Delete | Não se aplica; encerramento funcional por status |
 | Auditoria | Sim |
 | Exposto pela API | Sim |
 | Cache | Sim |
 
 ## Objetivo
 
-Representar o Brechó dentro do domínio do Brechó Express.
+Representar uma loja ou operação comercial de venda dentro do domínio do Brechó Express.
 
 ## Classificação
 
@@ -646,95 +647,202 @@ MASTER
 - Representar qualquer Brechó, ONG, projeto social, loja de economia circular ou revendedor parceiro.
 - Servir como entidade central do módulo Brechós.
 - Organizar dados básicos de identificação e apresentação do Brechó.
-- Apoiar a publicação de achados e a operação comercial da plataforma.
+- Preservar a propriedade estrutural da loja por uma ACCOUNT.
+- Preservar a identidade pública e o ciclo de vida da loja.
+- Servir como agregado externo de referência para catálogo e operação comercial.
 
 ## Não é responsabilidade
 
 - Armazenar credenciais de autenticação.
 - Representar diretamente produtos.
-- Definir regras comerciais completas.
-- Gerenciar logística integral.
+- Armazenar estoque, pedidos, reputação, endereços, pagamentos ou entregas.
+- Armazenar equipe, papéis, convites, promoções ou cupons.
+- Concentrar configurações comerciais extensas, assinaturas, planos, comissões ou repasses.
+- Definir regras comerciais, fiscais, financeiras ou logísticas completas.
 - Substituir o papel de PROFILE na identidade da pessoa.
 
 ## Dono da Informação
 
-Usuário / Operação do Brechó
+ACCOUNT proprietária / Operação do Brechó
 
 ## Regras de Negócio
 
 - RN-001 — STORE representa qualquer Brechó, ONG, projeto social, loja de economia circular ou revendedor parceiro.
 - RN-002 — STORE é o termo técnico; na interface o termo oficial é Brechó.
-- RN-003 — Um STORE deve possuir um PROFILE responsável.
-- RN-004 — Um PROFILE pode administrar um ou mais STORE.
-- RN-005 — Um STORE pode possuir um ADDRESS principal.
-- RN-006 — STR_PUBLIC_ID deve ser CHAR(32).
-- RN-007 — APIs externas usam STR_PUBLIC_ID, nunca STR_ID.
-- RN-008 — STR_SLUG deve ser único.
-- RN-009 — A exclusão deve ser lógica via STR_STATUS.
-- RN-010 — STORE não armazena credenciais de autenticação.
-- RN-011 — STORE não representa diretamente produtos; produtos serão representados por PRODUCT.
-- RN-012 — STORE pode ser Gratuito ou Plus através de STR_IS_PLUS.
+- RN-003 — Toda STORE deve possuir exatamente uma ACCOUNT proprietária.
+- RN-004 — Uma ACCOUNT pode possuir zero, uma ou várias STORE.
+- RN-005 — PROFILE não é pré-condição estrutural para criação ou existência de STORE.
+- RN-006 — A ACCOUNT deve estar ativa na criação e na ativação da STORE.
+- RN-007 — STR_ID é interno, imutável e nunca exposto externamente.
+- RN-008 — STR_PUBLIC_ID é obrigatório, único, opaco, imutável e independente de nome, slug, conta ou data.
+- RN-009 — APIs e integrações externas usam STR_PUBLIC_ID, nunca STR_ID.
+- RN-010 — STR_SLUG deve ser único globalmente, canônico em minúsculas e distinto de STR_PUBLIC_ID.
+- RN-011 — STR_PUBLIC_ID e STR_SLUG exigem garantia física de unicidade; consulta prévia não elimina conflitos concorrentes.
+- RN-012 — ACC_ID é obrigatório, privado e imutável após a criação; externamente, a conta é resolvida por accountPublicId.
+- RN-013 — Uma ACCOUNT não possui limite estrutural de quantidade de STORE.
+- RN-014 — STR_STATUS aceita exclusivamente DRAFT, ACTIVE, SUSPENDED e CLOSED.
+- RN-015 — STR_STATUS é alterado somente por casos de uso específicos de estado, nunca por PATCH genérico.
+- RN-016 — CLOSED representa encerramento funcional sem reversão na primeira versão.
+- RN-017 — STORE encerrada preserva histórico, não recebe atualização comum e não é excluída fisicamente como operação normal.
+- RN-018 — A API pública não oferece DELETE na primeira versão.
+- RN-019 — STR_DESCRIPTION, STR_LOGO_URL e STR_COVER_URL são anuláveis; os demais atributos funcionais obrigatórios não aceitam JSON null.
+- RN-020 — STORE não armazena credenciais, produtos, estoque, pedidos, reputação, endereços ou configurações comerciais extensas.
 
 ## Relacionamentos
 
-- PROFILE (N:1)
-- ADDRESS (N:1)
-- PRODUCT (1:N)
-- STORE_USER (1:N)
-- STORE_EVENT (1:N)
-- STORE_FOLLOWER (1:N)
-- STORE_REVIEW (1:N)
-- STORE_REPUTATION (1:1)
+- ACCOUNT (N:1) — relacionamento estrutural obrigatório de propriedade.
+- PRODUCT (1:N) — relacionamento externo futuro ou evolutivo.
+- INVENTORY ou STOCK_ITEM (1:N) — relacionamento externo futuro.
+- ORDER (1:N) — relacionamento externo futuro.
+- STORE_REPUTATION (1:N conceitual) — relacionamento externo sujeito ao contrato específico do módulo.
+- STORE_ADDRESS (1:N) — entidade futura para endereços com semânticas próprias.
+- STORE_MEMBER (1:N) — evolução de administração e colaboração, sem alterar a propriedade por ACCOUNT.
+- STORE_EVENT (1:N) — relacionamento externo.
+- STORE_FOLLOWER (1:N) — relacionamento externo.
+- STORE_REVIEW (1:N) — relacionamento externo.
+- PROMOTION (1:N) — relacionamento externo futuro.
+- COUPON (1:N) — relacionamento externo futuro.
+
+Cardinalidade estrutural aprovada:
+
+```text
+ACCOUNT 1 → 0..N STORE
+STORE N → 1 ACCOUNT
+```
+
+Participações futuras de PROFILE como administrador, colaborador, seguidor, autor de avaliação ou identidade de apresentação não substituem ACC_ID como propriedade estrutural.
 
 ## Atributos
 
-| Campo | Tipo | Obrigatório |
-|--------|------|-------------|
-| STR_ID | NUMBER Identity | Sim |
-| STR_PUBLIC_ID | CHAR(32) | Sim |
-| PFL_ID | NUMBER | Sim |
-| ADR_ID | NUMBER | Não |
-| STR_NAME | VARCHAR2(200) | Sim |
-| STR_SLUG | VARCHAR2(100) | Sim |
-| STR_DESCRIPTION | VARCHAR2(1000) | Não |
-| STR_PHONE | VARCHAR2(20) | Não |
-| STR_WHATSAPP | VARCHAR2(20) | Não |
-| STR_EMAIL | VARCHAR2(255) | Não |
-| STR_LOGO_URL | VARCHAR2(500) | Não |
-| STR_COVER_URL | VARCHAR2(500) | Não |
-| STR_TYPE | VARCHAR2(50) | Não |
-| STR_IS_PLUS | CHAR(1) | Não |
-| STR_STATUS | VARCHAR2(20) | Sim |
-| STR_CREATED_AT | TIMESTAMP | Sim |
-| STR_UPDATED_AT | TIMESTAMP | Sim |
-| STR_CREATED_BY | NUMBER | Não |
-| STR_UPDATED_BY | NUMBER | Não |
+| Campo | Tipo físico proposto | Obrigatório | Padrão | Mutabilidade | Validação e finalidade | Exposição externa |
+|--------|----------------------|-------------|--------|-------------|-----------------------|------------------|
+| STR_ID | NUMBER Identity | Sim | Gerado pelo Oracle | Imutável | Chave primária e identificador técnico interno | Nunca exposto |
+| STR_PUBLIC_ID | CHAR(32 CHAR) | Sim | Gerado pelo Service conforme padrão geral de Public IDs | Imutável | Identificador público opaco, independente de dados de negócio e sujeito a unicidade física | storePublicId |
+| ACC_ID | NUMBER | Sim | Sem default | Imutável após criação | FK para BEX_ACCOUNT; identifica a ACCOUNT proprietária | Nunca exposto; recebido como accountPublicId |
+| STR_NAME | VARCHAR2(200 CHAR) | Sim | Sem default | Mutável enquanto não CLOSED | Nome público; normalizar extremidades e espaços internos; entre 2 e 200 caracteres | storeName |
+| STR_SLUG | VARCHAR2(100 CHAR) | Sim | Sem default | Mutável somente em DRAFT | Único globalmente; minúsculo; somente a-z, 0-9 e hífen; sem hífen nas extremidades e com hífens repetidos consolidados | storeSlug |
+| STR_DESCRIPTION | VARCHAR2(1000 CHAR) | Não | NULL | Mutável e anulável | Texto público de apresentação; normalização e limite validados pela Rule | description |
+| STR_STATUS | VARCHAR2(20 CHAR) | Sim | DRAFT | Mutável somente por casos de uso de estado | DRAFT, ACTIVE, SUSPENDED ou CLOSED | status |
+| STR_LOGO_URL | VARCHAR2(1000 CHAR) | Não | NULL | Mutável e anulável | Referência textual; não armazena BLOB; validação estrutural sem buscar o recurso | logoUrl |
+| STR_COVER_URL | VARCHAR2(1000 CHAR) | Não | NULL | Mutável e anulável | Referência textual; não armazena BLOB; validação estrutural sem buscar o recurso | coverUrl |
+| STR_LOCALE_CODE | VARCHAR2(10 CHAR) | Sim | pt-BR | Mutável enquanto não CLOSED | Código validado por lista ou contrato aprovado | localeCode |
+| STR_TIMEZONE_NAME | VARCHAR2(64 CHAR) | Sim | America/Sao_Paulo | Mutável enquanto não CLOSED | Identificador de timezone IANA validado por contrato aprovado | timezoneName |
+| STR_CREATED_AT | TIMESTAMP(6) | Sim | SYSTIMESTAMP | Imutável | Instante técnico de criação | createdAt |
+| STR_CREATED_BY | NUMBER | Não | Sem default | Imutável | Ator técnico responsável pela criação; não representa ACC_ID, proprietário ou PROFILE | Nunca exposto |
+| STR_UPDATED_AT | TIMESTAMP(6) | Sim | SYSTIMESTAMP | Atualizado em escrita | Instante técnico da última alteração | updatedAt |
+| STR_UPDATED_BY | NUMBER | Não | Sem default | Atualizado em escrita | Ator técnico da última alteração; não representa ACC_ID, proprietário ou PROFILE | Nunca exposto |
 
-STR_CREATED_BY e STR_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+STR_CREATED_BY e STR_UPDATED_BY registram o ator técnico de auditoria conforme o contexto de execução. Eles não são chaves de propriedade e não devem ser confundidos com ACC_ID ou com PROFILE.
+
+## Identidade pública e slug
+
+- STR_PUBLIC_ID segue o formato físico geral já aprovado para Public IDs no projeto e deve possuir constraint única.
+- STR_PUBLIC_ID não pode ser derivado de nome, slug, conta ou data e não pode ser substituído pelo slug.
+- Colisão de Public ID deve ser tratada pelo caso de uso sem enfraquecer a garantia física.
+- STR_SLUG é obrigatório na primeira versão e deve possuir constraint única global.
+- A forma canônica do slug utiliza apenas letras minúsculas de a a z, dígitos de 0 a 9 e hífen.
+- Hífens repetidos são consolidados e hífen não é permitido no início ou no fim.
+- Após ativação, o slug permanece imutável enquanto não existir política aprovada de histórico e redirecionamento.
+
+## Ciclo de Vida
+
+- DRAFT — loja ainda não publicada.
+- ACTIVE — loja operacional.
+- SUSPENDED — suspensão administrativa temporária e reversível.
+- CLOSED — encerramento funcional sem reversão na primeira versão.
+
+Transições permitidas:
+
+```text
+DRAFT → ACTIVE
+DRAFT → CLOSED
+ACTIVE → SUSPENDED
+SUSPENDED → ACTIVE
+ACTIVE → CLOSED
+SUSPENDED → CLOSED
+```
+
+Demais transições são inválidas. INACTIVE, BLOCKED e PENDING_REVIEW não pertencem à primeira versão.
+
+## Atualização Parcial
+
+- Campo ausente preserva o valor atual.
+- Campo presente com valor substitui o valor atual.
+- Campo presente com JSON null limpa somente atributo anulável.
+- STR_DESCRIPTION, STR_LOGO_URL e STR_COVER_URL podem ser limpos.
+- STR_NAME, STR_SLUG, STR_LOCALE_CODE e STR_TIMEZONE_NAME não aceitam NULL.
+- STR_ID, STR_PUBLIC_ID, ACC_ID, STR_STATUS e os campos de auditoria não pertencem ao PATCH comum.
+
+## Exclusão e Preservação Histórica
+
+- STORE não possui exclusão física como operação normal.
+- CLOSED representa o encerramento funcional e preserva histórico e dependências.
+- A API pública não oferece DELETE na primeira versão.
+- Exclusão excepcional de DRAFT sem dependências permanece decisão futura.
+- Não se utiliza coluna genérica de soft delete sem nova decisão arquitetural.
+
+## Constraints Conceituais
+
+- Primary Key obrigatória para STR_ID.
+- Unique obrigatória para STR_PUBLIC_ID.
+- Unique obrigatória para STR_SLUG.
+- Foreign Key obrigatória de ACC_ID para BEX_ACCOUNT.
+- Check obrigatória para os valores aprovados de STR_STATUS.
+- Not Null para todos os atributos marcados como obrigatórios.
+- ACC_ID não possui Unique, preservando várias STORE para a mesma ACCOUNT.
+- Normalização e regras complementares de slug permanecem nas camadas apropriadas.
+
+## Concorrência
+
+- Public ID e slug devem ser protegidos por constraints físicas.
+- Pré-validação de disponibilidade não elimina conflito concorrente.
+- O Service traduz a violação física para sua exceção pública nominal.
+- Mudanças de estado validam o estado corrente na mesma transação da atualização.
+- Locking ou controle otimista será definido durante a modelagem física e a implementação.
+- Criação não é idempotente sem uma futura chave explícita de idempotência.
+
+## Erros Conceituais Candidatos
+
+- STORE_NOT_FOUND
+- ACCOUNT_NOT_FOUND_OR_INELIGIBLE
+- INVALID_STORE_NAME
+- INVALID_STORE_SLUG
+- STORE_SLUG_ALREADY_EXISTS
+- INVALID_STORE_STATUS
+- INVALID_STATUS_TRANSITION
+- STORE_ALREADY_CLOSED
+- STORE_NOT_ACTIVE
+- EMPTY_UPDATE
+
+Os códigos não estão reservados por esta seção. A regra de loja equivalente não deve ser implementada enquanto sua definição permanecer pendente.
 
 ## Índices
 
 - PK_STORE
 - UK_STORE_PUBLIC_ID
 - UK_STORE_SLUG
-- IDX_STORE_PROFILE
-- IDX_STORE_ADDRESS
+- IDX_STORE_ACCOUNT
 - IDX_STORE_STATUS
-- IDX_STORE_TYPE
-- IDX_STORE_IS_PLUS
+
+UK_STORE_PUBLIC_ID e UK_STORE_SLUG já atendem às respectivas buscas de unicidade e não devem receber índices redundantes. IDX_STORE_ACCOUNT apoia a listagem 0..N por ACCOUNT, sem impor unicidade a ACC_ID.
 
 ## Packages Oracle
 
 - STR_API_PKG
+- STR_SERVICE_PKG
 - STR_RULE_PKG
+- STR_REPOSITORY_PKG
 
 ## APIs
 
-- GET /stores
-- GET /stores/{publicId}
-- GET /stores/slug/{slug}
-- POST /stores
-- PUT /stores/{publicId}
+- POST /accounts/{accountPublicId}/stores
+- GET /stores/{storePublicId}
+- GET /accounts/{accountPublicId}/stores
+- PATCH /stores/{storePublicId}
+- POST /stores/{storePublicId}/activation
+- POST /stores/{storePublicId}/closure
+
+As rotas são candidatas e não representam handlers implementados. A listagem por conta é autenticada na primeira versão. Suspensão permanece pendente de contrato administrativo.
 
 ## Flutter
 
@@ -748,6 +856,10 @@ STR_CREATED_BY e STR_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações
 STORE é a entidade central do módulo Brechós e representa o Brechó na plataforma.
 
 Na interface, STORE deve ser apresentado como Brechó, conforme Linguagem Ubíqua oficial.
+
+Produtos, estoque, pedidos, reputação, endereços, membros, papéis, convites, promoções, cupons, pagamentos, entregas, configurações extensas, assinaturas, planos, comissões, repasses, KYC e documentos fiscais permanecem fora do agregado STORE.
+
+Permanecem pendentes a política administrativa de suspensão, a estratégia de locking ou controle otimista, a política de redirecionamento de slug, a eventual vitrine pública, a chave de idempotência e a exclusão excepcional de rascunhos sem dependências.
 
 # STORE_USER
 
@@ -796,7 +908,7 @@ Operação do Brechó
 - RN-001 — STORE_USER representa a participação de um PROFILE em um STORE.
 - RN-002 — Um STORE pode possuir vários STORE_USER.
 - RN-003 — Um PROFILE pode participar de vários STORE.
-- RN-004 — Um PROFILE pode atuar como proprietário, atendente, gerente ou colaborador de um STORE.
+- RN-004 — Um PROFILE pode atuar como administrador, atendente, gerente ou colaborador de um STORE, sem substituir a ACCOUNT proprietária.
 - RN-005 — A combinação STR_ID + PFL_ID deve ser única enquanto ativa.
 - RN-006 — STU_PUBLIC_ID deve ser CHAR(32).
 - RN-007 — APIs externas usam STU_PUBLIC_ID, nunca STU_ID.
@@ -864,7 +976,7 @@ Ela define quem pode operar um Brechó e com qual função.
 
 PROFILE_ROLE define papéis globais da plataforma, como CUSTOMER, STORE_OWNER, ADMIN e SYSTEM.
 
-STORE_USER define papéis dentro de um Brechó específico, como OWNER, MANAGER, ATTENDANT ou COLLABORATOR.
+STORE_USER define papéis dentro de um Brechó específico, como ADMIN, MANAGER, ATTENDANT ou COLLABORATOR.
 
 # STORE_PLAN
 
