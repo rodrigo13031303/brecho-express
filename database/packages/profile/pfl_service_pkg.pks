@@ -4,6 +4,21 @@ CREATE OR REPLACE PACKAGE pfl_service_pkg AS
 
   e_profile_not_found           EXCEPTION;
   e_account_already_has_profile EXCEPTION;
+  e_account_not_found           EXCEPTION;
+  e_invalid_display_name        EXCEPTION;
+  e_invalid_full_name           EXCEPTION;
+  e_invalid_birth_date          EXCEPTION;
+  e_invalid_locale_code         EXCEPTION;
+  e_invalid_timezone_name       EXCEPTION;
+
+  PRAGMA EXCEPTION_INIT(e_profile_not_found, -20700);
+  PRAGMA EXCEPTION_INIT(e_account_already_has_profile, -20701);
+  PRAGMA EXCEPTION_INIT(e_invalid_display_name, -20702);
+  PRAGMA EXCEPTION_INIT(e_invalid_full_name, -20703);
+  PRAGMA EXCEPTION_INIT(e_invalid_birth_date, -20704);
+  PRAGMA EXCEPTION_INIT(e_invalid_locale_code, -20705);
+  PRAGMA EXCEPTION_INIT(e_invalid_timezone_name, -20706);
+  PRAGMA EXCEPTION_INIT(e_account_not_found, -20840);
 
   FUNCTION create_profile(
     p_account_id     IN BEX_PROFILE.ACC_ID%TYPE,

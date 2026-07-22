@@ -19,6 +19,9 @@ CREATE OR REPLACE PACKAGE BODY pfl_service_pkg AS
     );
 
     RETURN l_account.ACC_ID;
+  EXCEPTION
+    WHEN acc_service_pkg.e_account_not_found THEN
+      RAISE e_account_not_found;
   END resolve_account_id;
 
   PROCEDURE validate_profile_data(
@@ -34,6 +37,17 @@ CREATE OR REPLACE PACKAGE BODY pfl_service_pkg AS
     pfl_rule_pkg.validate_birth_date(p_birth_date);
     pfl_rule_pkg.validate_locale_code(p_locale_code);
     pfl_rule_pkg.validate_timezone_name(p_timezone_name);
+  EXCEPTION
+    WHEN pfl_rule_pkg.e_invalid_display_name THEN
+      RAISE e_invalid_display_name;
+    WHEN pfl_rule_pkg.e_invalid_full_name THEN
+      RAISE e_invalid_full_name;
+    WHEN pfl_rule_pkg.e_invalid_birth_date THEN
+      RAISE e_invalid_birth_date;
+    WHEN pfl_rule_pkg.e_invalid_locale_code THEN
+      RAISE e_invalid_locale_code;
+    WHEN pfl_rule_pkg.e_invalid_timezone_name THEN
+      RAISE e_invalid_timezone_name;
   END validate_profile_data;
 
   PROCEDURE assert_profile_exists(

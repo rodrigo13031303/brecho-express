@@ -6,7 +6,7 @@ DECLARE
   g_test_count   PLS_INTEGER := 0;
   g_current_test VARCHAR2(200);
 
-  c_expected_test_count CONSTANT PLS_INTEGER := 62;
+  c_expected_test_count CONSTANT PLS_INTEGER := 67;
   c_audit_actor_id       CONSTANT NUMBER := 4101;
   c_update_actor_id      CONSTANT NUMBER := 4102;
 
@@ -117,8 +117,17 @@ DECLARE
     p_rule_name  IN VARCHAR2,
     p_account_id IN BEX_PROFILE.ACC_ID%TYPE
   ) IS
-    l_result BEX_PROFILE%ROWTYPE;
+    l_result        BEX_PROFILE%ROWTYPE;
+    l_expected_code PLS_INTEGER;
   BEGIN
+    l_expected_code := CASE p_rule_name
+      WHEN 'DISPLAY' THEN -20702
+      WHEN 'FULL' THEN -20703
+      WHEN 'BIRTH' THEN -20704
+      WHEN 'LOCALE' THEN -20705
+      WHEN 'TIMEZONE' THEN -20706
+    END;
+
     l_raised := FALSE;
     BEGIN
       l_result := pfl_service_pkg.create_profile(
@@ -133,20 +142,77 @@ DECLARE
         p_audit_actor_id => c_audit_actor_id
       );
     EXCEPTION
-      WHEN pfl_rule_pkg.e_invalid_display_name THEN
-        l_raised := p_rule_name = 'DISPLAY';
-      WHEN pfl_rule_pkg.e_invalid_full_name THEN
-        l_raised := p_rule_name = 'FULL';
-      WHEN pfl_rule_pkg.e_invalid_birth_date THEN
-        l_raised := p_rule_name = 'BIRTH';
-      WHEN pfl_rule_pkg.e_invalid_locale_code THEN
-        l_raised := p_rule_name = 'LOCALE';
-      WHEN pfl_rule_pkg.e_invalid_timezone_name THEN
-        l_raised := p_rule_name = 'TIMEZONE';
+      WHEN pfl_service_pkg.e_invalid_display_name THEN
+        l_raised := p_rule_name = 'DISPLAY'
+                    AND SQLCODE = l_expected_code;
+      WHEN pfl_service_pkg.e_invalid_full_name THEN
+        l_raised := p_rule_name = 'FULL'
+                    AND SQLCODE = l_expected_code;
+      WHEN pfl_service_pkg.e_invalid_birth_date THEN
+        l_raised := p_rule_name = 'BIRTH'
+                    AND SQLCODE = l_expected_code;
+      WHEN pfl_service_pkg.e_invalid_locale_code THEN
+        l_raised := p_rule_name = 'LOCALE'
+                    AND SQLCODE = l_expected_code;
+      WHEN pfl_service_pkg.e_invalid_timezone_name THEN
+        l_raised := p_rule_name = 'TIMEZONE'
+                    AND SQLCODE = l_expected_code;
     END;
 
     assert_true(l_raised, 'Excecao nominal incorreta para ' || p_rule_name || '.');
   END assert_rule_failure;
+
+  PROCEDURE assert_update_rule_failure(
+    p_rule_name  IN VARCHAR2,
+    p_profile_id IN BEX_PROFILE.PFL_ID%TYPE
+  ) IS
+    l_result        BEX_PROFILE%ROWTYPE;
+    l_expected_code PLS_INTEGER;
+  BEGIN
+    l_expected_code := CASE p_rule_name
+      WHEN 'DISPLAY' THEN -20702
+      WHEN 'FULL' THEN -20703
+      WHEN 'BIRTH' THEN -20704
+      WHEN 'LOCALE' THEN -20705
+      WHEN 'TIMEZONE' THEN -20706
+    END;
+
+    l_raised := FALSE;
+    BEGIN
+      l_result := pfl_service_pkg.update_profile(
+        p_profile_id,
+        CASE WHEN p_rule_name = 'DISPLAY' THEN 'x' ELSE 'Valid Name' END,
+        CASE WHEN p_rule_name = 'FULL' THEN 'x' ELSE NULL END,
+        CASE WHEN p_rule_name = 'BIRTH' THEN TRUNC(SYSDATE) + 1 ELSE NULL END,
+        NULL,
+        NULL,
+        CASE WHEN p_rule_name = 'LOCALE' THEN 'en-US' ELSE 'pt-BR' END,
+        CASE WHEN p_rule_name = 'TIMEZONE' THEN 'UTC' ELSE 'America/Sao_Paulo' END,
+        c_update_actor_id
+      );
+    EXCEPTION
+      WHEN pfl_service_pkg.e_invalid_display_name THEN
+        l_raised := p_rule_name = 'DISPLAY'
+                    AND SQLCODE = l_expected_code;
+      WHEN pfl_service_pkg.e_invalid_full_name THEN
+        l_raised := p_rule_name = 'FULL'
+                    AND SQLCODE = l_expected_code;
+      WHEN pfl_service_pkg.e_invalid_birth_date THEN
+        l_raised := p_rule_name = 'BIRTH'
+                    AND SQLCODE = l_expected_code;
+      WHEN pfl_service_pkg.e_invalid_locale_code THEN
+        l_raised := p_rule_name = 'LOCALE'
+                    AND SQLCODE = l_expected_code;
+      WHEN pfl_service_pkg.e_invalid_timezone_name THEN
+        l_raised := p_rule_name = 'TIMEZONE'
+                    AND SQLCODE = l_expected_code;
+    END;
+
+    assert_true(
+      l_raised,
+      'Excecao nominal de atualizacao incorreta para ' || p_rule_name || '.'
+    );
+  END assert_update_rule_failure;
 
   PROCEDURE run_tests IS
     l_savepoint_profile_id BEX_PROFILE.PFL_ID%TYPE;
@@ -259,7 +325,7 @@ DECLARE
       l_aux_profile := create_valid_profile(l_account_id, c_audit_actor_id);
     EXCEPTION
       WHEN pfl_service_pkg.e_account_already_has_profile THEN
-        l_raised := TRUE;
+        l_raised := SQLCODE = -20701;
     END;
     assert_true(l_raised, 'Segunda criacao deveria ser rejeitada.');
     pass;
@@ -284,7 +350,7 @@ DECLARE
       l_aux_profile := pfl_service_pkg.get_by_id(-1);
     EXCEPTION
       WHEN pfl_service_pkg.e_profile_not_found THEN
-        l_raised := TRUE;
+        l_raised := SQLCODE = -20700;
     END;
     assert_true(l_raised, 'GET_BY_ID deveria levantar e_profile_not_found.');
     pass;
@@ -345,7 +411,7 @@ DECLARE
         LOWER(RAWTOHEX(SYS_GUID()))
       );
     EXCEPTION
-      WHEN acc_service_pkg.e_account_not_found THEN
+      WHEN pfl_service_pkg.e_account_not_found THEN
         l_raised := SQLCODE = -20840;
     END;
     assert_true(
@@ -380,6 +446,21 @@ DECLARE
       p_audit_actor_id    => c_audit_actor_id
     );
     assert_true(l_aux_profile.PFL_ID IS NOT NULL, 'Perfil nao foi criado.');
+    pass;
+
+    start_test('CREATE_BY_ACCOUNT_PUBLIC_ID traduz conta inexistente');
+    l_raised := FALSE;
+    BEGIN
+      l_aux_profile := pfl_service_pkg.create_by_account_public_id(
+        LOWER(RAWTOHEX(SYS_GUID())),
+        'Missing Account', NULL, NULL, NULL, NULL,
+        'pt-BR', 'America/Sao_Paulo', c_audit_actor_id
+      );
+    EXCEPTION
+      WHEN pfl_service_pkg.e_account_not_found THEN
+        l_raised := SQLCODE = -20840;
+    END;
+    assert_true(l_raised, 'Conta inexistente nao foi traduzida pela Service.');
     pass;
 
     start_test('CREATE_BY_ACCOUNT_PUBLIC_ID resolve ACC_ID correto');
@@ -482,18 +563,24 @@ DECLARE
     assert_true(l_raised, 'UPDATE_PROFILE deveria levantar e_profile_not_found.');
     pass;
 
-    start_test('UPDATE_PROFILE propaga validacao do Rule');
-    l_raised := FALSE;
-    BEGIN
-      l_aux_profile := pfl_service_pkg.update_profile(
-        l_profile.PFL_ID, 'x', NULL, NULL, NULL, NULL,
-        'pt-BR', 'America/Sao_Paulo', c_update_actor_id
-      );
-    EXCEPTION
-      WHEN pfl_rule_pkg.e_invalid_display_name THEN
-        l_raised := TRUE;
-    END;
-    assert_true(l_raised, 'UPDATE_PROFILE nao propagou a excecao do Rule.');
+    start_test('UPDATE_PROFILE traduz display name invalido');
+    assert_update_rule_failure('DISPLAY', l_profile.PFL_ID);
+    pass;
+
+    start_test('UPDATE_PROFILE traduz full name invalido');
+    assert_update_rule_failure('FULL', l_profile.PFL_ID);
+    pass;
+
+    start_test('UPDATE_PROFILE traduz data futura');
+    assert_update_rule_failure('BIRTH', l_profile.PFL_ID);
+    pass;
+
+    start_test('UPDATE_PROFILE traduz locale invalido');
+    assert_update_rule_failure('LOCALE', l_profile.PFL_ID);
+    pass;
+
+    start_test('UPDATE_PROFILE traduz timezone invalida');
+    assert_update_rule_failure('TIMEZONE', l_profile.PFL_ID);
     pass;
 
     l_original_profile := l_profile;
