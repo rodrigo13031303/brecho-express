@@ -6,7 +6,7 @@ DECLARE
   g_test_count   PLS_INTEGER := 0;
   g_current_test VARCHAR2(200);
 
-  c_expected_test_count CONSTANT PLS_INTEGER := 30;
+  c_expected_test_count CONSTANT PLS_INTEGER := 43;
   c_email                CONSTANT VARCHAR2(255) :=
     'service.test.create@example.invalid';
   c_second_email         CONSTANT VARCHAR2(255) :=
@@ -253,6 +253,104 @@ DECLARE
     assert_true(l_raised, 'Conta inexistente deveria ser rejeitada.');
     pass;
 
+    start_test('GET_BY_PUBLIC_ID retorna conta existente');
+    l_second_account := acc_service_pkg.get_by_public_id(
+      l_account.ACC_PUBLIC_ID
+    );
+    assert_true(
+      l_second_account.ACC_ID IS NOT NULL,
+      'GET_BY_PUBLIC_ID nao retornou a conta existente.'
+    );
+    pass;
+
+    start_test('GET_BY_PUBLIC_ID preserva ACC_ID');
+    assert_true(
+      l_second_account.ACC_ID = l_account.ACC_ID,
+      'GET_BY_PUBLIC_ID nao preservou ACC_ID.'
+    );
+    pass;
+
+    start_test('GET_BY_PUBLIC_ID preserva ACC_PUBLIC_ID');
+    assert_true(
+      l_second_account.ACC_PUBLIC_ID = l_account.ACC_PUBLIC_ID,
+      'GET_BY_PUBLIC_ID nao preservou ACC_PUBLIC_ID.'
+    );
+    pass;
+
+    start_test('GET_BY_PUBLIC_ID inexistente retorna registro vazio');
+    l_second_account := acc_service_pkg.get_by_public_id(
+      LOWER(RAWTOHEX(SYS_GUID()))
+    );
+    assert_true(
+      l_second_account.ACC_ID IS NULL,
+      'Public ID inexistente deveria retornar registro vazio.'
+    );
+    pass;
+
+    start_test('REQUIRE_BY_PUBLIC_ID retorna conta existente');
+    l_second_account := acc_service_pkg.require_by_public_id(
+      l_account.ACC_PUBLIC_ID
+    );
+    assert_true(
+      l_second_account.ACC_ID IS NOT NULL,
+      'REQUIRE_BY_PUBLIC_ID nao retornou a conta existente.'
+    );
+    pass;
+
+    start_test('REQUIRE_BY_PUBLIC_ID preserva ACC_ID');
+    assert_true(
+      l_second_account.ACC_ID = l_account.ACC_ID,
+      'REQUIRE_BY_PUBLIC_ID nao preservou ACC_ID.'
+    );
+    pass;
+
+    start_test('REQUIRE_BY_PUBLIC_ID preserva ACC_PUBLIC_ID');
+    assert_true(
+      l_second_account.ACC_PUBLIC_ID = l_account.ACC_PUBLIC_ID,
+      'REQUIRE_BY_PUBLIC_ID nao preservou ACC_PUBLIC_ID.'
+    );
+    pass;
+
+    start_test('REQUIRE_BY_PUBLIC_ID rejeita conta inexistente');
+    l_raised := FALSE;
+    BEGIN
+      l_second_account := acc_service_pkg.require_by_public_id(
+        LOWER(RAWTOHEX(SYS_GUID()))
+      );
+    EXCEPTION
+      WHEN acc_service_pkg.e_account_not_found THEN
+        l_raised := TRUE;
+    END;
+    assert_true(l_raised, 'Conta inexistente deveria ser rejeitada.');
+    pass;
+
+    start_test('REQUIRE_BY_PUBLIC_ID rejeita public ID invalido');
+    l_raised := FALSE;
+    BEGIN
+      l_second_account := acc_service_pkg.require_by_public_id(
+        'invalid-public-id'
+      );
+    EXCEPTION
+      WHEN acc_service_pkg.e_account_not_found THEN
+        l_raised := TRUE;
+    END;
+    assert_true(l_raised, 'Public ID invalido deveria ser rejeitado.');
+    pass;
+
+    start_test('excecao de conta inexistente pertence a Service');
+    l_raised := FALSE;
+    BEGIN
+      RAISE acc_service_pkg.e_account_not_found;
+    EXCEPTION
+      WHEN acc_service_pkg.e_account_not_found THEN
+        l_raised := SQLCODE = -20840;
+    END;
+    assert_true(
+      l_raised,
+      'Excecao publica deveria utilizar o codigo Oracle -20840.'
+    );
+    pass;
+
     start_test('CHANGE_PASSWORD atualiza credencial');
     l_old_credential := l_account.ACC_PASSWORD_HASH;
     acc_service_pkg.change_password(l_account.ACC_ID, c_new_password);
@@ -359,6 +457,43 @@ DECLARE
        AND TYPE = 'PACKAGE BODY'
        AND INSTR(UPPER(TEXT), 'DBMS_CRYPTO') > 0;
     assert_true(l_source_count = 0, 'Service nao pode chamar DBMS_CRYPTO.');
+    pass;
+
+    start_test('GET_BY_PUBLIC_ID existe no contrato publico');
+    SELECT COUNT(*)
+      INTO l_source_count
+      FROM USER_PROCEDURES
+     WHERE OBJECT_NAME = 'ACC_SERVICE_PKG'
+       AND PROCEDURE_NAME = 'GET_BY_PUBLIC_ID';
+    assert_true(
+      l_source_count = 1,
+      'GET_BY_PUBLIC_ID nao existe no contrato publico.'
+    );
+    pass;
+
+    start_test('REQUIRE_BY_PUBLIC_ID existe no contrato publico');
+    SELECT COUNT(*)
+      INTO l_source_count
+      FROM USER_PROCEDURES
+     WHERE OBJECT_NAME = 'ACC_SERVICE_PKG'
+       AND PROCEDURE_NAME = 'REQUIRE_BY_PUBLIC_ID';
+    assert_true(
+      l_source_count = 1,
+      'REQUIRE_BY_PUBLIC_ID nao existe no contrato publico.'
+    );
+    pass;
+
+    start_test('Service nao utiliza SQL dinamico');
+    SELECT COUNT(*)
+      INTO l_source_count
+      FROM USER_SOURCE
+     WHERE NAME = 'ACC_SERVICE_PKG'
+       AND TYPE = 'PACKAGE BODY'
+       AND REGEXP_LIKE(
+             UPPER(TEXT),
+             'EXECUTE[[:space:]]+IMMEDIATE|DBMS_SQL'
+           );
+    assert_true(l_source_count = 0, 'Service nao pode usar SQL dinamico.');
     pass;
   END run_tests;
 BEGIN

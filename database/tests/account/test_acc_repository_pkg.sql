@@ -6,7 +6,7 @@ DECLARE
   g_test_count   PLS_INTEGER := 0;
   g_current_test VARCHAR2(200);
 
-  c_expected_test_count CONSTANT PLS_INTEGER := 11;
+  c_expected_test_count CONSTANT PLS_INTEGER := 19;
   c_credential_one      CONSTANT VARCHAR2(255) :=
     'v1$SHA512$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA$'
     || 'BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB'
@@ -70,6 +70,7 @@ DECLARE
   BEGIN
     cleanup('repo.test.insert@example.invalid');
     cleanup('repo.test.id@example.invalid');
+    cleanup('repo.test.public.id@example.invalid');
     cleanup('repo.test.email@example.invalid');
     cleanup('repo.test.exists@example.invalid');
     cleanup('repo.test.update.old@example.invalid');
@@ -160,6 +161,59 @@ DECLARE
       'GET_BY_EMAIL nao retornou o registro esperado.'
     );
     cleanup('repo.test.email@example.invalid');
+    pass;
+
+    start_test('GET_BY_PUBLIC_ID retorna registro existente');
+    cleanup('repo.test.public.id@example.invalid');
+    insert_fixture(
+      'F1000000000000000000000000000007',
+      'repo.test.public.id@example.invalid',
+      c_credential_one
+    );
+    l_account := acc_repository_pkg.get_by_public_id(
+      'F1000000000000000000000000000007'
+    );
+    assert_true(
+      l_account.ACC_ID IS NOT NULL,
+      'GET_BY_PUBLIC_ID nao retornou o registro esperado.'
+    );
+    pass;
+
+    start_test('GET_BY_PUBLIC_ID retorna ROWTYPE correto');
+    assert_true(
+      l_account.ACC_EMAIL = 'repo.test.public.id@example.invalid'
+      AND l_account.ACC_STATUS = 'ACTIVE'
+      AND l_account.ACC_PASSWORD_HASH = c_credential_one,
+      'GET_BY_PUBLIC_ID retornou dados incorretos.'
+    );
+    pass;
+
+    start_test('GET_BY_PUBLIC_ID preserva IDs correspondentes');
+    assert_true(
+      l_account.ACC_ID IS NOT NULL
+      AND TRIM(l_account.ACC_PUBLIC_ID) =
+        'F1000000000000000000000000000007',
+      'ACC_ID e ACC_PUBLIC_ID nao correspondem ao registro consultado.'
+    );
+    cleanup('repo.test.public.id@example.invalid');
+    pass;
+
+    start_test('GET_BY_PUBLIC_ID inexistente retorna registro nulo');
+    l_account := acc_repository_pkg.get_by_public_id(
+      'F1000000000000000000000000000099'
+    );
+    assert_true(
+      l_account.ACC_ID IS NULL,
+      'Public ID inexistente deveria retornar registro nulo.'
+    );
+    pass;
+
+    start_test('GET_BY_PUBLIC_ID invalido retorna registro nulo');
+    l_account := acc_repository_pkg.get_by_public_id('invalid-public-id');
+    assert_true(
+      l_account.ACC_ID IS NULL,
+      'Repository nao deve aplicar validacao de dominio ao public ID.'
+    );
     pass;
 
     start_test('EMAIL_EXISTS retorna verdadeiro');
@@ -273,6 +327,59 @@ DECLARE
        AND TYPE = 'PACKAGE BODY'
        AND REGEXP_LIKE(UPPER(TEXT), '(^|[^A-Z_])ROLLBACK([^A-Z_]|$)');
     assert_true(l_source_count = 0, 'Repository nao pode conter ROLLBACK.');
+    pass;
+
+    start_test('GET_BY_PUBLIC_ID existe no contrato publico');
+    SELECT COUNT(*)
+      INTO l_source_count
+      FROM USER_PROCEDURES
+     WHERE OBJECT_NAME = 'ACC_REPOSITORY_PKG'
+       AND PROCEDURE_NAME = 'GET_BY_PUBLIC_ID';
+    assert_true(
+      l_source_count = 1,
+      'GET_BY_PUBLIC_ID nao existe no contrato publico.'
+    );
+    pass;
+
+    start_test('Repository nao utiliza SQL dinamico');
+    SELECT COUNT(*)
+      INTO l_source_count
+      FROM USER_SOURCE
+     WHERE NAME = 'ACC_REPOSITORY_PKG'
+       AND TYPE = 'PACKAGE BODY'
+       AND REGEXP_LIKE(
+             UPPER(TEXT),
+             'EXECUTE[[:space:]]+IMMEDIATE|DBMS_SQL'
+           );
+    assert_true(l_source_count = 0, 'Repository nao pode usar SQL dinamico.');
+    pass;
+
+    start_test('Repository depende somente da tabela BEX_ACCOUNT');
+    SELECT COUNT(*)
+      INTO l_source_count
+      FROM USER_DEPENDENCIES
+     WHERE NAME = 'ACC_REPOSITORY_PKG'
+       AND TYPE IN ('PACKAGE', 'PACKAGE BODY')
+       AND REFERENCED_TYPE = 'TABLE'
+       AND REFERENCED_NAME <> 'BEX_ACCOUNT';
+    assert_true(
+      l_source_count = 0,
+      'Repository acessa tabela externa ao modulo ACCOUNT.'
+    );
+
+    SELECT COUNT(*)
+      INTO l_source_count
+      FROM USER_SOURCE
+     WHERE NAME = 'ACC_REPOSITORY_PKG'
+       AND TYPE IN ('PACKAGE', 'PACKAGE BODY')
+       AND REGEXP_LIKE(
+             UPPER(TEXT),
+             'CORE_[A-Z_]+_PKG|JSON_[A-Z_]+|ORDS|HTTP'
+           );
+    assert_true(
+      l_source_count = 0,
+      'Repository possui dependencia externa, JSON ou HTTP.'
+    );
     pass;
   END run_tests;
 BEGIN

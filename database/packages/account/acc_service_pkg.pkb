@@ -93,6 +93,31 @@ CREATE OR REPLACE PACKAGE BODY acc_service_pkg AS
     RETURN l_account;
   END get_account;
 
+  FUNCTION get_by_public_id(
+    p_public_id IN BEX_ACCOUNT.ACC_PUBLIC_ID%TYPE
+  ) RETURN BEX_ACCOUNT%ROWTYPE IS
+  BEGIN
+    RETURN acc_repository_pkg.get_by_public_id(
+      p_public_id => p_public_id
+    );
+  END get_by_public_id;
+
+  FUNCTION require_by_public_id(
+    p_public_id IN BEX_ACCOUNT.ACC_PUBLIC_ID%TYPE
+  ) RETURN BEX_ACCOUNT%ROWTYPE IS
+    l_account BEX_ACCOUNT%ROWTYPE;
+  BEGIN
+    l_account := get_by_public_id(
+      p_public_id => p_public_id
+    );
+
+    IF l_account.ACC_ID IS NULL THEN
+      RAISE e_account_not_found;
+    END IF;
+
+    RETURN l_account;
+  END require_by_public_id;
+
   FUNCTION email_available(
     p_email IN VARCHAR2
   ) RETURN BOOLEAN IS

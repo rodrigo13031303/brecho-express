@@ -94,6 +94,22 @@ CREATE OR REPLACE PACKAGE BODY acc_repository_pkg AS
       RETURN l_account;
   END get_by_id;
 
+  FUNCTION get_by_public_id(
+    p_public_id IN BEX_ACCOUNT.ACC_PUBLIC_ID%TYPE
+  ) RETURN BEX_ACCOUNT%ROWTYPE IS
+    l_account BEX_ACCOUNT%ROWTYPE;
+  BEGIN
+    SELECT *
+      INTO l_account
+      FROM BEX_ACCOUNT
+     WHERE ACC_PUBLIC_ID = p_public_id;
+
+    RETURN l_account;
+  EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+      RETURN l_account;
+  END get_by_public_id;
+
   FUNCTION get_by_email(
     p_email IN VARCHAR2
   ) RETURN BEX_ACCOUNT%ROWTYPE IS

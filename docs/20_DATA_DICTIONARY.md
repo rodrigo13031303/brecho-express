@@ -78,15 +78,15 @@ O documento abaixo organiza as entidades por módulos de negócio, preservando a
 | Prefixo | PFL |
 | Tipo | MASTER |
 | Responsável | Identidade |
-| Soft Delete | Sim |
+| Soft Delete | Não se aplica nesta etapa |
 | Auditoria | Sim |
 | Exposto pela API | Sim |
 | Cache | Sim |
 
 ## Objetivo
-Representar uma pessoa cadastrada na plataforma.
+Representar os dados pessoais e de apresentação associados a uma Account.
 
-O Profile representa exclusivamente a identidade da pessoa dentro do domínio do Brechó Express.
+O Profile representa exclusivamente a identidade da pessoa dentro do domínio do Brechó Express. A Account permanece responsável pela identidade técnica e pelas credenciais da plataforma.
 
 Não representa um Brechó.
 
@@ -98,12 +98,10 @@ Não representa permissões.
 MASTER
 
 ## Responsabilidades
-- Representar uma pessoa cadastrada.
-- Armazenar seus dados básicos.
-- Ser utilizado por Clientes.
-- Ser utilizado por Proprietários de Brechós.
-- Ser utilizado por Administradores.
-- Servir como base para os relacionamentos do domínio.
+- Representar os dados pessoais e de apresentação de uma pessoa cadastrada.
+- Manter nome de exibição, nome completo, data de nascimento e biografia.
+- Manter referências de apresentação, localidade e fuso horário.
+- Associar no máximo um Profile a cada Account.
 
 ## Não é responsabilidade
 - Login.
@@ -113,19 +111,24 @@ MASTER
 - Informações de pagamento.
 - Informações de catálogo.
 - Informações logísticas.
+- E-mail, telefone ou credenciais.
+- Documentos, endereços ou dados bancários.
+- Preferências de notificação ou localização em tempo real.
+- Dados de loja ou reputação.
 
 ## Dono da Informação
 Usuário
 
 ## Regras de Negócio
-- RN-001 — Todo Profile pertence exatamente a uma Account.
+- RN-001 — Todo Profile pertence exatamente a uma Account, e cada Account possui no máximo um Profile.
 - RN-002 — Um Profile pode possuir vários Endereços.
 - RN-003 — Um Profile pode possuir diferentes papéis através de Roles.
 - RN-004 — Um Profile pode administrar um ou mais Brechós.
 - RN-005 — Um Profile nunca armazena informações de autenticação.
+- RN-006 — PFL_BIRTH_DATE, quando informada, não pode estar no futuro; a validação pertence às regras de domínio.
 
 ## Relacionamentos
-- ACCOUNT (1:1)
+- ACCOUNT (1:0..1 a partir de ACCOUNT; exatamente 1 a partir de PROFILE)
 - ADDRESS (1:N)
 - STORE_USER (1:N)
 - ORDER (1:N)
@@ -137,23 +140,30 @@ Usuário
 | Campo | Tipo | Obrigatório |
 |--------|------|-------------|
 | PFL_ID | NUMBER Identity | Sim |
+| ACC_ID | NUMBER | Sim |
 | PFL_PUBLIC_ID | CHAR(32) | Sim |
-| PFL_NAME | VARCHAR2(200) | Sim |
-| PFL_DISPLAY_NAME | VARCHAR2(120) | Não |
-| PFL_PHONE | VARCHAR2(20) | Não |
-| PFL_PHOTO_URL | VARCHAR2(500) | Não |
-| PFL_STATUS | VARCHAR2(20) | Sim |
-| PFL_CREATED_AT | TIMESTAMP | Sim |
-| PFL_UPDATED_AT | TIMESTAMP | Sim |
+| PFL_DISPLAY_NAME | VARCHAR2(100 CHAR) | Sim |
+| PFL_FULL_NAME | VARCHAR2(200 CHAR) | Não |
+| PFL_BIRTH_DATE | DATE | Não |
+| PFL_BIO | VARCHAR2(500 CHAR) | Não |
+| PFL_AVATAR_URL | VARCHAR2(1000 CHAR) | Não |
+| PFL_LOCALE_CODE | VARCHAR2(10 CHAR) DEFAULT 'pt-BR' | Sim |
+| PFL_TIMEZONE_NAME | VARCHAR2(64 CHAR) DEFAULT 'America/Sao_Paulo' | Sim |
+| PFL_CREATED_AT | TIMESTAMP(6) DEFAULT SYSTIMESTAMP | Sim |
+| PFL_UPDATED_AT | TIMESTAMP(6) DEFAULT SYSTIMESTAMP | Sim |
 | PFL_CREATED_BY | NUMBER | Não |
 | PFL_UPDATED_BY | NUMBER | Não |
 
-PFL_CREATED_BY e PFL_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+PFL_CREATED_BY e PFL_UPDATED_BY armazenam opcionalmente o identificador técnico do ator. Nenhuma foreign key de auditoria está aprovada nesta etapa.
+
+PFL_BIRTH_DATE permite NULL. A regra que rejeita datas futuras será implementada futuramente por PFL_RULE_PKG, sem trigger ou check constraint dependente da data corrente.
 
 ## Índices
-- PK_PROFILE
-- UK_PROFILE_PUBLIC_ID
-- IDX_PROFILE_PHONE
+- PK_PFL
+- UK_PFL_PUBLIC_ID
+- UK_PFL_ACCOUNT
+
+As três constraints criam os índices necessários. Nenhum índice adicional está aprovado nesta etapa.
 
 ## Packages Oracle
 - PFL_API_PKG

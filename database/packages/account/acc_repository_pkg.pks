@@ -31,6 +31,10 @@ CREATE OR REPLACE PACKAGE acc_repository_pkg AS
     p_account_id IN NUMBER
   ) RETURN BEX_ACCOUNT%ROWTYPE;
 
+  FUNCTION get_by_public_id(
+    p_public_id IN BEX_ACCOUNT.ACC_PUBLIC_ID%TYPE
+  ) RETURN BEX_ACCOUNT%ROWTYPE;
+
   FUNCTION get_by_email(
     p_email IN VARCHAR2
   ) RETURN BEX_ACCOUNT%ROWTYPE;
