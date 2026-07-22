@@ -37,7 +37,42 @@ CREATE OR REPLACE PACKAGE str_service_pkg AS
   );
 
   e_store_not_found EXCEPTION;
+  e_account_not_found EXCEPTION;
+  e_name_required EXCEPTION;
+  e_invalid_name EXCEPTION;
+  e_slug_required EXCEPTION;
+  e_invalid_slug EXCEPTION;
+  e_invalid_description EXCEPTION;
+  e_invalid_logo_url EXCEPTION;
+  e_invalid_cover_url EXCEPTION;
+  e_invalid_locale EXCEPTION;
+  e_invalid_timezone EXCEPTION;
+  e_invalid_status EXCEPTION;
+  e_invalid_transition EXCEPTION;
+  e_empty_patch EXCEPTION;
+  e_slug_not_editable EXCEPTION;
+  e_store_closed EXCEPTION;
+  e_account_ineligible EXCEPTION;
+  e_slug_already_used EXCEPTION;
+
   PRAGMA EXCEPTION_INIT(e_store_not_found, -20860);
+  PRAGMA EXCEPTION_INIT(e_account_not_found, -20840);
+  PRAGMA EXCEPTION_INIT(e_name_required, -20861);
+  PRAGMA EXCEPTION_INIT(e_invalid_name, -20862);
+  PRAGMA EXCEPTION_INIT(e_slug_required, -20863);
+  PRAGMA EXCEPTION_INIT(e_invalid_slug, -20864);
+  PRAGMA EXCEPTION_INIT(e_invalid_description, -20865);
+  PRAGMA EXCEPTION_INIT(e_invalid_logo_url, -20866);
+  PRAGMA EXCEPTION_INIT(e_invalid_cover_url, -20867);
+  PRAGMA EXCEPTION_INIT(e_invalid_locale, -20868);
+  PRAGMA EXCEPTION_INIT(e_invalid_timezone, -20869);
+  PRAGMA EXCEPTION_INIT(e_invalid_status, -20870);
+  PRAGMA EXCEPTION_INIT(e_invalid_transition, -20871);
+  PRAGMA EXCEPTION_INIT(e_empty_patch, -20872);
+  PRAGMA EXCEPTION_INIT(e_slug_not_editable, -20873);
+  PRAGMA EXCEPTION_INIT(e_store_closed, -20874);
+  PRAGMA EXCEPTION_INIT(e_account_ineligible, -20875);
+  PRAGMA EXCEPTION_INIT(e_slug_already_used, -20876);
 
   FUNCTION create_by_account_public_id(
     p_account_public_id IN BEX_ACCOUNT.ACC_PUBLIC_ID%TYPE,

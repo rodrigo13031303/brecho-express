@@ -77,6 +77,9 @@ CREATE OR REPLACE PACKAGE BODY str_service_pkg AS
     RETURN acc_service_pkg.require_by_public_id(
       p_public_id => p_account_public_id
     );
+  EXCEPTION
+    WHEN acc_service_pkg.e_account_not_found THEN
+      RAISE e_account_not_found;
   END resolve_account;
 
   FUNCTION create_by_account_public_id(
@@ -158,6 +161,31 @@ CREATE OR REPLACE PACKAGE BODY str_service_pkg AS
     l_store := str_repository_pkg.get_by_public_id(l_public_id);
     assert_found(l_store);
     RETURN to_public_record(l_store);
+  EXCEPTION
+    WHEN str_rule_pkg.e_name_required THEN
+      RAISE e_name_required;
+    WHEN str_rule_pkg.e_invalid_name THEN
+      RAISE e_invalid_name;
+    WHEN str_rule_pkg.e_slug_required THEN
+      RAISE e_slug_required;
+    WHEN str_rule_pkg.e_invalid_slug THEN
+      RAISE e_invalid_slug;
+    WHEN str_rule_pkg.e_invalid_description THEN
+      RAISE e_invalid_description;
+    WHEN str_rule_pkg.e_invalid_logo_url THEN
+      RAISE e_invalid_logo_url;
+    WHEN str_rule_pkg.e_invalid_cover_url THEN
+      RAISE e_invalid_cover_url;
+    WHEN str_rule_pkg.e_invalid_locale THEN
+      RAISE e_invalid_locale;
+    WHEN str_rule_pkg.e_invalid_timezone THEN
+      RAISE e_invalid_timezone;
+    WHEN str_rule_pkg.e_invalid_status THEN
+      RAISE e_invalid_status;
+    WHEN str_rule_pkg.e_account_ineligible THEN
+      RAISE e_account_ineligible;
+    WHEN str_rule_pkg.e_slug_already_used THEN
+      RAISE e_slug_already_used;
   END create_by_account_public_id;
 
   FUNCTION get_by_public_id(
@@ -187,6 +215,11 @@ CREATE OR REPLACE PACKAGE BODY str_service_pkg AS
     l_slug := str_rule_pkg.normalize_slug(p_slug);
     str_rule_pkg.validate_slug(l_slug);
     RETURN to_public_record(str_repository_pkg.get_by_slug(l_slug));
+  EXCEPTION
+    WHEN str_rule_pkg.e_slug_required THEN
+      RAISE e_slug_required;
+    WHEN str_rule_pkg.e_invalid_slug THEN
+      RAISE e_invalid_slug;
   END get_by_slug;
 
   FUNCTION require_by_slug(
@@ -200,6 +233,11 @@ CREATE OR REPLACE PACKAGE BODY str_service_pkg AS
     l_store := str_repository_pkg.get_by_slug(l_slug);
     assert_found(l_store);
     RETURN to_public_record(l_store);
+  EXCEPTION
+    WHEN str_rule_pkg.e_slug_required THEN
+      RAISE e_slug_required;
+    WHEN str_rule_pkg.e_invalid_slug THEN
+      RAISE e_invalid_slug;
   END require_by_slug;
 
   FUNCTION list_by_account_public_id(
@@ -269,6 +307,35 @@ CREATE OR REPLACE PACKAGE BODY str_service_pkg AS
     l_store := str_repository_pkg.get_by_public_id(p_store_public_id);
     assert_found(l_store);
     RETURN to_public_record(l_store);
+  EXCEPTION
+    WHEN str_rule_pkg.e_name_required THEN
+      RAISE e_name_required;
+    WHEN str_rule_pkg.e_invalid_name THEN
+      RAISE e_invalid_name;
+    WHEN str_rule_pkg.e_slug_required THEN
+      RAISE e_slug_required;
+    WHEN str_rule_pkg.e_invalid_slug THEN
+      RAISE e_invalid_slug;
+    WHEN str_rule_pkg.e_invalid_description THEN
+      RAISE e_invalid_description;
+    WHEN str_rule_pkg.e_invalid_logo_url THEN
+      RAISE e_invalid_logo_url;
+    WHEN str_rule_pkg.e_invalid_cover_url THEN
+      RAISE e_invalid_cover_url;
+    WHEN str_rule_pkg.e_invalid_locale THEN
+      RAISE e_invalid_locale;
+    WHEN str_rule_pkg.e_invalid_timezone THEN
+      RAISE e_invalid_timezone;
+    WHEN str_rule_pkg.e_invalid_status THEN
+      RAISE e_invalid_status;
+    WHEN str_rule_pkg.e_empty_patch THEN
+      RAISE e_empty_patch;
+    WHEN str_rule_pkg.e_slug_not_editable THEN
+      RAISE e_slug_not_editable;
+    WHEN str_rule_pkg.e_store_closed THEN
+      RAISE e_store_closed;
+    WHEN str_rule_pkg.e_slug_already_used THEN
+      RAISE e_slug_already_used;
   END update_by_public_id;
 
   FUNCTION change_status(
@@ -307,6 +374,11 @@ CREATE OR REPLACE PACKAGE BODY str_service_pkg AS
       str_rule_pkg.c_status_active,
       p_audit_actor_id
     );
+  EXCEPTION
+    WHEN str_rule_pkg.e_invalid_status THEN
+      RAISE e_invalid_status;
+    WHEN str_rule_pkg.e_invalid_transition THEN
+      RAISE e_invalid_transition;
   END activate_by_public_id;
 
   FUNCTION close_by_public_id(
@@ -319,6 +391,11 @@ CREATE OR REPLACE PACKAGE BODY str_service_pkg AS
       str_rule_pkg.c_status_closed,
       p_audit_actor_id
     );
+  EXCEPTION
+    WHEN str_rule_pkg.e_invalid_status THEN
+      RAISE e_invalid_status;
+    WHEN str_rule_pkg.e_invalid_transition THEN
+      RAISE e_invalid_transition;
   END close_by_public_id;
 
   FUNCTION slug_available(
@@ -329,6 +406,11 @@ CREATE OR REPLACE PACKAGE BODY str_service_pkg AS
     l_slug := str_rule_pkg.normalize_slug(p_slug);
     str_rule_pkg.validate_slug(l_slug);
     RETURN NOT str_repository_pkg.slug_exists(l_slug);
+  EXCEPTION
+    WHEN str_rule_pkg.e_slug_required THEN
+      RAISE e_slug_required;
+    WHEN str_rule_pkg.e_invalid_slug THEN
+      RAISE e_invalid_slug;
   END slug_available;
 END str_service_pkg;
 /

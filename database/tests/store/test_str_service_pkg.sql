@@ -6,7 +6,7 @@ DECLARE
   g_test_count   PLS_INTEGER := 0;
   g_current_test VARCHAR2(200);
 
-  c_expected_test_count CONSTANT PLS_INTEGER := 50;
+  c_expected_test_count CONSTANT PLS_INTEGER := 55;
   c_create_actor        CONSTANT NUMBER := 5101;
   c_update_actor        CONSTANT NUMBER := 5102;
   c_state_actor         CONSTANT NUMBER := 5103;
@@ -120,6 +120,44 @@ DECLARE
     );
   END create_store;
 
+  PROCEDURE assert_public_exception_code(
+    p_index         IN PLS_INTEGER,
+    p_expected_code IN PLS_INTEGER
+  ) IS
+  BEGIN
+    BEGIN
+      CASE p_index
+        WHEN 1 THEN RAISE str_service_pkg.e_store_not_found;
+        WHEN 2 THEN RAISE str_service_pkg.e_account_not_found;
+        WHEN 3 THEN RAISE str_service_pkg.e_name_required;
+        WHEN 4 THEN RAISE str_service_pkg.e_invalid_name;
+        WHEN 5 THEN RAISE str_service_pkg.e_slug_required;
+        WHEN 6 THEN RAISE str_service_pkg.e_invalid_slug;
+        WHEN 7 THEN RAISE str_service_pkg.e_invalid_description;
+        WHEN 8 THEN RAISE str_service_pkg.e_invalid_logo_url;
+        WHEN 9 THEN RAISE str_service_pkg.e_invalid_cover_url;
+        WHEN 10 THEN RAISE str_service_pkg.e_invalid_locale;
+        WHEN 11 THEN RAISE str_service_pkg.e_invalid_timezone;
+        WHEN 12 THEN RAISE str_service_pkg.e_invalid_status;
+        WHEN 13 THEN RAISE str_service_pkg.e_invalid_transition;
+        WHEN 14 THEN RAISE str_service_pkg.e_empty_patch;
+        WHEN 15 THEN RAISE str_service_pkg.e_slug_not_editable;
+        WHEN 16 THEN RAISE str_service_pkg.e_store_closed;
+        WHEN 17 THEN RAISE str_service_pkg.e_account_ineligible;
+        WHEN 18 THEN RAISE str_service_pkg.e_slug_already_used;
+        ELSE RAISE VALUE_ERROR;
+      END CASE;
+    EXCEPTION
+      WHEN OTHERS THEN
+        IF SQLCODE <> p_expected_code THEN
+          fail(
+            'Codigo Oracle incorreto para excecao ' || p_index ||
+            '. Esperado=' || p_expected_code || ' atual=' || SQLCODE
+          );
+        END IF;
+    END;
+  END assert_public_exception_code;
+
   PROCEDURE run_tests IS
     l_count        PLS_INTEGER;
     l_source_count PLS_INTEGER;
@@ -139,6 +177,14 @@ DECLARE
     SELECT COUNT(*) INTO l_count FROM USER_ERRORS
      WHERE NAME = 'STR_SERVICE_PKG' AND TYPE IN ('PACKAGE', 'PACKAGE BODY');
     assert_true(l_count = 0, 'Service nao pode possuir USER_ERRORS.'); pass;
+
+    start_test('Excecoes publicas possuem codigos Oracle estaveis');
+    assert_public_exception_code(1, -20860);
+    assert_public_exception_code(2, -20840);
+    FOR i IN 3..18 LOOP
+      assert_public_exception_code(i, -20858 - i);
+    END LOOP;
+    pass;
 
     start_test('Criacao retorna STORE valida');
     l_store := create_store(
@@ -207,35 +253,97 @@ DECLARE
     l_raised := FALSE;
     BEGIN
       l_aux_store := create_store(LOWER(RAWTOHEX(SYS_GUID())), 'Loja', 'missing-' || l_run_token);
-    EXCEPTION WHEN acc_service_pkg.e_account_not_found THEN l_raised := TRUE; END;
+    EXCEPTION WHEN str_service_pkg.e_account_not_found THEN l_raised := SQLCODE = -20840; END;
     assert_true(l_raised, 'ACCOUNT inexistente deveria falhar.'); pass;
 
     start_test('Criacao rejeita ACCOUNT inelegivel');
     l_raised := FALSE;
     BEGIN
       l_aux_store := create_store(l_blocked_account_public_id, 'Loja', 'blocked-' || l_run_token);
-    EXCEPTION WHEN str_rule_pkg.e_account_ineligible THEN l_raised := TRUE; END;
+    EXCEPTION WHEN str_service_pkg.e_account_ineligible THEN l_raised := SQLCODE = -20875; END;
     assert_true(l_raised, 'ACCOUNT BLOCKED deveria falhar.'); pass;
 
     start_test('Criacao rejeita nome invalido');
     l_raised := FALSE;
     BEGIN
       l_aux_store := create_store(l_account_public_id, 'x', 'valid-' || l_run_token);
-    EXCEPTION WHEN str_rule_pkg.e_invalid_name THEN l_raised := TRUE; END;
+    EXCEPTION WHEN str_service_pkg.e_invalid_name THEN l_raised := SQLCODE = -20862; END;
     assert_true(l_raised, 'Nome invalido deveria falhar.'); pass;
+
+    start_test('Criacao traduz nome obrigatorio');
+    l_raised := FALSE;
+    BEGIN
+      l_aux_store := create_store(
+        l_account_public_id, NULL, 'required-name-' || l_run_token
+      );
+    EXCEPTION
+      WHEN str_service_pkg.e_name_required THEN
+        l_raised := SQLCODE = -20861;
+    END;
+    assert_true(l_raised, 'Nome obrigatorio nao foi traduzido.'); pass;
 
     start_test('Criacao rejeita slug invalido');
     l_raised := FALSE;
     BEGIN
       l_aux_store := create_store(l_account_public_id, 'Valid Name', '!!!');
-    EXCEPTION WHEN str_rule_pkg.e_slug_required THEN l_raised := TRUE; END;
+    EXCEPTION WHEN str_service_pkg.e_slug_required THEN l_raised := SQLCODE = -20863; END;
     assert_true(l_raised, 'Slug invalido deveria falhar.'); pass;
+
+    start_test('Criacao traduz logo invalido');
+    l_raised := FALSE;
+    BEGIN
+      l_aux_store := str_service_pkg.create_by_account_public_id(
+        l_account_public_id, 'Invalid Logo', 'invalid-logo-' || l_run_token,
+        p_logo_url => 'ftp://example.invalid/logo'
+      );
+    EXCEPTION
+      WHEN str_service_pkg.e_invalid_logo_url THEN
+        l_raised := SQLCODE = -20866;
+    END;
+    assert_true(l_raised, 'Logo invalido nao foi traduzido.'); pass;
+
+    start_test('Criacao traduz cover invalido');
+    l_raised := FALSE;
+    BEGIN
+      l_aux_store := str_service_pkg.create_by_account_public_id(
+        l_account_public_id, 'Invalid Cover', 'invalid-cover-' || l_run_token,
+        p_cover_url => 'cover.invalid'
+      );
+    EXCEPTION
+      WHEN str_service_pkg.e_invalid_cover_url THEN
+        l_raised := SQLCODE = -20867;
+    END;
+    assert_true(l_raised, 'Cover invalido nao foi traduzido.'); pass;
+
+    start_test('Criacao traduz locale e timezone invalidos');
+    l_raised := FALSE;
+    BEGIN
+      l_aux_store := str_service_pkg.create_by_account_public_id(
+        l_account_public_id, 'Invalid Locale', 'invalid-locale-' || l_run_token,
+        p_locale_code => 'en-US'
+      );
+    EXCEPTION
+      WHEN str_service_pkg.e_invalid_locale THEN
+        l_raised := SQLCODE = -20868;
+    END;
+    assert_true(l_raised, 'Locale invalido nao foi traduzido.');
+    l_raised := FALSE;
+    BEGIN
+      l_aux_store := str_service_pkg.create_by_account_public_id(
+        l_account_public_id, 'Invalid Timezone', 'invalid-timezone-' || l_run_token,
+        p_timezone_name => 'UTC'
+      );
+    EXCEPTION
+      WHEN str_service_pkg.e_invalid_timezone THEN
+        l_raised := SQLCODE = -20869;
+    END;
+    assert_true(l_raised, 'Timezone invalido nao foi traduzido.'); pass;
 
     start_test('Criacao traduz slug duplicado para excecao nominal');
     l_raised := FALSE;
     BEGIN
       l_aux_store := create_store(l_other_account_public_id, 'Duplicate', l_store.store_slug);
-    EXCEPTION WHEN str_rule_pkg.e_slug_already_used THEN l_raised := TRUE; END;
+    EXCEPTION WHEN str_service_pkg.e_slug_already_used THEN l_raised := SQLCODE = -20876; END;
     assert_true(l_raised, 'Slug duplicado deve gerar E_SLUG_ALREADY_USED.'); pass;
 
     start_test('Duplicidade considera caixa e espacos apos normalizacao');
@@ -245,7 +353,7 @@ DECLARE
         l_other_account_public_id, 'Duplicate Normalized',
         '  ' || UPPER(l_store.store_slug) || '  '
       );
-    EXCEPTION WHEN str_rule_pkg.e_slug_already_used THEN l_raised := TRUE; END;
+    EXCEPTION WHEN str_service_pkg.e_slug_already_used THEN l_raised := SQLCODE = -20876; END;
     assert_true(l_raised, 'Slug normalizado duplicado deveria falhar.'); pass;
 
     start_test('GET_BY_PUBLIC_ID retorna existente');
@@ -303,7 +411,7 @@ DECLARE
     l_raised := FALSE;
     BEGIN
       l_stores := str_service_pkg.list_by_account_public_id(LOWER(RAWTOHEX(SYS_GUID())));
-    EXCEPTION WHEN acc_service_pkg.e_account_not_found THEN l_raised := TRUE; END;
+    EXCEPTION WHEN str_service_pkg.e_account_not_found THEN l_raised := SQLCODE = -20840; END;
     assert_true(l_raised, 'LIST deveria exigir ACCOUNT existente.'); pass;
 
     l_original := str_repository_pkg.get_by_public_id(l_store.store_public_id);
@@ -351,13 +459,13 @@ DECLARE
     reset_patch(l_patch); l_patch.set_slug := TRUE; l_patch.slug_value := l_aux_store.store_slug;
     l_raised := FALSE;
     BEGIN l_store := str_service_pkg.update_by_public_id(l_store.store_public_id, l_patch, c_update_actor);
-    EXCEPTION WHEN str_rule_pkg.e_slug_already_used THEN l_raised := TRUE; END;
+    EXCEPTION WHEN str_service_pkg.e_slug_already_used THEN l_raised := SQLCODE = -20876; END;
     assert_true(l_raised, 'Slug duplicado em UPDATE deveria falhar nominalmente.'); pass;
 
     start_test('UPDATE rejeita PATCH vazio');
     reset_patch(l_patch); l_raised := FALSE;
     BEGIN l_store := str_service_pkg.update_by_public_id(l_store.store_public_id, l_patch, c_update_actor);
-    EXCEPTION WHEN str_rule_pkg.e_empty_patch THEN l_raised := TRUE; END;
+    EXCEPTION WHEN str_service_pkg.e_empty_patch THEN l_raised := SQLCODE = -20872; END;
     assert_true(l_raised, 'PATCH vazio deveria falhar.'); pass;
 
     start_test('UPDATE rejeita STORE inexistente');
@@ -398,7 +506,7 @@ DECLARE
     start_test('Slug nao e editavel apos ativacao');
     reset_patch(l_patch); l_patch.set_slug := TRUE; l_patch.slug_value := 'active-new-' || l_run_token; l_raised := FALSE;
     BEGIN l_state_store := str_service_pkg.update_by_public_id(l_state_store.store_public_id, l_patch, c_update_actor);
-    EXCEPTION WHEN str_rule_pkg.e_slug_not_editable THEN l_raised := TRUE; END;
+    EXCEPTION WHEN str_service_pkg.e_slug_not_editable THEN l_raised := SQLCODE = -20873; END;
     assert_true(l_raised, 'Slug ACTIVE deveria ser imutavel.'); pass;
 
     start_test('ACTIVE transiciona para CLOSED com auditoria');
@@ -409,13 +517,13 @@ DECLARE
     start_test('CLOSED rejeita UPDATE comum');
     reset_patch(l_patch); l_patch.set_name := TRUE; l_patch.name_value := 'Closed Name'; l_raised := FALSE;
     BEGIN l_state_store := str_service_pkg.update_by_public_id(l_state_store.store_public_id, l_patch, c_update_actor);
-    EXCEPTION WHEN str_rule_pkg.e_store_closed THEN l_raised := TRUE; END;
+    EXCEPTION WHEN str_service_pkg.e_store_closed THEN l_raised := SQLCODE = -20874; END;
     assert_true(l_raised, 'STORE fechada deveria rejeitar UPDATE.'); pass;
 
     start_test('Transicao invalida e rejeitada');
     l_raised := FALSE;
     BEGIN l_state_store := str_service_pkg.activate_by_public_id(l_state_store.store_public_id, c_state_actor);
-    EXCEPTION WHEN str_rule_pkg.e_invalid_transition THEN l_raised := TRUE; END;
+    EXCEPTION WHEN str_service_pkg.e_invalid_transition THEN l_raised := SQLCODE = -20871; END;
     assert_true(l_raised, 'CLOSED para ACTIVE deveria falhar.'); pass;
 
     start_test('DRAFT pode transicionar diretamente para CLOSED');
@@ -440,7 +548,7 @@ DECLARE
     start_test('SLUG_AVAILABLE rejeita slug invalido');
     l_raised := FALSE;
     BEGIN l_raised := str_service_pkg.slug_available('!!!');
-    EXCEPTION WHEN str_rule_pkg.e_slug_required THEN l_raised := TRUE; END;
+    EXCEPTION WHEN str_service_pkg.e_slug_required THEN l_raised := SQLCODE = -20863; END;
     assert_true(l_raised, 'Slug invalido deveria ser rejeitado.'); pass;
 
     start_test('Service nao possui SQL transacao ou apresentacao');
@@ -449,7 +557,8 @@ DECLARE
        AND REGEXP_LIKE(
          UPPER(TEXT),
          '(^|[^A-Z_])(SELECT|INSERT|UPDATE|DELETE|MERGE|COMMIT|ROLLBACK)([^A-Z_]|$)|' ||
-         'EXECUTE[[:space:]]+IMMEDIATE|DBMS_SQL|SQLERRM|JSON|HTTP|ORDS|APEX'
+         'EXECUTE[[:space:]]+IMMEDIATE|DBMS_SQL|SQLERRM|JSON|HTTP|ORDS|APEX|' ||
+         'WHEN[[:space:]]+OTHERS'
        );
     assert_true(l_source_count = 0, 'Service possui elemento proibido.'); pass;
 
