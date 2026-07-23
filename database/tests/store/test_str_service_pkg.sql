@@ -6,7 +6,7 @@ DECLARE
   g_test_count   PLS_INTEGER := 0;
   g_current_test VARCHAR2(200);
 
-  c_expected_test_count CONSTANT PLS_INTEGER := 60;
+  c_expected_test_count CONSTANT PLS_INTEGER := 78;
   c_create_actor        CONSTANT NUMBER := 5101;
   c_update_actor        CONSTANT NUMBER := 5102;
   c_state_actor         CONSTANT NUMBER := 5103;
@@ -27,6 +27,9 @@ DECLARE
   l_original     str_repository_pkg.t_store_record;
   l_internal     str_repository_pkg.t_store_record;
   l_stores       str_service_pkg.t_store_table;
+  l_member       str_service_pkg.t_member_record;
+  l_other_member str_service_pkg.t_member_record;
+  l_members      str_service_pkg.t_member_table;
   l_patch        str_service_pkg.t_store_patch;
   l_raised       BOOLEAN;
 
@@ -145,6 +148,13 @@ DECLARE
         WHEN 16 THEN RAISE str_service_pkg.e_store_closed;
         WHEN 17 THEN RAISE str_service_pkg.e_account_ineligible;
         WHEN 18 THEN RAISE str_service_pkg.e_slug_already_used;
+        WHEN 19 THEN RAISE str_service_pkg.e_member_not_found;
+        WHEN 20 THEN RAISE str_service_pkg.e_member_invalid_role;
+        WHEN 21 THEN RAISE str_service_pkg.e_member_invalid_status;
+        WHEN 22 THEN RAISE str_service_pkg.e_member_invalid_transition;
+        WHEN 23 THEN RAISE str_service_pkg.e_active_member_link_exists;
+        WHEN 24 THEN RAISE str_service_pkg.e_member_forbidden;
+        WHEN 25 THEN RAISE str_service_pkg.e_last_admin_required;
         ELSE RAISE VALUE_ERROR;
       END CASE;
     EXCEPTION
@@ -183,6 +193,9 @@ DECLARE
     assert_public_exception_code(2, -20840);
     FOR i IN 3..18 LOOP
       assert_public_exception_code(i, -20858 - i);
+    END LOOP;
+    FOR i IN 19..25 LOOP
+      assert_public_exception_code(i, -20867 - i);
     END LOOP;
     pass;
 
@@ -619,6 +632,264 @@ DECLARE
     EXCEPTION WHEN str_service_pkg.e_slug_required THEN l_raised := SQLCODE = -20863; END;
     assert_true(l_raised, 'Slug invalido deveria ser rejeitado.'); pass;
 
+    start_test('ADD_MEMBER permite proprietario e cria ADMIN');
+    l_member := str_service_pkg.add_member(
+      l_store.store_public_id,
+      l_other_account_public_id,
+      ' admin ',
+      l_account_id
+    );
+    assert_true(
+      l_member.role_code = 'ADMIN'
+      AND l_member.status = 'ACTIVE'
+      AND TRIM(l_member.store_public_id) = TRIM(l_store.store_public_id),
+      'Proprietario nao criou ADMIN corretamente.'
+    );
+    pass;
+
+    start_test('ADD_MEMBER persiste auditoria do ator confiavel');
+    SELECT COUNT(*) INTO l_count
+      FROM BEX_STORE_USER
+     WHERE STU_PUBLIC_ID = l_member.store_user_public_id
+       AND STU_CREATED_BY = l_account_id;
+    assert_true(l_count = 1, 'Auditoria de criacao incorreta.');
+    pass;
+
+    start_test('ADD_MEMBER permite ADMIN ACTIVE');
+    l_other_member := str_service_pkg.add_member(
+      l_store.store_public_id,
+      l_empty_account_public_id,
+      'ATTENDANT',
+      l_other_account_id
+    );
+    assert_true(
+      l_other_member.role_code = 'ATTENDANT',
+      'ADMIN ACTIVE deveria adicionar membro.'
+    );
+    pass;
+
+    start_test('Operacoes de membros rejeitam ator sem permissao');
+    l_raised := FALSE;
+    BEGIN
+      l_members := str_service_pkg.list_members(
+        l_store.store_public_id,
+        l_empty_account_id
+      );
+    EXCEPTION
+      WHEN str_service_pkg.e_member_forbidden THEN
+        l_raised := SQLCODE = -20891;
+    END;
+    assert_true(l_raised, 'ATTENDANT nao deveria administrar membros.');
+    pass;
+
+    start_test('GET_MEMBER retorna vinculo autorizado');
+    l_other_member := str_service_pkg.get_member(
+      l_store.store_public_id,
+      l_member.store_user_public_id,
+      l_account_id
+    );
+    assert_true(
+      TRIM(l_other_member.store_user_public_id) =
+        TRIM(l_member.store_user_public_id),
+      'GET_MEMBER retornou membro incorreto.'
+    );
+    pass;
+
+    start_test('LIST_MEMBERS retorna vinculos da STORE');
+    l_members := str_service_pkg.list_members(
+      l_store.store_public_id,
+      l_account_id
+    );
+    assert_true(
+      l_members.COUNT = 2,
+      'Lista deveria conter os dois membros ativos.'
+    );
+    pass;
+
+    start_test('ADD_MEMBER traduz papel invalido');
+    l_raised := FALSE;
+    BEGIN
+      l_other_member := str_service_pkg.add_member(
+        l_store.store_public_id,
+        l_blocked_account_public_id,
+        'OWNER',
+        l_account_id
+      );
+    EXCEPTION
+      WHEN str_service_pkg.e_member_invalid_role THEN
+        l_raised := SQLCODE = -20887;
+    END;
+    assert_true(l_raised, 'Papel invalido deveria ser traduzido.');
+    pass;
+
+    start_test('ADD_MEMBER traduz ACCOUNT inexistente');
+    l_raised := FALSE;
+    BEGIN
+      l_other_member := str_service_pkg.add_member(
+        l_store.store_public_id,
+        LOWER(RAWTOHEX(SYS_GUID())),
+        'MANAGER',
+        l_account_id
+      );
+    EXCEPTION
+      WHEN str_service_pkg.e_account_not_found THEN
+        l_raised := SQLCODE = -20840;
+    END;
+    assert_true(l_raised, 'ACCOUNT inexistente deveria ser traduzida.');
+    pass;
+
+    start_test('ADD_MEMBER traduz vinculo ACTIVE duplicado');
+    l_raised := FALSE;
+    BEGIN
+      l_other_member := str_service_pkg.add_member(
+        l_store.store_public_id,
+        l_other_account_public_id,
+        'ADMIN',
+        l_account_id
+      );
+    EXCEPTION
+      WHEN str_service_pkg.e_active_member_link_exists THEN
+        l_raised := SQLCODE = -20890;
+    END;
+    assert_true(l_raised, 'Duplicidade ACTIVE deveria ser traduzida.');
+    pass;
+
+    start_test('GET_MEMBER nao cruza STORE');
+    l_aux_store := create_store(
+      l_account_public_id,
+      'Member Isolation',
+      'member-isolation-' || l_run_token
+    );
+    l_raised := FALSE;
+    BEGIN
+      l_other_member := str_service_pkg.get_member(
+        l_aux_store.store_public_id,
+        l_member.store_user_public_id,
+        l_account_id
+      );
+    EXCEPTION
+      WHEN str_service_pkg.e_member_not_found THEN
+        l_raised := SQLCODE = -20886;
+    END;
+    assert_true(l_raised, 'Membro de outra STORE deveria parecer inexistente.');
+    pass;
+
+    start_test('CHANGE_MEMBER_ROLE protege ultimo ADMIN');
+    l_raised := FALSE;
+    BEGIN
+      l_other_member := str_service_pkg.change_member_role(
+        l_store.store_public_id,
+        l_member.store_user_public_id,
+        'MANAGER',
+        l_account_id
+      );
+    EXCEPTION
+      WHEN str_service_pkg.e_last_admin_required THEN
+        l_raised := SQLCODE = -20892;
+    END;
+    assert_true(l_raised, 'Ultimo ADMIN nao pode ser rebaixado.');
+    pass;
+
+    start_test('DEACTIVATE_MEMBER protege ultimo ADMIN');
+    l_raised := FALSE;
+    BEGIN
+      l_other_member := str_service_pkg.deactivate_member(
+        l_store.store_public_id,
+        l_member.store_user_public_id,
+        l_account_id
+      );
+    EXCEPTION
+      WHEN str_service_pkg.e_last_admin_required THEN
+        l_raised := SQLCODE = -20892;
+    END;
+    assert_true(l_raised, 'Ultimo ADMIN nao pode ser inativado.');
+    pass;
+
+    start_test('ADD_MEMBER permite segundo ADMIN');
+    l_other_member := str_service_pkg.add_member(
+      l_store.store_public_id,
+      l_blocked_account_public_id,
+      'ADMIN',
+      l_account_id
+    );
+    assert_true(
+      l_other_member.role_code = 'ADMIN',
+      'Segundo ADMIN deveria ser criado.'
+    );
+    pass;
+
+    start_test('CHANGE_MEMBER_ROLE funciona com outro ADMIN ativo');
+    l_member := str_service_pkg.change_member_role(
+      l_store.store_public_id,
+      l_member.store_user_public_id,
+      'MANAGER',
+      l_blocked_account_id
+    );
+    assert_true(
+      l_member.role_code = 'MANAGER',
+      'ADMIN deveria alterar papel com continuidade preservada.'
+    );
+    pass;
+
+    start_test('DEACTIVATE_MEMBER inativa membro comum');
+    l_member := str_service_pkg.deactivate_member(
+      l_store.store_public_id,
+      l_member.store_user_public_id,
+      l_account_id
+    );
+    assert_true(
+      l_member.status = 'INACTIVE' AND l_member.left_at IS NOT NULL,
+      'Membro comum deveria ser inativado.'
+    );
+    pass;
+
+    start_test('ACTIVATE_MEMBER reativa membro comum');
+    l_member := str_service_pkg.activate_member(
+      l_store.store_public_id,
+      l_member.store_user_public_id,
+      l_account_id
+    );
+    assert_true(
+      l_member.status = 'ACTIVE' AND l_member.left_at IS NULL,
+      'Membro comum deveria ser reativado.'
+    );
+    pass;
+
+    start_test('LIST_MEMBERS traduz filtros invalidos');
+    l_raised := FALSE;
+    BEGIN
+      l_members := str_service_pkg.list_members(
+        l_store.store_public_id,
+        l_account_id,
+        'BLOCKED'
+      );
+    EXCEPTION
+      WHEN str_service_pkg.e_member_invalid_status THEN
+        l_raised := SQLCODE = -20888;
+    END;
+    assert_true(l_raised, 'Status invalido deveria ser traduzido.');
+    l_raised := FALSE;
+    BEGIN
+      l_members := str_service_pkg.list_members(
+        p_store_public_id => l_store.store_public_id,
+        p_actor_id        => l_account_id,
+        p_role_code       => 'OWNER'
+      );
+    EXCEPTION
+      WHEN str_service_pkg.e_member_invalid_role THEN
+        l_raised := SQLCODE = -20887;
+    END;
+    assert_true(l_raised, 'Papel invalido deveria ser traduzido.');
+    pass;
+
+    start_test('Operacoes administrativas atualizam auditoria');
+    SELECT COUNT(*) INTO l_count
+      FROM BEX_STORE_USER
+     WHERE STU_PUBLIC_ID = l_member.store_user_public_id
+       AND STU_UPDATED_BY = l_account_id;
+    assert_true(l_count = 1, 'Auditoria administrativa incorreta.');
+    pass;
+
     start_test('Service nao possui SQL transacao ou apresentacao');
     SELECT COUNT(*) INTO l_source_count FROM USER_SOURCE
      WHERE NAME = 'STR_SERVICE_PKG' AND TYPE = 'PACKAGE BODY'
@@ -633,7 +904,11 @@ DECLARE
     start_test('Service usa somente dependencias de camada aprovadas');
     SELECT COUNT(*) INTO l_source_count FROM USER_SOURCE
      WHERE NAME = 'STR_SERVICE_PKG' AND TYPE = 'PACKAGE BODY'
-       AND REGEXP_LIKE(UPPER(TEXT), 'ACC_(RULE|REPOSITORY)_PKG|BEX_PROFILE|PFL_');
+       AND REGEXP_LIKE(
+         UPPER(TEXT),
+         'ACC_(RULE|REPOSITORY)_PKG|STU_(RULE|REPOSITORY)_PKG|' ||
+         'BEX_PROFILE|PFL_'
+       );
     assert_true(l_source_count = 0, 'Service possui dependencia externa proibida.');
 
     SELECT COUNT(*) INTO l_source_count FROM USER_DEPENDENCIES
@@ -644,6 +919,16 @@ DECLARE
     assert_true(
       l_source_count = 1,
       'Service deve usar STR_REPOSITORY_PKG para persistencia.'
+    );
+
+    SELECT COUNT(*) INTO l_source_count FROM USER_DEPENDENCIES
+     WHERE NAME = 'STR_SERVICE_PKG'
+       AND TYPE = 'PACKAGE BODY'
+       AND REFERENCED_NAME = 'STU_SERVICE_PKG'
+       AND REFERENCED_TYPE = 'PACKAGE';
+    assert_true(
+      l_source_count = 1,
+      'Service deve orquestrar membros somente por STU_SERVICE_PKG.'
     );
     pass;
   END run_tests;

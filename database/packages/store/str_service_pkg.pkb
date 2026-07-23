@@ -39,6 +39,37 @@ CREATE OR REPLACE PACKAGE BODY str_service_pkg AS
     RETURN l_result;
   END to_public_table;
 
+  FUNCTION to_member_record(
+    p_member IN stu_service_pkg.t_member_record
+  ) RETURN t_member_record IS
+    l_result t_member_record;
+  BEGIN
+    l_result.store_user_public_id := p_member.store_user_public_id;
+    l_result.store_public_id := p_member.store_public_id;
+    l_result.account_public_id := p_member.account_public_id;
+    l_result.role_code := p_member.role_code;
+    l_result.status := p_member.status;
+    l_result.joined_at := p_member.joined_at;
+    l_result.left_at := p_member.left_at;
+    l_result.created_at := p_member.created_at;
+    l_result.updated_at := p_member.updated_at;
+    RETURN l_result;
+  END to_member_record;
+
+  FUNCTION to_member_table(
+    p_members IN stu_service_pkg.t_member_table
+  ) RETURN t_member_table IS
+    l_result t_member_table;
+    l_index  PLS_INTEGER;
+  BEGIN
+    l_index := p_members.FIRST;
+    WHILE l_index IS NOT NULL LOOP
+      l_result(l_index) := to_member_record(p_members(l_index));
+      l_index := p_members.NEXT(l_index);
+    END LOOP;
+    RETURN l_result;
+  END to_member_table;
+
   FUNCTION to_rule_patch(
     p_patch IN t_store_patch
   ) RETURN str_rule_pkg.t_store_patch IS
@@ -69,6 +100,52 @@ CREATE OR REPLACE PACKAGE BODY str_service_pkg AS
       RAISE e_store_not_found;
     END IF;
   END assert_found;
+
+  FUNCTION require_internal_store(
+    p_store_public_id IN BEX_STORE.STR_PUBLIC_ID%TYPE
+  ) RETURN str_repository_pkg.t_store_record IS
+    l_store str_repository_pkg.t_store_record;
+  BEGIN
+    l_store := str_repository_pkg.get_by_public_id(p_store_public_id);
+    assert_found(l_store);
+    RETURN l_store;
+  END require_internal_store;
+
+  PROCEDURE assert_member_manager(
+    p_store    IN str_repository_pkg.t_store_record,
+    p_actor_id IN BEX_ACCOUNT.ACC_ID%TYPE
+  ) IS
+  BEGIN
+    IF p_actor_id IS NULL OR p_actor_id <= 0 THEN
+      RAISE e_member_forbidden;
+    END IF;
+
+    IF p_store.acc_id = p_actor_id THEN
+      RETURN;
+    END IF;
+
+    IF stu_service_pkg.is_active_admin(p_store.str_id, p_actor_id) THEN
+      RETURN;
+    END IF;
+
+    RAISE e_member_forbidden;
+  END assert_member_manager;
+
+  FUNCTION require_authorized_store(
+    p_store_public_id IN BEX_STORE.STR_PUBLIC_ID%TYPE,
+    p_actor_id        IN BEX_ACCOUNT.ACC_ID%TYPE,
+    p_lock            IN BOOLEAN
+  ) RETURN str_repository_pkg.t_store_record IS
+    l_store str_repository_pkg.t_store_record;
+  BEGIN
+    l_store := require_internal_store(p_store_public_id);
+    IF p_lock THEN
+      str_repository_pkg.lock_by_id(l_store.str_id);
+      l_store := str_repository_pkg.get_by_id(l_store.str_id);
+    END IF;
+    assert_member_manager(l_store, p_actor_id);
+    RETURN l_store;
+  END require_authorized_store;
 
   FUNCTION resolve_account(
     p_account_public_id IN BEX_ACCOUNT.ACC_PUBLIC_ID%TYPE
@@ -437,5 +514,220 @@ CREATE OR REPLACE PACKAGE BODY str_service_pkg AS
     WHEN str_rule_pkg.e_invalid_slug THEN
       RAISE e_invalid_slug;
   END slug_available;
+
+  FUNCTION add_member(
+    p_store_public_id   IN BEX_STORE.STR_PUBLIC_ID%TYPE,
+    p_account_public_id IN BEX_ACCOUNT.ACC_PUBLIC_ID%TYPE,
+    p_role_code         IN BEX_STORE_USER.STU_ROLE_CODE%TYPE,
+    p_actor_id          IN BEX_ACCOUNT.ACC_ID%TYPE
+  ) RETURN t_member_record IS
+    l_store  str_repository_pkg.t_store_record;
+    l_member stu_service_pkg.t_member_record;
+  BEGIN
+    l_store := require_authorized_store(
+      p_store_public_id,
+      p_actor_id,
+      TRUE
+    );
+    l_member := stu_service_pkg.create_member(
+      l_store.str_id,
+      l_store.str_public_id,
+      p_account_public_id,
+      p_role_code,
+      p_actor_id
+    );
+    RETURN to_member_record(l_member);
+  EXCEPTION
+    WHEN stu_service_pkg.e_account_not_found THEN
+      RAISE e_account_not_found;
+    WHEN stu_service_pkg.e_invalid_role THEN
+      RAISE e_member_invalid_role;
+    WHEN stu_service_pkg.e_active_link_exists THEN
+      RAISE e_active_member_link_exists;
+  END add_member;
+
+  FUNCTION get_member(
+    p_store_public_id      IN BEX_STORE.STR_PUBLIC_ID%TYPE,
+    p_store_user_public_id IN BEX_STORE_USER.STU_PUBLIC_ID%TYPE,
+    p_actor_id             IN BEX_ACCOUNT.ACC_ID%TYPE
+  ) RETURN t_member_record IS
+    l_store  str_repository_pkg.t_store_record;
+    l_member stu_service_pkg.t_member_record;
+  BEGIN
+    l_store := require_authorized_store(
+      p_store_public_id,
+      p_actor_id,
+      FALSE
+    );
+    l_member := stu_service_pkg.get_member(
+      l_store.str_id,
+      l_store.str_public_id,
+      p_store_user_public_id
+    );
+    RETURN to_member_record(l_member);
+  EXCEPTION
+    WHEN stu_service_pkg.e_member_not_found THEN
+      RAISE e_member_not_found;
+  END get_member;
+
+  FUNCTION list_members(
+    p_store_public_id IN BEX_STORE.STR_PUBLIC_ID%TYPE,
+    p_actor_id        IN BEX_ACCOUNT.ACC_ID%TYPE,
+    p_status          IN BEX_STORE_USER.STU_STATUS%TYPE DEFAULT NULL,
+    p_role_code       IN BEX_STORE_USER.STU_ROLE_CODE%TYPE DEFAULT NULL
+  ) RETURN t_member_table IS
+    l_store   str_repository_pkg.t_store_record;
+    l_members stu_service_pkg.t_member_table;
+  BEGIN
+    l_store := require_authorized_store(
+      p_store_public_id,
+      p_actor_id,
+      FALSE
+    );
+    l_members := stu_service_pkg.list_members_by_store(
+      l_store.str_id,
+      l_store.str_public_id,
+      p_status,
+      p_role_code
+    );
+    RETURN to_member_table(l_members);
+  EXCEPTION
+    WHEN stu_service_pkg.e_invalid_status THEN
+      RAISE e_member_invalid_status;
+    WHEN stu_service_pkg.e_invalid_role THEN
+      RAISE e_member_invalid_role;
+  END list_members;
+
+  FUNCTION change_member_role(
+    p_store_public_id      IN BEX_STORE.STR_PUBLIC_ID%TYPE,
+    p_store_user_public_id IN BEX_STORE_USER.STU_PUBLIC_ID%TYPE,
+    p_role_code            IN BEX_STORE_USER.STU_ROLE_CODE%TYPE,
+    p_actor_id             IN BEX_ACCOUNT.ACC_ID%TYPE
+  ) RETURN t_member_record IS
+    l_store        str_repository_pkg.t_store_record;
+    l_current      stu_service_pkg.t_member_record;
+    l_member       stu_service_pkg.t_member_record;
+    l_is_admin     BOOLEAN;
+  BEGIN
+    l_store := require_authorized_store(
+      p_store_public_id,
+      p_actor_id,
+      TRUE
+    );
+
+    BEGIN
+      l_is_admin := stu_service_pkg.is_admin_role(p_role_code);
+      l_current := stu_service_pkg.get_member(
+        l_store.str_id,
+        l_store.str_public_id,
+        p_store_user_public_id
+      );
+    EXCEPTION
+      WHEN stu_service_pkg.e_invalid_role THEN
+        RAISE e_member_invalid_role;
+      WHEN stu_service_pkg.e_member_not_found THEN
+        RAISE e_member_not_found;
+    END;
+
+    IF l_current.status = 'ACTIVE'
+       AND l_current.role_code = 'ADMIN'
+       AND NOT l_is_admin
+       AND stu_service_pkg.count_active_admins(l_store.str_id) = 1 THEN
+      RAISE e_last_admin_required;
+    END IF;
+
+    l_member := stu_service_pkg.change_role(
+      l_store.str_id,
+      l_store.str_public_id,
+      p_store_user_public_id,
+      p_role_code,
+      p_actor_id
+    );
+    RETURN to_member_record(l_member);
+  EXCEPTION
+    WHEN stu_service_pkg.e_invalid_role THEN
+      RAISE e_member_invalid_role;
+    WHEN stu_service_pkg.e_member_not_found THEN
+      RAISE e_member_not_found;
+  END change_member_role;
+
+  FUNCTION activate_member(
+    p_store_public_id      IN BEX_STORE.STR_PUBLIC_ID%TYPE,
+    p_store_user_public_id IN BEX_STORE_USER.STU_PUBLIC_ID%TYPE,
+    p_actor_id             IN BEX_ACCOUNT.ACC_ID%TYPE
+  ) RETURN t_member_record IS
+    l_store  str_repository_pkg.t_store_record;
+    l_member stu_service_pkg.t_member_record;
+  BEGIN
+    l_store := require_authorized_store(
+      p_store_public_id,
+      p_actor_id,
+      TRUE
+    );
+    l_member := stu_service_pkg.activate_member(
+      l_store.str_id,
+      l_store.str_public_id,
+      p_store_user_public_id,
+      p_actor_id
+    );
+    RETURN to_member_record(l_member);
+  EXCEPTION
+    WHEN stu_service_pkg.e_member_not_found THEN
+      RAISE e_member_not_found;
+    WHEN stu_service_pkg.e_invalid_status THEN
+      RAISE e_member_invalid_status;
+    WHEN stu_service_pkg.e_invalid_transition THEN
+      RAISE e_member_invalid_transition;
+    WHEN stu_service_pkg.e_active_link_exists THEN
+      RAISE e_active_member_link_exists;
+  END activate_member;
+
+  FUNCTION deactivate_member(
+    p_store_public_id      IN BEX_STORE.STR_PUBLIC_ID%TYPE,
+    p_store_user_public_id IN BEX_STORE_USER.STU_PUBLIC_ID%TYPE,
+    p_actor_id             IN BEX_ACCOUNT.ACC_ID%TYPE
+  ) RETURN t_member_record IS
+    l_store   str_repository_pkg.t_store_record;
+    l_current stu_service_pkg.t_member_record;
+    l_member  stu_service_pkg.t_member_record;
+  BEGIN
+    l_store := require_authorized_store(
+      p_store_public_id,
+      p_actor_id,
+      TRUE
+    );
+
+    BEGIN
+      l_current := stu_service_pkg.get_member(
+        l_store.str_id,
+        l_store.str_public_id,
+        p_store_user_public_id
+      );
+    EXCEPTION
+      WHEN stu_service_pkg.e_member_not_found THEN
+        RAISE e_member_not_found;
+    END;
+
+    IF l_current.status = 'ACTIVE'
+       AND l_current.role_code = 'ADMIN'
+       AND stu_service_pkg.count_active_admins(l_store.str_id) = 1 THEN
+      RAISE e_last_admin_required;
+    END IF;
+
+    l_member := stu_service_pkg.deactivate_member(
+      l_store.str_id,
+      l_store.str_public_id,
+      p_store_user_public_id,
+      p_actor_id
+    );
+    RETURN to_member_record(l_member);
+  EXCEPTION
+    WHEN stu_service_pkg.e_member_not_found THEN
+      RAISE e_member_not_found;
+    WHEN stu_service_pkg.e_invalid_status THEN
+      RAISE e_member_invalid_status;
+    WHEN stu_service_pkg.e_invalid_transition THEN
+      RAISE e_member_invalid_transition;
+  END deactivate_member;
 END str_service_pkg;
 /

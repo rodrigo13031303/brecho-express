@@ -118,6 +118,13 @@ CREATE OR REPLACE PACKAGE BODY stu_service_pkg AS
     RETURN stu_repository_pkg.count_active_admins(p_store_id);
   END count_active_admins;
 
+  FUNCTION is_admin_role(
+    p_role_code IN BEX_STORE_USER.STU_ROLE_CODE%TYPE
+  ) RETURN BOOLEAN IS
+  BEGIN
+    RETURN normalize_valid_role(p_role_code) = stu_rule_pkg.c_role_admin;
+  END is_admin_role;
+
   FUNCTION create_member(
     p_store_id          IN BEX_STORE_USER.STR_ID%TYPE,
     p_store_public_id   IN BEX_STORE.STR_PUBLIC_ID%TYPE,

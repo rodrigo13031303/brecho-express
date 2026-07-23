@@ -6,7 +6,7 @@ DECLARE
   g_test_count   PLS_INTEGER := 0;
   g_current_test VARCHAR2(200);
 
-  c_expected_test_count CONSTANT PLS_INTEGER := 28;
+  c_expected_test_count CONSTANT PLS_INTEGER := 29;
 
   l_owner_id             BEX_ACCOUNT.ACC_ID%TYPE;
   l_account_id_one       BEX_ACCOUNT.ACC_ID%TYPE;
@@ -241,6 +241,22 @@ DECLARE
       stu_service_pkg.count_active_admins(l_store_id_one) = 1,
       'Contagem deveria ser 1.'
     );
+    pass;
+
+    start_test('IS_ADMIN_ROLE normaliza e valida papel');
+    assert_true(
+      stu_service_pkg.is_admin_role(' admin '),
+      'ADMIN normalizado deveria retornar verdadeiro.'
+    );
+    assert_false(
+      stu_service_pkg.is_admin_role('MANAGER'),
+      'MANAGER deveria retornar falso.'
+    );
+    l_raised := FALSE;
+    BEGIN
+      l_raised := stu_service_pkg.is_admin_role('OWNER');
+    EXCEPTION WHEN stu_service_pkg.e_invalid_role THEN l_raised := TRUE; END;
+    assert_true(l_raised, 'Papel invalido deveria gerar erro nominal.');
     pass;
 
     start_test('GET_MEMBER retorna membro da STORE');

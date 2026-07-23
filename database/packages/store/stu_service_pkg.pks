@@ -40,6 +40,10 @@ CREATE OR REPLACE PACKAGE stu_service_pkg AS
     p_store_id IN BEX_STORE_USER.STR_ID%TYPE
   ) RETURN PLS_INTEGER;
 
+  FUNCTION is_admin_role(
+    p_role_code IN BEX_STORE_USER.STU_ROLE_CODE%TYPE
+  ) RETURN BOOLEAN;
+
   FUNCTION create_member(
     p_store_id         IN BEX_STORE_USER.STR_ID%TYPE,
     p_store_public_id  IN BEX_STORE.STR_PUBLIC_ID%TYPE,

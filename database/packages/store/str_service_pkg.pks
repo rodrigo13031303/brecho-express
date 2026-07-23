@@ -19,6 +19,20 @@ CREATE OR REPLACE PACKAGE str_service_pkg AS
 
   TYPE t_store_table IS TABLE OF t_store_record INDEX BY PLS_INTEGER;
 
+  TYPE t_member_record IS RECORD (
+    store_user_public_id BEX_STORE_USER.STU_PUBLIC_ID%TYPE,
+    store_public_id      BEX_STORE.STR_PUBLIC_ID%TYPE,
+    account_public_id    BEX_ACCOUNT.ACC_PUBLIC_ID%TYPE,
+    role_code            BEX_STORE_USER.STU_ROLE_CODE%TYPE,
+    status               BEX_STORE_USER.STU_STATUS%TYPE,
+    joined_at            BEX_STORE_USER.STU_JOINED_AT%TYPE,
+    left_at              BEX_STORE_USER.STU_LEFT_AT%TYPE,
+    created_at           BEX_STORE_USER.STU_CREATED_AT%TYPE,
+    updated_at           BEX_STORE_USER.STU_UPDATED_AT%TYPE
+  );
+
+  TYPE t_member_table IS TABLE OF t_member_record INDEX BY PLS_INTEGER;
+
   TYPE t_store_patch IS RECORD (
     set_name          BOOLEAN := FALSE,
     name_value        BEX_STORE.STR_NAME%TYPE,
@@ -54,6 +68,13 @@ CREATE OR REPLACE PACKAGE str_service_pkg AS
   e_store_closed EXCEPTION;
   e_account_ineligible EXCEPTION;
   e_slug_already_used EXCEPTION;
+  e_member_not_found EXCEPTION;
+  e_member_invalid_role EXCEPTION;
+  e_member_invalid_status EXCEPTION;
+  e_member_invalid_transition EXCEPTION;
+  e_active_member_link_exists EXCEPTION;
+  e_member_forbidden EXCEPTION;
+  e_last_admin_required EXCEPTION;
 
   PRAGMA EXCEPTION_INIT(e_store_not_found, -20860);
   PRAGMA EXCEPTION_INIT(e_account_not_found, -20840);
@@ -73,6 +94,13 @@ CREATE OR REPLACE PACKAGE str_service_pkg AS
   PRAGMA EXCEPTION_INIT(e_store_closed, -20874);
   PRAGMA EXCEPTION_INIT(e_account_ineligible, -20875);
   PRAGMA EXCEPTION_INIT(e_slug_already_used, -20876);
+  PRAGMA EXCEPTION_INIT(e_member_not_found, -20886);
+  PRAGMA EXCEPTION_INIT(e_member_invalid_role, -20887);
+  PRAGMA EXCEPTION_INIT(e_member_invalid_status, -20888);
+  PRAGMA EXCEPTION_INIT(e_member_invalid_transition, -20889);
+  PRAGMA EXCEPTION_INIT(e_active_member_link_exists, -20890);
+  PRAGMA EXCEPTION_INIT(e_member_forbidden, -20891);
+  PRAGMA EXCEPTION_INIT(e_last_admin_required, -20892);
 
   FUNCTION create_by_account_public_id(
     p_account_public_id IN BEX_ACCOUNT.ACC_PUBLIC_ID%TYPE,
@@ -137,5 +165,44 @@ CREATE OR REPLACE PACKAGE str_service_pkg AS
   FUNCTION slug_available(
     p_slug IN BEX_STORE.STR_SLUG%TYPE
   ) RETURN BOOLEAN;
+
+  FUNCTION add_member(
+    p_store_public_id   IN BEX_STORE.STR_PUBLIC_ID%TYPE,
+    p_account_public_id IN BEX_ACCOUNT.ACC_PUBLIC_ID%TYPE,
+    p_role_code         IN BEX_STORE_USER.STU_ROLE_CODE%TYPE,
+    p_actor_id          IN BEX_ACCOUNT.ACC_ID%TYPE
+  ) RETURN t_member_record;
+
+  FUNCTION get_member(
+    p_store_public_id      IN BEX_STORE.STR_PUBLIC_ID%TYPE,
+    p_store_user_public_id IN BEX_STORE_USER.STU_PUBLIC_ID%TYPE,
+    p_actor_id             IN BEX_ACCOUNT.ACC_ID%TYPE
+  ) RETURN t_member_record;
+
+  FUNCTION list_members(
+    p_store_public_id IN BEX_STORE.STR_PUBLIC_ID%TYPE,
+    p_actor_id        IN BEX_ACCOUNT.ACC_ID%TYPE,
+    p_status          IN BEX_STORE_USER.STU_STATUS%TYPE DEFAULT NULL,
+    p_role_code       IN BEX_STORE_USER.STU_ROLE_CODE%TYPE DEFAULT NULL
+  ) RETURN t_member_table;
+
+  FUNCTION change_member_role(
+    p_store_public_id      IN BEX_STORE.STR_PUBLIC_ID%TYPE,
+    p_store_user_public_id IN BEX_STORE_USER.STU_PUBLIC_ID%TYPE,
+    p_role_code            IN BEX_STORE_USER.STU_ROLE_CODE%TYPE,
+    p_actor_id             IN BEX_ACCOUNT.ACC_ID%TYPE
+  ) RETURN t_member_record;
+
+  FUNCTION activate_member(
+    p_store_public_id      IN BEX_STORE.STR_PUBLIC_ID%TYPE,
+    p_store_user_public_id IN BEX_STORE_USER.STU_PUBLIC_ID%TYPE,
+    p_actor_id             IN BEX_ACCOUNT.ACC_ID%TYPE
+  ) RETURN t_member_record;
+
+  FUNCTION deactivate_member(
+    p_store_public_id      IN BEX_STORE.STR_PUBLIC_ID%TYPE,
+    p_store_user_public_id IN BEX_STORE_USER.STU_PUBLIC_ID%TYPE,
+    p_actor_id             IN BEX_ACCOUNT.ACC_ID%TYPE
+  ) RETURN t_member_record;
 END str_service_pkg;
 /
