@@ -123,14 +123,13 @@ Usuário
 - RN-001 — Todo Profile pertence exatamente a uma Account, e cada Account possui no máximo um Profile.
 - RN-002 — Um Profile pode possuir vários Endereços.
 - RN-003 — Um Profile pode possuir diferentes papéis através de Roles.
-- RN-004 — Um Profile pode administrar um ou mais Brechós.
+- RN-004 — A pessoa representada por um Profile pode administrar Brechós por meio da ACCOUNT correspondente, sem vínculo estrutural entre PROFILE e STORE_USER.
 - RN-005 — Um Profile nunca armazena informações de autenticação.
 - RN-006 — PFL_BIRTH_DATE, quando informada, não pode estar no futuro; a validação pertence às regras de domínio.
 
 ## Relacionamentos
 - ACCOUNT (1:0..1 a partir de ACCOUNT; exatamente 1 a partir de PROFILE)
 - ADDRESS (1:N)
-- STORE_USER (1:N)
 - ORDER (1:N)
 - STORE_REVIEW (1:N)
 - ROLE (N:N através de PROFILE_ROLE)
@@ -696,7 +695,7 @@ ACCOUNT proprietária / Operação do Brechó
 - ORDER (1:N) — relacionamento externo futuro.
 - STORE_REPUTATION (1:N conceitual) — relacionamento externo sujeito ao contrato específico do módulo.
 - STORE_ADDRESS (1:N) — entidade futura para endereços com semânticas próprias.
-- STORE_MEMBER (1:N) — evolução de administração e colaboração, sem alterar a propriedade por ACCOUNT.
+- STORE_USER (1:N) — vínculo operacional de contas administradoras e colaboradoras, sem alterar a propriedade por ACCOUNT.
 - STORE_EVENT (1:N) — relacionamento externo.
 - STORE_FOLLOWER (1:N) — relacionamento externo.
 - STORE_REVIEW (1:N) — relacionamento externo.
@@ -710,7 +709,7 @@ ACCOUNT 1 → 0..N STORE
 STORE N → 1 ACCOUNT
 ```
 
-Participações futuras de PROFILE como administrador, colaborador, seguidor, autor de avaliação ou identidade de apresentação não substituem ACC_ID como propriedade estrutural.
+A atuação operacional de administradores e colaboradores ocorre por ACCOUNT através de STORE_USER. PROFILE pode fornecer dados pessoais ou de apresentação por composição, mas não participa estruturalmente da propriedade nem do vínculo operacional.
 
 ## Atributos
 
@@ -878,7 +877,7 @@ Permanecem pendentes a política administrativa de suspensão, a estratégia de 
 
 ## Objetivo
 
-Representar o vínculo operacional entre um Profile e um Store, permitindo que uma pessoa atue em um Brechó com uma função específica.
+Representar o vínculo operacional entre uma ACCOUNT e uma STORE, permitindo que uma conta atue em um Brechó com uma função específica.
 
 ## Classificação
 
@@ -886,16 +885,18 @@ SUPPORT
 
 ## Responsabilidades
 
-- Representar a participação de um Profile em um Store.
+- Representar a participação operacional de uma ACCOUNT em uma STORE.
 - Definir quem pode operar um Brechó e com qual função.
-- Registrar a entrada e a saída de pessoas no contexto operacional do Brechó.
+- Registrar a entrada e a saída de contas no contexto operacional do Brechó.
 - Apoiar a gestão administrativa do Brechó.
 
 ## Não é responsabilidade
 
 - Armazenar credenciais de autenticação.
+- Armazenar dados pessoais de PROFILE.
 - Substituir PROFILE_ROLE.
 - Representar papéis globais da plataforma.
+- Representar a propriedade estrutural da STORE, que permanece exclusivamente em BEX_STORE.ACC_ID.
 - Definir regras comerciais.
 - Armazenar dados pessoais sensíveis.
 
@@ -905,11 +906,11 @@ Operação do Brechó
 
 ## Regras de Negócio
 
-- RN-001 — STORE_USER representa a participação de um PROFILE em um STORE.
+- RN-001 — STORE_USER representa a participação operacional de uma ACCOUNT em uma STORE.
 - RN-002 — Um STORE pode possuir vários STORE_USER.
-- RN-003 — Um PROFILE pode participar de vários STORE.
-- RN-004 — Um PROFILE pode atuar como administrador, atendente, gerente ou colaborador de um STORE, sem substituir a ACCOUNT proprietária.
-- RN-005 — A combinação STR_ID + PFL_ID deve ser única enquanto ativa.
+- RN-003 — Uma ACCOUNT pode participar operacionalmente de vários STORE.
+- RN-004 — Uma ACCOUNT pode atuar como ADMIN, MANAGER, ATTENDANT ou COLLABORATOR em um STORE, sem que o vínculo substitua a propriedade estrutural registrada em BEX_STORE.ACC_ID.
+- RN-005 — Pode existir no máximo um vínculo ACTIVE para a mesma combinação STR_ID + ACC_ID.
 - RN-006 — STU_PUBLIC_ID deve ser CHAR(32).
 - RN-007 — APIs externas usam STU_PUBLIC_ID, nunca STU_ID.
 - RN-008 — A exclusão deve ser lógica via STU_STATUS.
@@ -919,22 +920,36 @@ Operação do Brechó
 - RN-012 — STORE_USER representa papéis operacionais dentro de um Brechó específico.
 - RN-013 — STU_JOINED_AT deve ser obrigatório.
 - RN-014 — STU_LEFT_AT deve ser opcional.
+- RN-015 — STU_ROLE_CODE é obrigatório, não possui default e aceita exclusivamente ADMIN, MANAGER, ATTENDANT ou COLLABORATOR.
+- RN-016 — STU_STATUS é obrigatório, possui default ACTIVE e aceita exclusivamente ACTIVE ou INACTIVE.
+- RN-017 — Vínculos INACTIVE preservam o histórico e podem se repetir para a mesma combinação STR_ID + ACC_ID.
+- RN-018 — Não deve existir UNIQUE convencional sobre STR_ID + ACC_ID; a unicidade condicional é garantida por índice único baseado em função somente para vínculos ACTIVE.
+- RN-019 — PROFILE contém dados pessoais e não participa estruturalmente de BEX_STORE_USER.
 
 ## Relacionamentos
 
 - STORE (N:1)
-- PROFILE (N:1)
+- ACCOUNT (N:1)
+
+Cardinalidades aprovadas:
+
+```text
+STORE 1 → 0..N STORE_USER
+ACCOUNT 1 → 0..N STORE_USER
+STORE_USER N → 1 STORE
+STORE_USER N → 1 ACCOUNT
+```
 
 ## Atributos
 
 | Campo | Tipo | Obrigatório |
 |--------|------|-------------|
 | STU_ID | NUMBER Identity | Sim |
-| STU_PUBLIC_ID | CHAR(32) | Sim |
+| STU_PUBLIC_ID | CHAR(32 CHAR) | Sim |
 | STR_ID | NUMBER | Sim |
-| PFL_ID | NUMBER | Sim |
-| STU_ROLE_CODE | VARCHAR2(50) | Sim |
-| STU_STATUS | VARCHAR2(20) | Sim |
+| ACC_ID | NUMBER | Sim |
+| STU_ROLE_CODE | VARCHAR2(50 CHAR), sem default | Sim |
+| STU_STATUS | VARCHAR2(20 CHAR) DEFAULT 'ACTIVE' | Sim |
 | STU_JOINED_AT | TIMESTAMP | Sim |
 | STU_LEFT_AT | TIMESTAMP | Não |
 | STU_CREATED_AT | TIMESTAMP | Sim |
@@ -942,15 +957,53 @@ Operação do Brechó
 | STU_CREATED_BY | NUMBER | Não |
 | STU_UPDATED_BY | NUMBER | Não |
 
-STU_CREATED_BY e STU_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+STU_CREATED_BY e STU_UPDATED_BY referenciam BEX_ACCOUNT.ACC_ID e identificam opcionalmente a ACCOUNT responsável pela operação de auditoria.
+
+## Domínios
+
+STU_ROLE_CODE é informado explicitamente na criação e aceita somente:
+
+- ADMIN
+- MANAGER
+- ATTENDANT
+- COLLABORATOR
+
+STU_STATUS é obrigatório, possui default ACTIVE e aceita somente:
+
+- ACTIVE
+- INACTIVE
+
+## Constraints Conceituais
+
+- PK_STORE_USER para STU_ID.
+- UK_STORE_USER_PUBLIC_ID para STU_PUBLIC_ID.
+- FK_STU_STORE de STR_ID para BEX_STORE.STR_ID.
+- FK_STU_ACCOUNT de ACC_ID para BEX_ACCOUNT.ACC_ID.
+- FK_STU_CREATED_BY_ACCOUNT de STU_CREATED_BY para BEX_ACCOUNT.ACC_ID.
+- FK_STU_UPDATED_BY_ACCOUNT de STU_UPDATED_BY para BEX_ACCOUNT.ACC_ID.
+- CK_STU_ROLE_CODE para o domínio aprovado de STU_ROLE_CODE.
+- CK_STU_STATUS para o domínio aprovado de STU_STATUS.
+- NOT NULL nos atributos marcados como obrigatórios.
+
+Não existe UNIQUE convencional sobre STR_ID + ACC_ID. A unicidade somente enquanto ACTIVE é garantida por índice único baseado em função, conceitualmente:
+
+```sql
+CREATE UNIQUE INDEX UK_STU_STORE_ACCOUNT_ACTIVE
+    ON BEX_STORE_USER (
+        CASE WHEN STU_STATUS = 'ACTIVE' THEN STR_ID END,
+        CASE WHEN STU_STATUS = 'ACTIVE' THEN ACC_ID END
+    );
+```
+
+Como as expressões retornam NULL para registros INACTIVE, o histórico de vínculos da mesma combinação STR_ID + ACC_ID permanece permitido.
 
 ## Índices
 
 - PK_STORE_USER
 - UK_STORE_USER_PUBLIC_ID
-- UK_STORE_USER_STORE_PROFILE
+- UK_STU_STORE_ACCOUNT_ACTIVE
 - IDX_STORE_USER_STORE
-- IDX_STORE_USER_PROFILE
+- IDX_STORE_USER_ACCOUNT
 - IDX_STORE_USER_ROLE
 - IDX_STORE_USER_STATUS
 
@@ -973,6 +1026,10 @@ Uso interno pelos módulos administrativos de Brechó.
 STORE_USER é uma entidade de suporte do módulo Brechós.
 
 Ela define quem pode operar um Brechó e com qual função.
+
+ACCOUNT é a identidade estrutural e operacional do vínculo. PROFILE permanece responsável apenas por dados pessoais e não é dependência estrutural de STORE_USER.
+
+A propriedade da STORE continua registrada exclusivamente por BEX_STORE.ACC_ID; STORE_USER não representa propriedade.
 
 PROFILE_ROLE define papéis globais da plataforma, como CUSTOMER, STORE_OWNER, ADMIN e SYSTEM.
 

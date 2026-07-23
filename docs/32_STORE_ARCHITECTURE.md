@@ -8,7 +8,7 @@ Definir, antes da implementação, a arquitetura funcional e técnica do módulo
 
 STORE representa uma loja ou operação comercial de venda dentro da plataforma. A arquitetura parte dos padrões já consolidados em ACCOUNT, PROFILE, Core Framework e API Runtime Contract.
 
-Existe uma divergência com o estado atual de `20_DATA_DICTIONARY.md`: aquele documento associa STORE obrigatoriamente a PROFILE por `PFL_ID`. Para a primeira versão aqui definida, a propriedade técnica passa a pertencer a ACCOUNT por `ACC_ID`; PROFILE não é dependência estrutural. O Data Dictionary deverá ser alinhado em etapa posterior e controlada.
+O Data Dictionary e o modelo físico vigente registram a propriedade técnica de STORE em ACCOUNT por `ACC_ID`; PROFILE não é dependência estrutural. O vínculo operacional entre contas e lojas é representado pela entidade física `BEX_STORE_USER`.
 
 ## 3. Escopo
 
@@ -42,7 +42,7 @@ O módulo administra a identidade básica, os dados de apresentação e o ciclo 
 
 STORE é a raiz do seu agregado mínimo. Pertencem a ele seus identificadores, proprietário, nome, slug, descrição, imagens de apresentação, locale, timezone, estado e auditoria.
 
-PRODUCT, INVENTORY, ORDER, STORE_REPUTATION, STORE_ADDRESS, STORE_MEMBER, PROMOTION e COUPON possuem ciclo de vida próprio ou complexidade suficiente para serem agregados externos. Suas referências a STORE não transferem suas regras para este módulo.
+PRODUCT, INVENTORY, ORDER, STORE_REPUTATION, STORE_ADDRESS, BEX_STORE_USER, PROMOTION e COUPON possuem ciclo de vida próprio ou complexidade suficiente para serem agregados externos. Suas referências a STORE não transferem suas regras para este módulo.
 
 ## 8. Relação com ACCOUNT e PROFILE
 
@@ -55,7 +55,7 @@ Decisão da versão inicial:
 
 Não haverá restrição física de uma única loja por conta. Limites comerciais futuros pertencem a políticas ou planos.
 
-Uma ACCOUNT ativa pode criar STORE. PROFILE pode ser exigido futuramente pela experiência do produto, mas não é pré-condição estrutural nem chave proprietária. Assim, a criação não exige PROFILE na primeira versão. A administração pessoal exibida ao público poderá usar PROFILE por composição em camada apropriada, sem mudar a propriedade.
+Uma ACCOUNT ativa pode criar STORE. A atuação operacional também se vincula a ACCOUNT por BEX_STORE_USER. PROFILE pode ser exigido futuramente pela experiência do produto ou fornecer dados pessoais de apresentação por composição, mas não é pré-condição, chave proprietária nem participante estrutural do vínculo operacional.
 
 ## 9. Identidade e identificadores
 
@@ -129,7 +129,9 @@ Demais transições são inválidas. `SUSPENDED` é uma intervenção administra
 
 ## 14. Propriedade e administração
 
-O proprietário é a ACCOUNT informada na criação e registrada por `ACC_ID`. Administrador e colaborador são papéis de atuação, não colunas repetidas em STORE. Equipe, papéis e convites serão modelados, se aprovados, por entidades como `STORE_MEMBER`, `STORE_ROLE` e `STORE_INVITATION`.
+O proprietário é a ACCOUNT informada na criação e registrada por `ACC_ID`. Administrador e colaborador são papéis de atuação, não colunas repetidas em STORE. O vínculo de membros e operadores é modelado pela entidade física aprovada `BEX_STORE_USER`, sem renomeá-la para STORE_MEMBER.
+
+`BEX_STORE_USER` relaciona `STR_ID` a `BEX_STORE.STR_ID` e `ACC_ID` a `BEX_ACCOUNT.ACC_ID`. ACCOUNT é a identidade estrutural e operacional; PROFILE contém dados pessoais e não participa estruturalmente do vínculo. Os papéis operacionais são ADMIN, MANAGER, ATTENDANT e COLLABORATOR. O status aceita ACTIVE e INACTIVE, com no máximo um vínculo ACTIVE por combinação STR_ID + ACC_ID e preservação do histórico INACTIVE por índice único baseado em função. Essa entidade mantém ciclo de vida próprio e não altera a responsabilidade do agregado STORE.
 
 ## 15. Casos de uso
 
@@ -275,12 +277,12 @@ STORE 1 → N INVENTORY ou STOCK_ITEM
 STORE 1 → N ORDER
 STORE 1 → N STORE_REPUTATION
 STORE 1 → N STORE_ADDRESS
-STORE 1 → N STORE_MEMBER
+STORE 1 → N BEX_STORE_USER
 STORE 1 → N PROMOTION
 STORE 1 → N COUPON
 ```
 
-STORE é referenciada como agregado externo por esses módulos. Nenhum deles integra automaticamente sua transação ou tabela principal. `STORE_ADDRESS` e `STORE_MEMBER` são os candidatos mais próximos, mas não fazem parte da primeira implementação.
+STORE é referenciada como agregado externo por esses módulos. Nenhum deles integra automaticamente sua transação ou tabela principal. `BEX_STORE_USER` é a entidade física aprovada para membros e operadores da STORE e permanece um agregado externo ao núcleo de STORE; `STORE_ADDRESS` continua candidato futuro.
 
 ## 28. Rotas candidatas
 
@@ -373,11 +375,11 @@ Nenhuma pendência autoriza improvisação durante a implementação.
 - [x] PATCH e transações alinhados ao Runtime Contract.
 - [x] Segurança, concorrência e auditoria consideradas.
 - [x] Casos imediatos separados dos pendentes.
-- [ ] Data Dictionary alinhado em tarefa futura.
+- [x] Data Dictionary alinhado à propriedade e à operação por ACCOUNT.
 - [ ] Decisões pendentes aprovadas antes das funcionalidades correspondentes.
 
 ## 34. Observações
 
 Este documento deve ser lido em conjunto com `20_DATA_DICTIONARY.md`, `21_DATABASE_CONVENTIONS.md`, `26_PHYSICAL_ARCHITECTURE.md`, `27_API_STANDARDS.md`, `28_CORE_FRAMEWORK.md` e `31_API_RUNTIME_CONTRACT.md`. Em caso de conflito com documento hierarquicamente superior, a implementação deve parar para revisão.
 
-A arquitetura deliberadamente não define DDL, nomes de constraints, código PL/SQL, handlers ORDS ou detalhes de módulos futuros. A atualização posterior do Data Dictionary deve remover a propriedade estrutural por PROFILE e registrar `ACC_ID` como proprietário, preservando PROFILE como identidade pessoal/pública e eventual participante de relações administrativas futuras.
+A arquitetura de STORE não define o DDL de BEX_STORE_USER nesta etapa. O Data Dictionary e o DBML registram ACCOUNT como identidade estrutural e operacional, preservando PROFILE exclusivamente como repositório de dados pessoais, sem participação estrutural em STORE ou STORE_USER.

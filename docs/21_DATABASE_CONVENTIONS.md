@@ -55,7 +55,8 @@ O propósito principal é garantir consistência técnica, alinhamento com o dom
 - FKs usam a sigla da entidade referenciada.
 - Exemplo:
   - STR_ID em BEX_PRODUCT referencia BEX_STORE
-  - PFL_ID em BEX_STORE_USER referencia BEX_PROFILE
+  - STR_ID em BEX_STORE_USER referencia BEX_STORE
+  - ACC_ID em BEX_STORE_USER referencia BEX_ACCOUNT
 
 ## 6. Chaves primárias
 
@@ -86,8 +87,9 @@ O propósito principal é garantir consistência técnica, alinhamento com o dom
   <SIGLA>_UPDATED_AT
   <SIGLA>_CREATED_BY
   <SIGLA>_UPDATED_BY
-- CREATED_BY e UPDATED_BY referenciam BEX_PROFILE.<PFL_ID>.
-- Para operações automáticas, será usado um Profile técnico SYSTEM.
+- A entidade referenciada pelos campos de ator deve seguir o contrato de identidade aprovado para cada módulo.
+- Em BEX_STORE_USER, STU_CREATED_BY e STU_UPDATED_BY referenciam BEX_ACCOUNT.ACC_ID.
+- ACCOUNT é a identidade estrutural e operacional de BEX_STORE_USER; PROFILE não participa desse vínculo.
 
 ## 9. Status e soft delete
 
@@ -119,9 +121,14 @@ O propósito principal é garantir consistência técnica, alinhamento com o dom
 - CK: CK_<SIGLA>_<REGRA>
 - Exemplos:
   PK_PFL
-  FK_STR_PFL
+  FK_STU_STORE
+  FK_STU_ACCOUNT
   UK_PFL_PUBLIC_ID
-  CK_PFL_STATUS
+  CK_STU_STATUS
+
+- Unicidade condicional pode ser implementada por índice único baseado em função quando expressamente aprovada no Data Dictionary.
+- BEX_STORE_USER utiliza `UK_STU_STORE_ACCOUNT_ACTIVE`, com expressões condicionais sobre STR_ID e ACC_ID quando STU_STATUS = 'ACTIVE'.
+- Não se cria UNIQUE convencional sobre STR_ID + ACC_ID, pois vínculos INACTIVE devem preservar histórico.
 
 ## 12. Índices
 
@@ -130,7 +137,7 @@ O propósito principal é garantir consistência técnica, alinhamento com o dom
 - Exemplos:
   IDX_PFL_PHONE
   IDX_PRD_STATUS
-  IDX_STR_LOCATION
+  IDX_STORE_USER_ACCOUNT
 - Índices devem existir por necessidade real de consulta.
 
 ## 13. Packages Oracle

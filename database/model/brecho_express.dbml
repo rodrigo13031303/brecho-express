@@ -22,13 +22,57 @@ Table BEX_PROFILE {
 
 Table BEX_STORE {
   STR_ID bigint [pk, increment]
-  PRF_ID bigint
-  STR_NAME varchar(150)
-  STR_DESCRIPTION text
-  STR_TYPE varchar(30)
-  STR_ACTIVE char(1)
-  STR_CREATED_AT timestamp
-  STR_UPDATED_AT timestamp
+  STR_PUBLIC_ID char(32) [not null, unique, note: 'Immutable public identifier assigned by the application service']
+  ACC_ID bigint [not null, note: 'Account that structurally owns the store']
+  STR_NAME varchar(200) [not null]
+  STR_SLUG varchar(100) [not null, unique]
+  STR_DESCRIPTION varchar(1000)
+  STR_STATUS varchar(20) [not null, default: 'DRAFT', note: 'DRAFT, ACTIVE, SUSPENDED or CLOSED']
+  STR_LOGO_URL varchar(1000)
+  STR_COVER_URL varchar(1000)
+  STR_LOCALE_CODE varchar(10) [not null, default: 'pt-BR']
+  STR_TIMEZONE_NAME varchar(64) [not null, default: 'America/Sao_Paulo']
+  STR_CREATED_AT timestamp [not null, default: `SYSTIMESTAMP`]
+  STR_CREATED_BY bigint
+  STR_UPDATED_AT timestamp [not null, default: `SYSTIMESTAMP`]
+  STR_UPDATED_BY bigint
+
+  indexes {
+    ACC_ID [name: 'IDX_STORE_ACCOUNT']
+    STR_STATUS [name: 'IDX_STORE_STATUS']
+  }
+
+  Note: 'Store or commercial sales operation structurally owned by an account. ACC_ID is not unique.'
+}
+
+Table BEX_STORE_USER {
+  STU_ID bigint [pk, increment]
+  STU_PUBLIC_ID char(32) [not null, unique]
+  STR_ID bigint [not null]
+  ACC_ID bigint [not null]
+  STU_ROLE_CODE varchar(50) [not null, note: 'ADMIN, MANAGER, ATTENDANT or COLLABORATOR; no default']
+  STU_STATUS varchar(20) [not null, default: 'ACTIVE', note: 'ACTIVE or INACTIVE']
+  STU_JOINED_AT timestamp [not null]
+  STU_LEFT_AT timestamp
+  STU_CREATED_AT timestamp [not null, default: `SYSTIMESTAMP`]
+  STU_UPDATED_AT timestamp [not null, default: `SYSTIMESTAMP`]
+  STU_CREATED_BY bigint
+  STU_UPDATED_BY bigint
+
+  indexes {
+    (`CASE WHEN STU_STATUS = 'ACTIVE' THEN STR_ID END`, `CASE WHEN STU_STATUS = 'ACTIVE' THEN ACC_ID END`) [unique, name: 'UK_STU_STORE_ACCOUNT_ACTIVE']
+    STR_ID [name: 'IDX_STORE_USER_STORE']
+    ACC_ID [name: 'IDX_STORE_USER_ACCOUNT']
+    STU_ROLE_CODE [name: 'IDX_STORE_USER_ROLE']
+    STU_STATUS [name: 'IDX_STORE_USER_STATUS']
+  }
+
+  checks {
+    `STU_ROLE_CODE IN ('ADMIN', 'MANAGER', 'ATTENDANT', 'COLLABORATOR')` [name: 'CK_STU_ROLE_CODE']
+    `STU_STATUS IN ('ACTIVE', 'INACTIVE')` [name: 'CK_STU_STATUS']
+  }
+
+  Note: 'Operational account membership in a store. No conventional unique constraint exists on STR_ID plus ACC_ID, preserving INACTIVE history. STU_CREATED_BY and STU_UPDATED_BY reference BEX_ACCOUNT.ACC_ID.'
 }
 
 Table BEX_PRODUCT {
@@ -43,5 +87,9 @@ Table BEX_PRODUCT {
 }
 
 Ref: BEX_PROFILE.ACC_ID > BEX_ACCOUNT.ACC_ID
-Ref: BEX_STORE.PRF_ID > BEX_PROFILE.PRF_ID
+Ref: BEX_STORE.ACC_ID > BEX_ACCOUNT.ACC_ID
+Ref: BEX_STORE_USER.STR_ID > BEX_STORE.STR_ID
+Ref: BEX_STORE_USER.ACC_ID > BEX_ACCOUNT.ACC_ID
+Ref: BEX_STORE_USER.STU_CREATED_BY > BEX_ACCOUNT.ACC_ID
+Ref: BEX_STORE_USER.STU_UPDATED_BY > BEX_ACCOUNT.ACC_ID
 Ref: BEX_PRODUCT.STR_ID > BEX_STORE.STR_ID
