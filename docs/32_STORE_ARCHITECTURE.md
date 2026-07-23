@@ -133,6 +133,12 @@ O proprietário é a ACCOUNT informada na criação e registrada por `ACC_ID`. A
 
 `BEX_STORE_USER` relaciona `STR_ID` a `BEX_STORE.STR_ID` e `ACC_ID` a `BEX_ACCOUNT.ACC_ID`. ACCOUNT é a identidade estrutural e operacional; PROFILE contém dados pessoais e não participa estruturalmente do vínculo. Os papéis operacionais são ADMIN, MANAGER, ATTENDANT e COLLABORATOR. O status aceita ACTIVE e INACTIVE, com no máximo um vínculo ACTIVE por combinação STR_ID + ACC_ID e preservação do histórico INACTIVE por índice único baseado em função. Essa entidade mantém ciclo de vida próprio e não altera a responsabilidade do agregado STORE.
 
+A administração de membros segue `ADR-018_STORE_MEMBER_ADMINISTRATION.md`:
+o proprietário ou um ADMIN ACTIVE podem administrar vínculos; os demais papéis
+não possuem essa permissão no MVP; a identidade do ator vem do contexto técnico
+confiável; e nenhuma operação pode remover ou rebaixar o último ADMIN ACTIVE da
+STORE.
+
 ## 15. Casos de uso
 
 | Caso | Objetivo / ator | Pré-condições e resultado | Erros funcionais | Transação | Dependências | Primeira implementação |
@@ -143,6 +149,12 @@ O proprietário é a ACCOUNT informada na criação e registrada por `ACC_ID`. A
 | `update_by_public_id` | Atualizar dados básicos; proprietário autenticado | loja editável, PATCH válido; retorna estado atualizado | inexistente, atualização vazia, campo inválido/imutável | Escrita | Rule, Repository | Sim |
 | `activate_by_public_id` | Publicar loja; proprietário autenticado | estado e dados mínimos válidos, ACCOUNT ativa | transição inválida, conta inativa | Escrita | `ACC_SERVICE_PKG`, Rule, Repository | Sim |
 | `close_by_public_id` | Encerrar loja; proprietário autenticado | loja não fechada; preserva histórico | inexistente, já fechada, transição inválida | Escrita | Rule, Repository | Sim |
+| `add_member` | Adicionar membro; proprietário ou ADMIN autenticado | STORE e ACCOUNT existentes; cria vínculo ACTIVE | não autorizado, papel inválido, vínculo ACTIVE existente | Escrita | `STU_SERVICE_PKG` | Próxima implementação |
+| `list_members` | Listar membros; proprietário ou ADMIN autenticado | STORE existente e ator autorizado; lista possivelmente vazia | não autorizado | Consulta | `STU_SERVICE_PKG` | Próxima implementação |
+| `get_member` | Consultar membro da STORE; proprietário ou ADMIN autenticado | vínculo pertence à STORE | não autorizado, membro inexistente | Consulta | `STU_SERVICE_PKG` | Próxima implementação |
+| `change_member_role` | Alterar papel operacional; proprietário ou ADMIN autenticado | papel válido e preserva último ADMIN ACTIVE | não autorizado, membro inexistente, último ADMIN | Escrita | `STU_SERVICE_PKG` | Próxima implementação |
+| `activate_member` | Reativar vínculo; proprietário ou ADMIN autenticado | não existe outro vínculo ACTIVE da combinação | não autorizado, transição inválida, duplicidade | Escrita | `STU_SERVICE_PKG` | Próxima implementação |
+| `deactivate_member` | Inativar vínculo; proprietário ou ADMIN autenticado | preserva último ADMIN ACTIVE | não autorizado, transição inválida, último ADMIN | Escrita | `STU_SERVICE_PKG` | Próxima implementação |
 | `suspend_by_public_id` | Suspender administrativamente | ator administrativo e motivo ainda não definidos | não autorizado, transição inválida | Escrita | autorização futura, Rule, Repository | Não; pendente |
 
 ## 16. Arquitetura em camadas
@@ -167,7 +179,8 @@ O prefixo `STR` está alinhado à nomenclatura física já documentada.
 ## 17. Dependências permitidas
 
 - `STR_API_PKG` → `STR_SERVICE_PKG` e Core necessário ao Runtime Contract;
-- `STR_SERVICE_PKG` → `STR_RULE_PKG`, `STR_REPOSITORY_PKG` e contratos públicos de outros Services, especialmente `ACC_SERVICE_PKG`;
+- `STR_SERVICE_PKG` → `STR_RULE_PKG`, `STR_REPOSITORY_PKG` e contratos públicos de outros Services, especialmente `ACC_SERVICE_PKG` e `STU_SERVICE_PKG`;
+- `STU_SERVICE_PKG` → `STU_RULE_PKG`, `STU_REPOSITORY_PKG` e contratos públicos de `ACC_SERVICE_PKG`, sem dependência reversa de `STR_SERVICE_PKG`;
 - `STR_RULE_PKG` → tipos escalares e contratos estritamente necessários, sem persistência;
 - `STR_REPOSITORY_PKG` → objetos físicos de STORE.
 
@@ -351,7 +364,6 @@ Cada etapa estabiliza seu contrato antes da seguinte.
 
 - formato físico final e mecanismo comum de geração de `STR_PUBLIC_ID`;
 - tamanho físico definitivo dos atributos candidatos;
-- política de autorização detalhada e modelo de administradores;
 - contrato administrativo para suspensão e reativação;
 - necessidade e definição de loja “equivalente” por conta;
 - estratégia de locking/controle otimista;
@@ -376,10 +388,15 @@ Nenhuma pendência autoriza improvisação durante a implementação.
 - [x] Segurança, concorrência e auditoria consideradas.
 - [x] Casos imediatos separados dos pendentes.
 - [x] Data Dictionary alinhado à propriedade e à operação por ACCOUNT.
-- [ ] Decisões pendentes aprovadas antes das funcionalidades correspondentes.
+- [x] Autorização e contrato administrativo de STORE_USER definidos.
+- [ ] Demais decisões pendentes aprovadas antes das funcionalidades correspondentes.
 
 ## 34. Observações
 
 Este documento deve ser lido em conjunto com `20_DATA_DICTIONARY.md`, `21_DATABASE_CONVENTIONS.md`, `26_PHYSICAL_ARCHITECTURE.md`, `27_API_STANDARDS.md`, `28_CORE_FRAMEWORK.md` e `31_API_RUNTIME_CONTRACT.md`. Em caso de conflito com documento hierarquicamente superior, a implementação deve parar para revisão.
 
-A arquitetura de STORE não define o DDL de BEX_STORE_USER nesta etapa. O Data Dictionary e o DBML registram ACCOUNT como identidade estrutural e operacional, preservando PROFILE exclusivamente como repositório de dados pessoais, sem participação estrutural em STORE ou STORE_USER.
+A estrutura física e as camadas internas de BEX_STORE_USER estão implementadas.
+ACCOUNT permanece como identidade estrutural e operacional, enquanto PROFILE
+é exclusivamente um repositório de dados pessoais, sem participação estrutural
+em STORE ou STORE_USER. A exposição administrativa seguirá
+`ADR-018_STORE_MEMBER_ADMINISTRATION.md`.

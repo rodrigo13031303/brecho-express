@@ -925,6 +925,12 @@ Operação do Brechó
 - RN-017 — Vínculos INACTIVE preservam o histórico e podem se repetir para a mesma combinação STR_ID + ACC_ID.
 - RN-018 — Não deve existir UNIQUE convencional sobre STR_ID + ACC_ID; a unicidade condicional é garantida por índice único baseado em função somente para vínculos ACTIVE.
 - RN-019 — PROFILE contém dados pessoais e não participa estruturalmente de BEX_STORE_USER.
+- RN-020 — A propriedade da STORE não é representada por STORE_USER e não pode ser alterada por operações de membros.
+- RN-021 — Apenas a ACCOUNT proprietária ou um STORE_USER ACTIVE com papel ADMIN pode administrar membros da STORE.
+- RN-022 — MANAGER, ATTENDANT e COLLABORATOR não administram membros no MVP.
+- RN-023 — Uma operação não pode remover ou rebaixar o último STORE_USER ACTIVE com papel ADMIN da STORE.
+- RN-024 — O ator administrativo é recebido de contexto técnico confiável e nunca de propriedade controlada pelo cliente.
+- RN-025 — Um STORE_USER só pode ser administrado dentro da STORE à qual pertence.
 
 ## Relacionamentos
 
@@ -1018,6 +1024,8 @@ Como as expressões retornam NULL para registros INACTIVE, o histórico de vínc
 Nenhuma API pública prevista no MVP.
 As operações serão realizadas pelas APIs administrativas de Store, que
 orquestram os casos de uso internos de STU_SERVICE_PKG.
+O contrato administrativo é definido por
+`ADR-018_STORE_MEMBER_ADMINISTRATION.md`.
 
 ## Flutter
 

@@ -72,8 +72,8 @@ STORE_EVENT   STORE_FOLLOWER
 Resumo do módulo:
 
 - STORE representa o Brechó como organização comercial na plataforma.
-- PROFILE pode administrar um ou mais Brechós.
-- STORE_USER representa os papéis operacionais de um Profile dentro de um Brechó.
+- ACCOUNT pode possuir um ou mais Brechós.
+- STORE_USER representa os papéis operacionais de uma ACCOUNT dentro de um Brechó.
 - STORE_PLAN representa os planos comerciais disponíveis para um Brechó.
 - STORE_EVENT representa eventos, campanhas e ações temporárias vinculadas ao Brechó.
 - STORE_FOLLOWER representa os relacionamentos de acompanhamento de um Profile com um Brechó.
