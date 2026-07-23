@@ -1009,13 +1009,15 @@ Como as expressões retornam NULL para registros INACTIVE, o histórico de vínc
 
 ## Packages Oracle
 
-- STU_API_PKG
 - STU_RULE_PKG
+- STU_REPOSITORY_PKG
+- STU_SERVICE_PKG
 
 ## APIs
 
 Nenhuma API pública prevista no MVP.
-As operações serão realizadas indiretamente pelas APIs administrativas de Store.
+As operações serão realizadas pelas APIs administrativas de Store, que
+orquestram os casos de uso internos de STU_SERVICE_PKG.
 
 ## Flutter
 

@@ -207,6 +207,31 @@ CREATE OR REPLACE PACKAGE BODY str_service_pkg AS
     RETURN to_public_record(l_store);
   END require_by_public_id;
 
+  FUNCTION get_store_by_id(
+    p_store_id IN BEX_STORE.STR_ID%TYPE
+  ) RETURN t_store_record IS
+    l_store str_repository_pkg.t_store_record;
+  BEGIN
+    l_store := str_repository_pkg.get_by_id(p_store_id);
+    RETURN to_public_record(l_store);
+  EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+      RAISE e_store_not_found;
+  END get_store_by_id;
+
+  FUNCTION resolve_store_id(
+    p_store_public_id IN BEX_STORE.STR_PUBLIC_ID%TYPE
+  ) RETURN BEX_STORE.STR_ID%TYPE IS
+    l_store str_repository_pkg.t_store_record;
+  BEGIN
+    l_store := str_repository_pkg.get_by_public_id(p_store_public_id);
+    assert_found(l_store);
+    RETURN l_store.str_id;
+  EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+      RAISE e_store_not_found;
+  END resolve_store_id;
+
   FUNCTION get_by_slug(
     p_slug IN BEX_STORE.STR_SLUG%TYPE
   ) RETURN t_store_record IS

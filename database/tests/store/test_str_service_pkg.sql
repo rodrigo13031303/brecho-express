@@ -6,7 +6,7 @@ DECLARE
   g_test_count   PLS_INTEGER := 0;
   g_current_test VARCHAR2(200);
 
-  c_expected_test_count CONSTANT PLS_INTEGER := 55;
+  c_expected_test_count CONSTANT PLS_INTEGER := 60;
   c_create_actor        CONSTANT NUMBER := 5101;
   c_update_actor        CONSTANT NUMBER := 5102;
   c_state_actor         CONSTANT NUMBER := 5103;
@@ -375,6 +375,74 @@ DECLARE
     EXCEPTION WHEN str_service_pkg.e_store_not_found THEN l_raised := SQLCODE = -20860; END;
     assert_true(l_raised, 'REQUIRE inexistente deveria usar -20860.'); pass;
 
+    l_internal := str_repository_pkg.get_by_public_id(l_store.store_public_id);
+
+    start_test('GET_STORE_BY_ID retorna STORE existente');
+    l_aux_store := str_service_pkg.get_store_by_id(l_internal.str_id);
+    assert_true(
+      l_aux_store.store_public_id = l_store.store_public_id,
+      'GET_STORE_BY_ID nao encontrou STORE.'
+    );
+    pass;
+
+    start_test('GET_STORE_BY_ID mapeia record publico completo');
+    assert_true(
+      l_aux_store.store_public_id = l_store.store_public_id
+      AND l_aux_store.store_name = l_store.store_name
+      AND l_aux_store.store_slug = l_store.store_slug
+      AND NVL(l_aux_store.description, '#NULL#') =
+          NVL(l_store.description, '#NULL#')
+      AND l_aux_store.status = l_store.status
+      AND NVL(l_aux_store.logo_url, '#NULL#') =
+          NVL(l_store.logo_url, '#NULL#')
+      AND NVL(l_aux_store.cover_url, '#NULL#') =
+          NVL(l_store.cover_url, '#NULL#')
+      AND l_aux_store.locale_code = l_store.locale_code
+      AND l_aux_store.timezone_name = l_store.timezone_name
+      AND l_aux_store.created_at = l_store.created_at
+      AND l_aux_store.updated_at = l_store.updated_at,
+      'GET_STORE_BY_ID mapeou campos incorretamente.'
+    );
+    pass;
+
+    start_test('GET_STORE_BY_ID traduz ID inexistente');
+    l_raised := FALSE;
+    BEGIN
+      l_aux_store := str_service_pkg.get_store_by_id(-1);
+    EXCEPTION
+      WHEN str_service_pkg.e_store_not_found THEN
+        l_raised := SQLCODE = -20860;
+    END;
+    assert_true(
+      l_raised,
+      'GET_STORE_BY_ID deveria traduzir para E_STORE_NOT_FOUND.'
+    );
+    pass;
+
+    start_test('RESOLVE_STORE_ID retorna STR_ID correto');
+    assert_true(
+      str_service_pkg.resolve_store_id(l_store.store_public_id) =
+        l_internal.str_id,
+      'RESOLVE_STORE_ID retornou identificador incorreto.'
+    );
+    pass;
+
+    start_test('RESOLVE_STORE_ID traduz Public ID inexistente');
+    l_raised := FALSE;
+    BEGIN
+      l_internal.str_id := str_service_pkg.resolve_store_id(
+        LOWER(RAWTOHEX(SYS_GUID()))
+      );
+    EXCEPTION
+      WHEN str_service_pkg.e_store_not_found THEN
+        l_raised := SQLCODE = -20860;
+    END;
+    assert_true(
+      l_raised,
+      'RESOLVE_STORE_ID deveria traduzir para E_STORE_NOT_FOUND.'
+    );
+    pass;
+
     start_test('GET_BY_SLUG normaliza e retorna existente');
     l_aux_store := str_service_pkg.get_by_slug(' ' || UPPER(l_store.store_slug) || ' ');
     assert_true(l_aux_store.store_public_id = l_store.store_public_id, 'GET por slug incorreto.'); pass;
@@ -566,7 +634,18 @@ DECLARE
     SELECT COUNT(*) INTO l_source_count FROM USER_SOURCE
      WHERE NAME = 'STR_SERVICE_PKG' AND TYPE = 'PACKAGE BODY'
        AND REGEXP_LIKE(UPPER(TEXT), 'ACC_(RULE|REPOSITORY)_PKG|BEX_PROFILE|PFL_');
-    assert_true(l_source_count = 0, 'Service possui dependencia externa proibida.'); pass;
+    assert_true(l_source_count = 0, 'Service possui dependencia externa proibida.');
+
+    SELECT COUNT(*) INTO l_source_count FROM USER_DEPENDENCIES
+     WHERE NAME = 'STR_SERVICE_PKG'
+       AND TYPE = 'PACKAGE BODY'
+       AND REFERENCED_NAME = 'STR_REPOSITORY_PKG'
+       AND REFERENCED_TYPE = 'PACKAGE';
+    assert_true(
+      l_source_count = 1,
+      'Service deve usar STR_REPOSITORY_PKG para persistencia.'
+    );
+    pass;
   END run_tests;
 BEGIN
   l_run_token := LOWER(SUBSTR(RAWTOHEX(SYS_GUID()), 1, 12));

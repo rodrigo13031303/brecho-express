@@ -6,7 +6,7 @@ DECLARE
   g_test_count   PLS_INTEGER := 0;
   g_current_test VARCHAR2(200);
 
-  c_expected_test_count CONSTANT PLS_INTEGER := 43;
+  c_expected_test_count CONSTANT PLS_INTEGER := 46;
 
   l_account_id_one   BEX_ACCOUNT.ACC_ID%TYPE;
   l_account_id_two   BEX_ACCOUNT.ACC_ID%TYPE;
@@ -287,6 +287,46 @@ DECLARE
       AND l_store.str_updated_by = 1001,
       'GET_BY_PUBLIC_ID retornou colunas incorretas.'
     );
+    pass;
+
+    start_test('GET_BY_ID retorna STORE existente');
+    l_store := str_repository_pkg.get_by_id(l_store_id_two);
+    assert_true(
+      l_store.str_id = l_store_id_two,
+      'GET_BY_ID nao encontrou STORE.'
+    );
+    pass;
+
+    start_test('GET_BY_ID retorna todas as colunas');
+    assert_true(
+      l_store.str_id = l_store_id_two
+      AND TRIM(l_store.str_public_id) = TRIM(l_public_id_two)
+      AND l_store.acc_id = l_account_id_one
+      AND l_store.str_name = 'Repository Store Two'
+      AND l_store.str_slug = l_slug_two
+      AND l_store.str_description = 'Second store'
+      AND l_store.str_status = 'ACTIVE'
+      AND l_store.str_logo_url IS NULL
+      AND l_store.str_cover_url IS NULL
+      AND l_store.str_locale_code = 'pt-BR'
+      AND l_store.str_timezone_name = 'America/Sao_Paulo'
+      AND l_store.str_created_at IS NOT NULL
+      AND l_store.str_created_by = 1001
+      AND l_store.str_updated_at IS NOT NULL
+      AND l_store.str_updated_by = 1001,
+      'GET_BY_ID retornou colunas incorretas.'
+    );
+    pass;
+
+    start_test('GET_BY_ID inexistente propaga NO_DATA_FOUND');
+    l_raised := FALSE;
+    BEGIN
+      l_store := str_repository_pkg.get_by_id(-1);
+    EXCEPTION
+      WHEN NO_DATA_FOUND THEN
+        l_raised := TRUE;
+    END;
+    assert_true(l_raised, 'GET_BY_ID deveria propagar NO_DATA_FOUND.');
     pass;
 
     start_test('GET_BY_PUBLIC_ID inexistente retorna registro vazio');

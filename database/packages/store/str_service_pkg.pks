@@ -94,6 +94,18 @@ CREATE OR REPLACE PACKAGE str_service_pkg AS
     p_store_public_id IN BEX_STORE.STR_PUBLIC_ID%TYPE
   ) RETURN t_store_record;
 
+  -- Resolucao interna por identificador tecnico para orquestracao entre
+  -- Services. Nao constitui fronteira externa.
+  FUNCTION get_store_by_id(
+    p_store_id IN BEX_STORE.STR_ID%TYPE
+  ) RETURN t_store_record;
+
+  -- Resolucao interna do identificador tecnico para orquestracao entre
+  -- Services. Nao constitui fronteira externa.
+  FUNCTION resolve_store_id(
+    p_store_public_id IN BEX_STORE.STR_PUBLIC_ID%TYPE
+  ) RETURN BEX_STORE.STR_ID%TYPE;
+
   FUNCTION get_by_slug(
     p_slug IN BEX_STORE.STR_SLUG%TYPE
   ) RETURN t_store_record;

@@ -135,6 +135,33 @@ CREATE OR REPLACE PACKAGE BODY str_repository_pkg AS
   -- Consultas
   ------------------------------------------------------------------------------
 
+  FUNCTION get_by_id(
+    p_str_id IN BEX_STORE.STR_ID%TYPE
+  ) RETURN t_store_record IS
+    l_store t_store_record;
+  BEGIN
+    SELECT s.STR_ID,
+           s.STR_PUBLIC_ID,
+           s.ACC_ID,
+           s.STR_NAME,
+           s.STR_SLUG,
+           s.STR_DESCRIPTION,
+           s.STR_STATUS,
+           s.STR_LOGO_URL,
+           s.STR_COVER_URL,
+           s.STR_LOCALE_CODE,
+           s.STR_TIMEZONE_NAME,
+           s.STR_CREATED_AT,
+           s.STR_CREATED_BY,
+           s.STR_UPDATED_AT,
+           s.STR_UPDATED_BY
+      INTO l_store
+      FROM BEX_STORE s
+     WHERE s.STR_ID = p_str_id;
+
+    RETURN l_store;
+  END get_by_id;
+
   FUNCTION get_by_public_id(
     p_public_id IN BEX_STORE.STR_PUBLIC_ID%TYPE
   ) RETURN t_store_record IS
