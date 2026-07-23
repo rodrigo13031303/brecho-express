@@ -59,5 +59,55 @@ CREATE OR REPLACE PACKAGE str_api_pkg AS
     o_status_code   OUT PLS_INTEGER,
     o_response_body OUT NOCOPY CLOB
   );
+
+  PROCEDURE add_member(
+    p_store_public_id IN  VARCHAR2,
+    p_request_body    IN  CLOB,
+    p_actor_id        IN  NUMBER,
+    o_status_code     OUT PLS_INTEGER,
+    o_response_body   OUT NOCOPY CLOB
+  );
+
+  PROCEDURE get_member(
+    p_store_public_id      IN  VARCHAR2,
+    p_store_user_public_id IN  VARCHAR2,
+    p_actor_id             IN  NUMBER,
+    o_status_code          OUT PLS_INTEGER,
+    o_response_body        OUT NOCOPY CLOB
+  );
+
+  PROCEDURE list_members(
+    p_store_public_id IN  VARCHAR2,
+    p_actor_id        IN  NUMBER,
+    p_status          IN  VARCHAR2 DEFAULT NULL,
+    p_role_code       IN  VARCHAR2 DEFAULT NULL,
+    o_status_code     OUT PLS_INTEGER,
+    o_response_body   OUT NOCOPY CLOB
+  );
+
+  PROCEDURE change_member_role(
+    p_store_public_id      IN  VARCHAR2,
+    p_store_user_public_id IN  VARCHAR2,
+    p_request_body         IN  CLOB,
+    p_actor_id             IN  NUMBER,
+    o_status_code          OUT PLS_INTEGER,
+    o_response_body        OUT NOCOPY CLOB
+  );
+
+  PROCEDURE activate_member(
+    p_store_public_id      IN  VARCHAR2,
+    p_store_user_public_id IN  VARCHAR2,
+    p_actor_id             IN  NUMBER,
+    o_status_code          OUT PLS_INTEGER,
+    o_response_body        OUT NOCOPY CLOB
+  );
+
+  PROCEDURE deactivate_member(
+    p_store_public_id      IN  VARCHAR2,
+    p_store_user_public_id IN  VARCHAR2,
+    p_actor_id             IN  NUMBER,
+    o_status_code          OUT PLS_INTEGER,
+    o_response_body        OUT NOCOPY CLOB
+  );
 END str_api_pkg;
 /

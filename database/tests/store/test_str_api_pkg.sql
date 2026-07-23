@@ -6,7 +6,7 @@ DECLARE
   g_test_count   PLS_INTEGER := 0;
   g_current_test VARCHAR2(200);
   g_trace_id     core_trace_pkg.t_trace_id;
-  c_expected_test_count CONSTANT PLS_INTEGER := 40;
+  c_expected_test_count CONSTANT PLS_INTEGER := 56;
 
   l_token VARCHAR2(12);
   l_account_id BEX_ACCOUNT.ACC_ID%TYPE;
@@ -20,6 +20,8 @@ DECLARE
   l_store_public_id VARCHAR2(32);
   l_store_slug VARCHAR2(100);
   l_other_store_public_id VARCHAR2(32);
+  l_member_public_id VARCHAR2(32);
+  l_second_admin_public_id VARCHAR2(32);
   l_request CLOB;
   l_response CLOB;
   l_status PLS_INTEGER;
@@ -120,6 +122,25 @@ DECLARE
     RETURN core_json_pkg.serialize(l_object);
   END;
 
+  FUNCTION add_member_body(
+    p_account_public_id VARCHAR2,
+    p_role_code VARCHAR2,
+    p_unknown BOOLEAN DEFAULT FALSE
+  ) RETURN CLOB IS
+    l_object JSON_OBJECT_T := JSON_OBJECT_T();
+  BEGIN
+    core_json_pkg.put_string(
+      l_object,
+      'accountPublicId',
+      p_account_public_id
+    );
+    core_json_pkg.put_string(l_object,'roleCode',p_role_code);
+    IF p_unknown THEN
+      core_json_pkg.put_string(l_object,'stuId','forbidden');
+    END IF;
+    RETURN core_json_pkg.serialize(l_object);
+  END;
+
   PROCEDURE parse_response IS
   BEGIN l_envelope := JSON_OBJECT_T.parse(l_response); END;
 
@@ -176,8 +197,66 @@ DECLARE
   BEGIN free_clob(l_response); init_context;
     str_api_pkg.check_slug_availability(p_slug,p_actor,l_status,l_response); clear_context; END;
 
+  PROCEDURE invoke_add_member(
+    p_store VARCHAR2,p_body CLOB,p_actor NUMBER
+  ) IS
+  BEGIN free_clob(l_response); init_context;
+    str_api_pkg.add_member(p_store,p_body,p_actor,l_status,l_response); clear_context; END;
+
+  PROCEDURE invoke_get_member(
+    p_store VARCHAR2,p_member VARCHAR2,p_actor NUMBER
+  ) IS
+  BEGIN free_clob(l_response); init_context;
+    str_api_pkg.get_member(p_store,p_member,p_actor,l_status,l_response); clear_context; END;
+
+  PROCEDURE invoke_list_members(
+    p_store VARCHAR2,p_actor NUMBER,p_status VARCHAR2 DEFAULT NULL,
+    p_role VARCHAR2 DEFAULT NULL
+  ) IS
+  BEGIN free_clob(l_response); init_context;
+    str_api_pkg.list_members(
+      p_store,p_actor,p_status,p_role,l_status,l_response
+    ); clear_context; END;
+
+  PROCEDURE invoke_change_member_role(
+    p_store VARCHAR2,p_member VARCHAR2,p_body CLOB,p_actor NUMBER
+  ) IS
+  BEGIN free_clob(l_response); init_context;
+    str_api_pkg.change_member_role(
+      p_store,p_member,p_body,p_actor,l_status,l_response
+    ); clear_context; END;
+
+  PROCEDURE invoke_activate_member(
+    p_store VARCHAR2,p_member VARCHAR2,p_actor NUMBER
+  ) IS
+  BEGIN free_clob(l_response); init_context;
+    str_api_pkg.activate_member(
+      p_store,p_member,p_actor,l_status,l_response
+    ); clear_context; END;
+
+  PROCEDURE invoke_deactivate_member(
+    p_store VARCHAR2,p_member VARCHAR2,p_actor NUMBER
+  ) IS
+  BEGIN free_clob(l_response); init_context;
+    str_api_pkg.deactivate_member(
+      p_store,p_member,p_actor,l_status,l_response
+    ); clear_context; END;
+
   PROCEDURE cleanup IS
   BEGIN
+    DELETE FROM BEX_STORE_USER
+     WHERE STR_ID IN (
+       SELECT STR_ID
+         FROM BEX_STORE
+        WHERE ACC_ID IN (
+          l_account_id,l_other_account_id,l_empty_account_id,
+          l_blocked_account_id
+        )
+     )
+        OR ACC_ID IN (
+          l_account_id,l_other_account_id,l_empty_account_id,
+          l_blocked_account_id
+        );
     DELETE FROM BEX_STORE WHERE ACC_ID IN
       (l_account_id,l_other_account_id,l_empty_account_id,l_blocked_account_id);
     DELETE FROM BEX_ACCOUNT WHERE ACC_ID IN
@@ -305,6 +384,162 @@ DECLARE
     l_request:=patch_body('storeSlug','other-api-'||l_token); invoke_update(l_store_public_id,l_request,l_account_id); free_clob(l_request);
     assert_error(409,'BEX-STORE-016'); pass;
 
+    start_test('Administracao de membros exige OWNER ou ADMIN ativo');
+    invoke_list_members(l_other_store_public_id,l_empty_account_id);
+    assert_error(403,'BEX-STORE-024'); pass;
+
+    start_test('ADD MEMBER retorna 201 e vinculo ACTIVE');
+    l_request:=add_member_body(l_other_account_public_id,' admin ');
+    invoke_add_member(
+      l_other_store_public_id,l_request,l_account_id
+    ); free_clob(l_request); parse_response;
+    l_data:=l_envelope.get_object('data');
+    l_member_public_id:=l_data.get_string('storeUserPublicId');
+    assert_true(
+      l_status=201 AND l_data.get_string('roleCode')='ADMIN'
+      AND l_data.get_string('status')='ACTIVE',
+      'Criacao de membro incorreta.'
+    ); pass;
+
+    start_test('Payload de membro e publico, temporal e usa camelCase');
+    assert_true(
+      LENGTH(l_member_public_id)=32
+      AND l_data.get_string('storePublicId')=l_other_store_public_id
+      AND l_data.get_string('accountPublicId')=l_other_account_public_id
+      AND l_data.has('joinedAt') AND json_is_null(l_data,'leftAt')
+      AND l_data.has('createdAt') AND l_data.has('updatedAt')
+      AND NOT l_data.has('stuId') AND NOT l_data.has('strId')
+      AND NOT l_data.has('accId') AND NOT l_data.has('createdBy'),
+      'Payload de membro incorreto.'
+    ); pass;
+
+    start_test('ADD MEMBER executa COMMIT');
+    ROLLBACK;
+    SELECT COUNT(*) INTO l_count
+      FROM BEX_STORE_USER
+     WHERE STU_PUBLIC_ID=l_member_public_id
+       AND STU_STATUS='ACTIVE';
+    assert_true(l_count=1,'Criacao de membro nao foi confirmada.'); pass;
+
+    start_test('GET MEMBER retorna membro da STORE');
+    invoke_get_member(
+      l_other_store_public_id,l_member_public_id,l_account_id
+    ); parse_response; l_data:=l_envelope.get_object('data');
+    assert_true(
+      l_status=200
+      AND l_data.get_string('storeUserPublicId')=l_member_public_id,
+      'Consulta de membro incorreta.'
+    ); pass;
+
+    start_test('LIST MEMBERS filtra status e papel normalizados');
+    invoke_list_members(
+      l_other_store_public_id,l_account_id,' active ',' admin '
+    ); parse_response; l_array:=l_envelope.get_array('data');
+    assert_true(
+      l_status=200 AND l_array.get_size=1
+      AND TREAT(l_array.get(0) AS JSON_OBJECT_T).get_string(
+        'storeUserPublicId'
+      )=l_member_public_id,
+      'Lista filtrada incorreta.'
+    ); pass;
+
+    start_test('ADD MEMBER rejeita campo desconhecido');
+    l_request:=add_member_body(
+      l_empty_account_public_id,'ATTENDANT',TRUE
+    );
+    invoke_add_member(
+      l_other_store_public_id,l_request,l_account_id
+    ); free_clob(l_request);
+    assert_error(400,'BEX-REQ-006'); pass;
+
+    start_test('ADD MEMBER rejeita papel invalido');
+    l_request:=add_member_body(l_empty_account_public_id,'OWNER');
+    invoke_add_member(
+      l_other_store_public_id,l_request,l_account_id
+    ); free_clob(l_request);
+    assert_error(422,'BEX-STORE-020'); pass;
+
+    start_test('ADD MEMBER rejeita vinculo ACTIVE duplicado');
+    l_request:=add_member_body(l_other_account_public_id,'MANAGER');
+    invoke_add_member(
+      l_other_store_public_id,l_request,l_account_id
+    ); free_clob(l_request);
+    assert_error(409,'BEX-STORE-023'); pass;
+
+    start_test('Ultimo ADMIN ativo nao pode perder o papel');
+    l_request:=patch_body('roleCode',' manager ');
+    invoke_change_member_role(
+      l_other_store_public_id,l_member_public_id,l_request,l_account_id
+    ); free_clob(l_request);
+    assert_error(409,'BEX-STORE-025'); pass;
+
+    start_test('ADD MEMBER permite incluir segundo ADMIN');
+    l_request:=add_member_body(l_empty_account_public_id,'ADMIN');
+    invoke_add_member(
+      l_other_store_public_id,l_request,l_account_id
+    ); free_clob(l_request); parse_response;
+    l_second_admin_public_id:=
+      l_envelope.get_object('data').get_string('storeUserPublicId');
+    assert_true(
+      l_status=201 AND LENGTH(l_second_admin_public_id)=32,
+      'Segundo ADMIN nao foi criado.'
+    ); pass;
+
+    start_test('CHANGE MEMBER ROLE normaliza, atualiza e confirma');
+    l_request:=patch_body('roleCode',' manager ');
+    invoke_change_member_role(
+      l_other_store_public_id,l_member_public_id,l_request,l_account_id
+    ); free_clob(l_request); parse_response;
+    assert_true(
+      l_status=200
+      AND l_envelope.get_object('data').get_string('roleCode')='MANAGER',
+      'Alteracao de papel incorreta.'
+    );
+    ROLLBACK;
+    SELECT COUNT(*) INTO l_count
+      FROM BEX_STORE_USER
+     WHERE STU_PUBLIC_ID=l_member_public_id
+       AND STU_ROLE_CODE='MANAGER';
+    assert_true(l_count=1,'Alteracao de papel nao foi confirmada.'); pass;
+
+    start_test('DEACTIVATE MEMBER preenche LEFT_AT e confirma');
+    invoke_deactivate_member(
+      l_other_store_public_id,l_member_public_id,l_account_id
+    ); parse_response; l_data:=l_envelope.get_object('data');
+    assert_true(
+      l_status=200 AND l_data.get_string('status')='INACTIVE'
+      AND NOT json_is_null(l_data,'leftAt'),
+      'Desativacao de membro incorreta.'
+    );
+    ROLLBACK;
+    SELECT COUNT(*) INTO l_count
+      FROM BEX_STORE_USER
+     WHERE STU_PUBLIC_ID=l_member_public_id
+       AND STU_STATUS='INACTIVE' AND STU_LEFT_AT IS NOT NULL;
+    assert_true(l_count=1,'Desativacao nao foi confirmada.'); pass;
+
+    start_test('ACTIVATE MEMBER limpa LEFT_AT e confirma');
+    invoke_activate_member(
+      l_other_store_public_id,l_member_public_id,l_account_id
+    ); parse_response; l_data:=l_envelope.get_object('data');
+    assert_true(
+      l_status=200 AND l_data.get_string('status')='ACTIVE'
+      AND json_is_null(l_data,'leftAt'),
+      'Reativacao de membro incorreta.'
+    ); pass;
+
+    start_test('LIST MEMBERS rejeita status invalido');
+    invoke_list_members(
+      l_other_store_public_id,l_account_id,'SUSPENDED',NULL
+    );
+    assert_error(422,'BEX-STORE-021'); pass;
+
+    start_test('Membro de outra STORE permanece invisivel');
+    invoke_get_member(
+      l_store_public_id,l_member_public_id,l_account_id
+    );
+    assert_error(404,'BEX-STORE-019'); pass;
+
     start_test('Ativacao retorna ACTIVE e confirma transacao');
     invoke_activate(l_store_public_id,l_account_id); parse_response;
     assert_true(l_status=200 AND l_envelope.get_object('data').get_string('status')='ACTIVE','Ativacao incorreta.');
@@ -335,7 +570,7 @@ DECLARE
 
     start_test('API nao conhece dependencias internas do Service');
     SELECT COUNT(*) INTO l_source_count FROM USER_SOURCE WHERE NAME='STR_API_PKG' AND TYPE='PACKAGE BODY'
-      AND REGEXP_LIKE(UPPER(TEXT),'STR_(RULE|REPOSITORY)_PKG|ACC_SERVICE_PKG');
+      AND REGEXP_LIKE(UPPER(TEXT),'STR_(RULE|REPOSITORY)_PKG|STU_(RULE|REPOSITORY|SERVICE)_PKG|ACC_SERVICE_PKG');
     assert_true(l_source_count=0,'API conhece dependencia interna.'); pass;
 
     start_test('API nao contem SQL ou IDs internos');

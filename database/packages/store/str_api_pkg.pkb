@@ -11,6 +11,7 @@ CREATE OR REPLACE PACKAGE BODY str_api_pkg AS
   c_status_ok             CONSTANT PLS_INTEGER := 200;
   c_status_created        CONSTANT PLS_INTEGER := 201;
   c_status_bad_request    CONSTANT PLS_INTEGER := 400;
+  c_status_forbidden      CONSTANT PLS_INTEGER := 403;
   c_status_not_found      CONSTANT PLS_INTEGER := 404;
   c_status_conflict       CONSTANT PLS_INTEGER := 409;
   c_status_unprocessable  CONSTANT PLS_INTEGER := 422;
@@ -25,6 +26,13 @@ CREATE OR REPLACE PACKAGE BODY str_api_pkg AS
   c_code_internal_error    CONSTANT core_error_pkg.t_error_code := 'BEX-SYS-001';
   c_code_store_not_found   CONSTANT core_error_pkg.t_error_code := 'BEX-STORE-017';
   c_code_account_not_found CONSTANT core_error_pkg.t_error_code := 'BEX-STORE-018';
+  c_code_member_not_found  CONSTANT core_error_pkg.t_error_code := 'BEX-STORE-019';
+  c_code_member_role       CONSTANT core_error_pkg.t_error_code := 'BEX-STORE-020';
+  c_code_member_status     CONSTANT core_error_pkg.t_error_code := 'BEX-STORE-021';
+  c_code_member_transition CONSTANT core_error_pkg.t_error_code := 'BEX-STORE-022';
+  c_code_member_active     CONSTANT core_error_pkg.t_error_code := 'BEX-STORE-023';
+  c_code_member_forbidden  CONSTANT core_error_pkg.t_error_code := 'BEX-STORE-024';
+  c_code_last_admin        CONSTANT core_error_pkg.t_error_code := 'BEX-STORE-025';
 
   PROCEDURE free_temporary_clob(io_value IN OUT NOCOPY CLOB) IS
   BEGIN
@@ -159,6 +167,44 @@ CREATE OR REPLACE PACKAGE BODY str_api_pkg AS
     IF o_patch.set_timezone_name THEN o_patch.timezone_value := get_required_string(l_object, 'timezoneName'); END IF;
   END parse_patch_request;
 
+  PROCEDURE assert_member_fields(
+    p_object IN JSON_OBJECT_T,
+    p_kind   IN PLS_INTEGER
+  ) IS
+    l_keys JSON_KEY_LIST := p_object.get_keys;
+  BEGIN
+    FOR i IN 1..l_keys.COUNT LOOP
+      IF (p_kind = 1 AND l_keys(i) NOT IN ('accountPublicId', 'roleCode'))
+         OR (p_kind = 2 AND l_keys(i) <> 'roleCode') THEN
+        RAISE e_unknown_field;
+      END IF;
+    END LOOP;
+  END assert_member_fields;
+
+  PROCEDURE parse_add_member_request(
+    p_request_body      IN CLOB,
+    o_account_public_id OUT VARCHAR2,
+    o_role_code         OUT VARCHAR2
+  ) IS
+    l_object JSON_OBJECT_T := parse_object(p_request_body);
+  BEGIN
+    assert_member_fields(l_object, 1);
+    o_account_public_id := get_required_string(
+      l_object,
+      'accountPublicId'
+    );
+    o_role_code := get_required_string(l_object, 'roleCode');
+  END parse_add_member_request;
+
+  FUNCTION parse_member_role_request(
+    p_request_body IN CLOB
+  ) RETURN VARCHAR2 IS
+    l_object JSON_OBJECT_T := parse_object(p_request_body);
+  BEGIN
+    assert_member_fields(l_object, 2);
+    RETURN get_required_string(l_object, 'roleCode');
+  END parse_member_role_request;
+
   FUNCTION store_to_json(
     p_store IN str_service_pkg.t_store_record
   ) RETURN JSON_OBJECT_T IS
@@ -193,6 +239,71 @@ CREATE OR REPLACE PACKAGE BODY str_api_pkg AS
     END LOOP;
     RETURN l_data;
   END stores_to_json;
+
+  FUNCTION member_to_json(
+    p_member IN str_service_pkg.t_member_record
+  ) RETURN JSON_OBJECT_T IS
+    l_data JSON_OBJECT_T := JSON_OBJECT_T();
+  BEGIN
+    core_json_pkg.put_string(
+      l_data,
+      'storeUserPublicId',
+      TRIM(p_member.store_user_public_id)
+    );
+    core_json_pkg.put_string(
+      l_data,
+      'storePublicId',
+      TRIM(p_member.store_public_id)
+    );
+    core_json_pkg.put_string(
+      l_data,
+      'accountPublicId',
+      TRIM(p_member.account_public_id)
+    );
+    core_json_pkg.put_string(l_data, 'roleCode', p_member.role_code);
+    core_json_pkg.put_string(l_data, 'status', p_member.status);
+    core_json_pkg.put_string(
+      l_data,
+      'joinedAt',
+      core_json_pkg.format_timestamp(p_member.joined_at)
+    );
+    IF p_member.left_at IS NULL THEN
+      core_json_pkg.put_null(l_data, 'leftAt');
+    ELSE
+      core_json_pkg.put_string(
+        l_data,
+        'leftAt',
+        core_json_pkg.format_timestamp(p_member.left_at)
+      );
+    END IF;
+    core_json_pkg.put_string(
+      l_data,
+      'createdAt',
+      core_json_pkg.format_timestamp(p_member.created_at)
+    );
+    core_json_pkg.put_string(
+      l_data,
+      'updatedAt',
+      core_json_pkg.format_timestamp(p_member.updated_at)
+    );
+    RETURN l_data;
+  END member_to_json;
+
+  FUNCTION members_to_json(
+    p_members IN str_service_pkg.t_member_table
+  ) RETURN JSON_ARRAY_T IS
+    l_data  JSON_ARRAY_T := JSON_ARRAY_T();
+    l_index PLS_INTEGER := p_members.FIRST;
+  BEGIN
+    WHILE l_index IS NOT NULL LOOP
+      core_json_pkg.append_element(
+        l_data,
+        member_to_json(p_members(l_index))
+      );
+      l_index := p_members.NEXT(l_index);
+    END LOOP;
+    RETURN l_data;
+  END members_to_json;
 
   PROCEDURE build_known_error_response(
     p_status IN PLS_INTEGER, p_code IN core_error_pkg.t_error_code,
@@ -273,6 +384,13 @@ CREATE OR REPLACE PACKAGE BODY str_api_pkg AS
       WHEN 16 THEN l_status := 409; l_code := 'BEX-STORE-014'; l_category := core_error_pkg.c_category_conflict; l_message := 'A STORE encerrada nao pode ser alterada.';
       WHEN 17 THEN l_code := 'BEX-STORE-015'; l_category := core_error_pkg.c_category_business; l_message := 'A ACCOUNT nao esta elegivel para possuir STORE.';
       WHEN 18 THEN l_status := 409; l_code := 'BEX-STORE-016'; l_category := core_error_pkg.c_category_conflict; l_message := 'O slug da STORE ja esta em uso.';
+      WHEN 19 THEN l_status := c_status_not_found; l_code := c_code_member_not_found; l_category := core_error_pkg.c_category_not_found; l_message := 'O membro informado nao foi encontrado na STORE.';
+      WHEN 20 THEN l_code := c_code_member_role; l_message := 'O papel operacional informado e invalido.';
+      WHEN 21 THEN l_code := c_code_member_status; l_message := 'O status operacional informado e invalido.';
+      WHEN 22 THEN l_status := c_status_conflict; l_code := c_code_member_transition; l_category := core_error_pkg.c_category_conflict; l_message := 'A transicao de status do membro e invalida.';
+      WHEN 23 THEN l_status := c_status_conflict; l_code := c_code_member_active; l_category := core_error_pkg.c_category_conflict; l_message := 'Ja existe um vinculo ativo para a STORE e ACCOUNT.';
+      WHEN 24 THEN l_status := c_status_forbidden; l_code := c_code_member_forbidden; l_category := core_error_pkg.c_category_authorization; l_message := 'O ator nao pode administrar membros desta STORE.';
+      WHEN 25 THEN l_status := c_status_conflict; l_code := c_code_last_admin; l_category := core_error_pkg.c_category_conflict; l_message := 'A STORE deve preservar ao menos um ADMIN ativo.';
     END CASE;
     build_known_error_response(l_status, l_code, l_category, l_message, o_status_code, o_response_body);
   END build_service_error;
@@ -476,5 +594,216 @@ CREATE OR REPLACE PACKAGE BODY str_api_pkg AS
     WHEN str_service_pkg.e_invalid_slug THEN build_service_error(6,o_status_code,o_response_body);
     WHEN OTHERS THEN handle_technical_error(FALSE,l_unused,o_status_code,o_response_body);
   END check_slug_availability;
+
+  PROCEDURE add_member(
+    p_store_public_id IN VARCHAR2, p_request_body IN CLOB,
+    p_actor_id IN NUMBER, o_status_code OUT PLS_INTEGER,
+    o_response_body OUT NOCOPY CLOB
+  ) IS
+    l_account_public_id VARCHAR2(32767);
+    l_role_code VARCHAR2(32767);
+    l_member str_service_pkg.t_member_record;
+    l_data JSON_OBJECT_T;
+    l_success CLOB;
+  BEGIN
+    o_status_code := 500; o_response_body := NULL;
+    assert_public_value(p_store_public_id); assert_actor(p_actor_id);
+    parse_add_member_request(
+      p_request_body,
+      l_account_public_id,
+      l_role_code
+    );
+    l_member := str_service_pkg.add_member(
+      p_store_public_id,
+      l_account_public_id,
+      l_role_code,
+      p_actor_id
+    );
+    l_data := member_to_json(l_member);
+    l_success := core_response_pkg.build_success(l_data);
+    COMMIT; o_response_body := l_success; o_status_code := c_status_created;
+  EXCEPTION
+    WHEN e_request_body_required THEN ROLLBACK; free_temporary_clob(l_success); build_request_error(1,o_status_code,o_response_body);
+    WHEN e_public_value_required THEN ROLLBACK; free_temporary_clob(l_success); build_request_error(2,o_status_code,o_response_body);
+    WHEN e_actor_required THEN ROLLBACK; free_temporary_clob(l_success); build_request_error(3,o_status_code,o_response_body);
+    WHEN e_invalid_json THEN ROLLBACK; free_temporary_clob(l_success); build_request_error(4,o_status_code,o_response_body);
+    WHEN e_json_object_required THEN ROLLBACK; free_temporary_clob(l_success); build_request_error(5,o_status_code,o_response_body);
+    WHEN e_required_field THEN ROLLBACK; free_temporary_clob(l_success); build_request_error(6,o_status_code,o_response_body);
+    WHEN e_invalid_field_type THEN ROLLBACK; free_temporary_clob(l_success); build_request_error(7,o_status_code,o_response_body);
+    WHEN e_unknown_field THEN ROLLBACK; free_temporary_clob(l_success); build_request_error(8,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_store_not_found THEN ROLLBACK; free_temporary_clob(l_success); build_service_error(1,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_account_not_found THEN ROLLBACK; free_temporary_clob(l_success); build_service_error(2,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_member_invalid_role THEN ROLLBACK; free_temporary_clob(l_success); build_service_error(20,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_active_member_link_exists THEN ROLLBACK; free_temporary_clob(l_success); build_service_error(23,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_member_forbidden THEN ROLLBACK; free_temporary_clob(l_success); build_service_error(24,o_status_code,o_response_body);
+    WHEN OTHERS THEN handle_technical_error(TRUE,l_success,o_status_code,o_response_body);
+  END add_member;
+
+  PROCEDURE get_member(
+    p_store_public_id IN VARCHAR2, p_store_user_public_id IN VARCHAR2,
+    p_actor_id IN NUMBER, o_status_code OUT PLS_INTEGER,
+    o_response_body OUT NOCOPY CLOB
+  ) IS
+    l_member str_service_pkg.t_member_record;
+    l_data JSON_OBJECT_T;
+    l_unused CLOB;
+  BEGIN
+    o_status_code := 500; o_response_body := NULL;
+    assert_public_value(p_store_public_id);
+    assert_public_value(p_store_user_public_id);
+    assert_actor(p_actor_id);
+    l_member := str_service_pkg.get_member(
+      p_store_public_id,
+      p_store_user_public_id,
+      p_actor_id
+    );
+    l_data := member_to_json(l_member);
+    o_response_body := core_response_pkg.build_success(l_data);
+    o_status_code := c_status_ok;
+  EXCEPTION
+    WHEN e_public_value_required THEN build_request_error(2,o_status_code,o_response_body);
+    WHEN e_actor_required THEN build_request_error(3,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_store_not_found THEN build_service_error(1,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_member_not_found THEN build_service_error(19,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_member_forbidden THEN build_service_error(24,o_status_code,o_response_body);
+    WHEN OTHERS THEN handle_technical_error(FALSE,l_unused,o_status_code,o_response_body);
+  END get_member;
+
+  PROCEDURE list_members(
+    p_store_public_id IN VARCHAR2, p_actor_id IN NUMBER,
+    p_status IN VARCHAR2 DEFAULT NULL, p_role_code IN VARCHAR2 DEFAULT NULL,
+    o_status_code OUT PLS_INTEGER, o_response_body OUT NOCOPY CLOB
+  ) IS
+    l_members str_service_pkg.t_member_table;
+    l_data JSON_ARRAY_T;
+    l_unused CLOB;
+  BEGIN
+    o_status_code := 500; o_response_body := NULL;
+    assert_public_value(p_store_public_id); assert_actor(p_actor_id);
+    l_members := str_service_pkg.list_members(
+      p_store_public_id,
+      p_actor_id,
+      p_status,
+      p_role_code
+    );
+    l_data := members_to_json(l_members);
+    o_response_body := core_response_pkg.build_success(l_data);
+    o_status_code := c_status_ok;
+  EXCEPTION
+    WHEN e_public_value_required THEN build_request_error(2,o_status_code,o_response_body);
+    WHEN e_actor_required THEN build_request_error(3,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_store_not_found THEN build_service_error(1,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_member_invalid_status THEN build_service_error(21,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_member_invalid_role THEN build_service_error(20,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_member_forbidden THEN build_service_error(24,o_status_code,o_response_body);
+    WHEN OTHERS THEN handle_technical_error(FALSE,l_unused,o_status_code,o_response_body);
+  END list_members;
+
+  PROCEDURE change_member_role(
+    p_store_public_id IN VARCHAR2, p_store_user_public_id IN VARCHAR2,
+    p_request_body IN CLOB, p_actor_id IN NUMBER,
+    o_status_code OUT PLS_INTEGER, o_response_body OUT NOCOPY CLOB
+  ) IS
+    l_role_code VARCHAR2(32767);
+    l_member str_service_pkg.t_member_record;
+    l_data JSON_OBJECT_T;
+    l_success CLOB;
+  BEGIN
+    o_status_code := 500; o_response_body := NULL;
+    assert_public_value(p_store_public_id);
+    assert_public_value(p_store_user_public_id);
+    assert_actor(p_actor_id);
+    l_role_code := parse_member_role_request(p_request_body);
+    l_member := str_service_pkg.change_member_role(
+      p_store_public_id,
+      p_store_user_public_id,
+      l_role_code,
+      p_actor_id
+    );
+    l_data := member_to_json(l_member);
+    l_success := core_response_pkg.build_success(l_data);
+    COMMIT; o_response_body := l_success; o_status_code := c_status_ok;
+  EXCEPTION
+    WHEN e_request_body_required THEN ROLLBACK; free_temporary_clob(l_success); build_request_error(1,o_status_code,o_response_body);
+    WHEN e_public_value_required THEN ROLLBACK; free_temporary_clob(l_success); build_request_error(2,o_status_code,o_response_body);
+    WHEN e_actor_required THEN ROLLBACK; free_temporary_clob(l_success); build_request_error(3,o_status_code,o_response_body);
+    WHEN e_invalid_json THEN ROLLBACK; free_temporary_clob(l_success); build_request_error(4,o_status_code,o_response_body);
+    WHEN e_json_object_required THEN ROLLBACK; free_temporary_clob(l_success); build_request_error(5,o_status_code,o_response_body);
+    WHEN e_required_field THEN ROLLBACK; free_temporary_clob(l_success); build_request_error(6,o_status_code,o_response_body);
+    WHEN e_invalid_field_type THEN ROLLBACK; free_temporary_clob(l_success); build_request_error(7,o_status_code,o_response_body);
+    WHEN e_unknown_field THEN ROLLBACK; free_temporary_clob(l_success); build_request_error(8,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_store_not_found THEN ROLLBACK; free_temporary_clob(l_success); build_service_error(1,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_member_not_found THEN ROLLBACK; free_temporary_clob(l_success); build_service_error(19,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_member_invalid_role THEN ROLLBACK; free_temporary_clob(l_success); build_service_error(20,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_member_forbidden THEN ROLLBACK; free_temporary_clob(l_success); build_service_error(24,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_last_admin_required THEN ROLLBACK; free_temporary_clob(l_success); build_service_error(25,o_status_code,o_response_body);
+    WHEN OTHERS THEN handle_technical_error(TRUE,l_success,o_status_code,o_response_body);
+  END change_member_role;
+
+  PROCEDURE activate_member(
+    p_store_public_id IN VARCHAR2, p_store_user_public_id IN VARCHAR2,
+    p_actor_id IN NUMBER, o_status_code OUT PLS_INTEGER,
+    o_response_body OUT NOCOPY CLOB
+  ) IS
+    l_member str_service_pkg.t_member_record;
+    l_data JSON_OBJECT_T;
+    l_success CLOB;
+  BEGIN
+    o_status_code := 500; o_response_body := NULL;
+    assert_public_value(p_store_public_id);
+    assert_public_value(p_store_user_public_id);
+    assert_actor(p_actor_id);
+    l_member := str_service_pkg.activate_member(
+      p_store_public_id,
+      p_store_user_public_id,
+      p_actor_id
+    );
+    l_data := member_to_json(l_member);
+    l_success := core_response_pkg.build_success(l_data);
+    COMMIT; o_response_body := l_success; o_status_code := c_status_ok;
+  EXCEPTION
+    WHEN e_public_value_required THEN ROLLBACK; free_temporary_clob(l_success); build_request_error(2,o_status_code,o_response_body);
+    WHEN e_actor_required THEN ROLLBACK; free_temporary_clob(l_success); build_request_error(3,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_store_not_found THEN ROLLBACK; free_temporary_clob(l_success); build_service_error(1,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_member_not_found THEN ROLLBACK; free_temporary_clob(l_success); build_service_error(19,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_member_invalid_status THEN ROLLBACK; free_temporary_clob(l_success); build_service_error(21,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_member_invalid_transition THEN ROLLBACK; free_temporary_clob(l_success); build_service_error(22,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_active_member_link_exists THEN ROLLBACK; free_temporary_clob(l_success); build_service_error(23,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_member_forbidden THEN ROLLBACK; free_temporary_clob(l_success); build_service_error(24,o_status_code,o_response_body);
+    WHEN OTHERS THEN handle_technical_error(TRUE,l_success,o_status_code,o_response_body);
+  END activate_member;
+
+  PROCEDURE deactivate_member(
+    p_store_public_id IN VARCHAR2, p_store_user_public_id IN VARCHAR2,
+    p_actor_id IN NUMBER, o_status_code OUT PLS_INTEGER,
+    o_response_body OUT NOCOPY CLOB
+  ) IS
+    l_member str_service_pkg.t_member_record;
+    l_data JSON_OBJECT_T;
+    l_success CLOB;
+  BEGIN
+    o_status_code := 500; o_response_body := NULL;
+    assert_public_value(p_store_public_id);
+    assert_public_value(p_store_user_public_id);
+    assert_actor(p_actor_id);
+    l_member := str_service_pkg.deactivate_member(
+      p_store_public_id,
+      p_store_user_public_id,
+      p_actor_id
+    );
+    l_data := member_to_json(l_member);
+    l_success := core_response_pkg.build_success(l_data);
+    COMMIT; o_response_body := l_success; o_status_code := c_status_ok;
+  EXCEPTION
+    WHEN e_public_value_required THEN ROLLBACK; free_temporary_clob(l_success); build_request_error(2,o_status_code,o_response_body);
+    WHEN e_actor_required THEN ROLLBACK; free_temporary_clob(l_success); build_request_error(3,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_store_not_found THEN ROLLBACK; free_temporary_clob(l_success); build_service_error(1,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_member_not_found THEN ROLLBACK; free_temporary_clob(l_success); build_service_error(19,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_member_invalid_status THEN ROLLBACK; free_temporary_clob(l_success); build_service_error(21,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_member_invalid_transition THEN ROLLBACK; free_temporary_clob(l_success); build_service_error(22,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_member_forbidden THEN ROLLBACK; free_temporary_clob(l_success); build_service_error(24,o_status_code,o_response_body);
+    WHEN str_service_pkg.e_last_admin_required THEN ROLLBACK; free_temporary_clob(l_success); build_service_error(25,o_status_code,o_response_body);
+    WHEN OTHERS THEN handle_technical_error(TRUE,l_success,o_status_code,o_response_body);
+  END deactivate_member;
 END str_api_pkg;
 /
