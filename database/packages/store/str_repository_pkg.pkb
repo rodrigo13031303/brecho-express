@@ -162,6 +162,18 @@ CREATE OR REPLACE PACKAGE BODY str_repository_pkg AS
     RETURN l_store;
   END get_by_id;
 
+  PROCEDURE lock_by_id(
+    p_str_id IN BEX_STORE.STR_ID%TYPE
+  ) IS
+    l_str_id BEX_STORE.STR_ID%TYPE;
+  BEGIN
+    SELECT s.STR_ID
+      INTO l_str_id
+      FROM BEX_STORE s
+     WHERE s.STR_ID = p_str_id
+       FOR UPDATE;
+  END lock_by_id;
+
   FUNCTION get_by_public_id(
     p_public_id IN BEX_STORE.STR_PUBLIC_ID%TYPE
   ) RETURN t_store_record IS

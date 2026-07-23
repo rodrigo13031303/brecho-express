@@ -6,7 +6,7 @@ DECLARE
   g_test_count   PLS_INTEGER := 0;
   g_current_test VARCHAR2(200);
 
-  c_expected_test_count CONSTANT PLS_INTEGER := 32;
+  c_expected_test_count CONSTANT PLS_INTEGER := 35;
 
   l_owner_id       BEX_ACCOUNT.ACC_ID%TYPE;
   l_account_id_one BEX_ACCOUNT.ACC_ID%TYPE;
@@ -357,6 +357,30 @@ DECLARE
     );
     pass;
 
+    start_test('ACTIVE_ADMIN_EXISTS identifica ADMIN ACTIVE');
+    assert_true(
+      stu_repository_pkg.active_admin_exists(
+        l_store_id_one,
+        l_account_id_one
+      ),
+      'ADMIN ACTIVE deveria ser encontrado.'
+    );
+    assert_false(
+      stu_repository_pkg.active_admin_exists(
+        l_store_id_one,
+        l_account_id_empty
+      ),
+      'ACCOUNT sem vinculo nao deveria ser ADMIN ACTIVE.'
+    );
+    pass;
+
+    start_test('COUNT_ACTIVE_ADMINS conta somente ADMIN ACTIVE');
+    assert_true(
+      stu_repository_pkg.count_active_admins(l_store_id_one) = 1,
+      'Contagem de ADMIN ACTIVE deveria ser 1.'
+    );
+    pass;
+
     start_test('UPDATE_ROLE altera papel e auditoria');
     l_updated_at := TIMESTAMP '2026-02-01 11:00:00';
     stu_repository_pkg.update_role(
@@ -373,6 +397,20 @@ DECLARE
       AND l_store_user.stu_updated_at = l_updated_at
       AND l_store_user.stu_updated_by = l_account_id_two,
       'UPDATE_ROLE nao persistiu papel e auditoria.'
+    );
+    pass;
+
+    start_test('Consultas de ADMIN refletem alteracao de papel');
+    assert_false(
+      stu_repository_pkg.active_admin_exists(
+        l_store_id_one,
+        l_account_id_one
+      ),
+      'Vinculo MANAGER nao deveria ser ADMIN ACTIVE.'
+    );
+    assert_true(
+      stu_repository_pkg.count_active_admins(l_store_id_one) = 0,
+      'Contagem de ADMIN ACTIVE deveria refletir novo papel.'
     );
     pass;
 

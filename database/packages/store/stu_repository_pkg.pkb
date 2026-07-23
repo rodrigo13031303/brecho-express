@@ -179,6 +179,41 @@ CREATE OR REPLACE PACKAGE BODY stu_repository_pkg AS
       RETURN FALSE;
   END active_link_exists;
 
+  FUNCTION active_admin_exists(
+    p_store_id   IN BEX_STORE_USER.STR_ID%TYPE,
+    p_account_id IN BEX_STORE_USER.ACC_ID%TYPE
+  ) RETURN BOOLEAN IS
+    l_exists PLS_INTEGER;
+  BEGIN
+    SELECT 1
+      INTO l_exists
+      FROM BEX_STORE_USER su
+     WHERE su.STR_ID = p_store_id
+       AND su.ACC_ID = p_account_id
+       AND su.STU_STATUS = stu_rule_pkg.c_status_active
+       AND su.STU_ROLE_CODE = stu_rule_pkg.c_role_admin;
+
+    RETURN TRUE;
+  EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+      RETURN FALSE;
+  END active_admin_exists;
+
+  FUNCTION count_active_admins(
+    p_store_id IN BEX_STORE_USER.STR_ID%TYPE
+  ) RETURN PLS_INTEGER IS
+    l_count PLS_INTEGER;
+  BEGIN
+    SELECT COUNT(*)
+      INTO l_count
+      FROM BEX_STORE_USER su
+     WHERE su.STR_ID = p_store_id
+       AND su.STU_STATUS = stu_rule_pkg.c_status_active
+       AND su.STU_ROLE_CODE = stu_rule_pkg.c_role_admin;
+
+    RETURN l_count;
+  END count_active_admins;
+
   FUNCTION list_by_store(
     p_store_id  IN BEX_STORE_USER.STR_ID%TYPE,
     p_status    IN BEX_STORE_USER.STU_STATUS%TYPE DEFAULT NULL,

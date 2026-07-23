@@ -6,7 +6,7 @@ DECLARE
   g_test_count   PLS_INTEGER := 0;
   g_current_test VARCHAR2(200);
 
-  c_expected_test_count CONSTANT PLS_INTEGER := 46;
+  c_expected_test_count CONSTANT PLS_INTEGER := 48;
 
   l_account_id_one   BEX_ACCOUNT.ACC_ID%TYPE;
   l_account_id_two   BEX_ACCOUNT.ACC_ID%TYPE;
@@ -327,6 +327,29 @@ DECLARE
         l_raised := TRUE;
     END;
     assert_true(l_raised, 'GET_BY_ID deveria propagar NO_DATA_FOUND.');
+    pass;
+
+    start_test('LOCK_BY_ID bloqueia STORE existente');
+    str_repository_pkg.lock_by_id(l_store_id_two);
+    l_store := str_repository_pkg.get_by_id(l_store_id_two);
+    assert_true(
+      l_store.str_id = l_store_id_two,
+      'LOCK_BY_ID alterou ou perdeu a STORE.'
+    );
+    pass;
+
+    start_test('LOCK_BY_ID inexistente propaga NO_DATA_FOUND');
+    l_raised := FALSE;
+    BEGIN
+      str_repository_pkg.lock_by_id(-1);
+    EXCEPTION
+      WHEN NO_DATA_FOUND THEN
+        l_raised := TRUE;
+    END;
+    assert_true(
+      l_raised,
+      'LOCK_BY_ID deveria propagar NO_DATA_FOUND.'
+    );
     pass;
 
     start_test('GET_BY_PUBLIC_ID inexistente retorna registro vazio');

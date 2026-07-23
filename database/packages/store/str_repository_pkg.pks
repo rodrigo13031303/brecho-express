@@ -75,6 +75,10 @@ CREATE OR REPLACE PACKAGE str_repository_pkg AS
     p_str_id IN BEX_STORE.STR_ID%TYPE
   ) RETURN t_store_record;
 
+  PROCEDURE lock_by_id(
+    p_str_id IN BEX_STORE.STR_ID%TYPE
+  );
+
   FUNCTION get_by_slug(
     p_slug IN BEX_STORE.STR_SLUG%TYPE
   ) RETURN t_store_record;

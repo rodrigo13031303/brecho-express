@@ -70,6 +70,15 @@ CREATE OR REPLACE PACKAGE stu_repository_pkg AS
     p_account_id IN BEX_STORE_USER.ACC_ID%TYPE
   ) RETURN BOOLEAN;
 
+  FUNCTION active_admin_exists(
+    p_store_id   IN BEX_STORE_USER.STR_ID%TYPE,
+    p_account_id IN BEX_STORE_USER.ACC_ID%TYPE
+  ) RETURN BOOLEAN;
+
+  FUNCTION count_active_admins(
+    p_store_id IN BEX_STORE_USER.STR_ID%TYPE
+  ) RETURN PLS_INTEGER;
+
   FUNCTION list_by_store(
     p_store_id  IN BEX_STORE_USER.STR_ID%TYPE,
     p_status    IN BEX_STORE_USER.STU_STATUS%TYPE DEFAULT NULL,
