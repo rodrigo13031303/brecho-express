@@ -18,8 +18,10 @@ O primeiro ciclo do Catálogo compreende:
   independente de estoque;
 - autorização de escrita por meio da fronteira pública do módulo STORE.
 
-PRODUCT_IMAGE, PRODUCT_QUESTION, reserva, carrinho, Purchase Request, estoque
-independente, busca avançada, eventos e promoções permanecem fora deste ciclo.
+As estruturas físicas de PRODUCT_IMAGE e PRODUCT_QUESTION foram antecipadas
+para completar o modelo relacional do Catálogo. Seus casos de uso e packages
+permanecem fora deste ciclo. Reserva, carrinho, Purchase Request, estoque
+independente, busca avançada, eventos e promoções continuam fora do escopo.
 
 ## 3. Decisões estruturais
 
@@ -262,32 +264,19 @@ da API pública de feed; não serão improvisadas no Repository.
 - operações futuras de compra deverão tratar concorrência de disponibilidade em
   contrato transacional próprio.
 
-## 12. Próxima entrega executável
+## 12. Estado de implementação
 
-Antes do DDL de CATEGORY, a documentação permanente deverá ser alinhada para:
+O núcleo do Catálogo está implementado e validado no Oracle:
 
-1. remover `PST_ID` de PRODUCT no MVP;
-2. registrar `PRD_STATUS` como fonte única do ciclo de vida;
-3. corrigir auditoria baseada em PROFILE;
-4. completar as camadas Oracle previstas;
-5. registrar o contrato público de autorização de catálogo em STORE.
+- CATEGORY: DDL, Rule, Repository, Service, API e suíte consolidada;
+- BRAND: DDL, Rule, Repository, Service, API e suíte consolidada;
+- PRODUCT: DDL, Rule, Repository, Service, API e suíte consolidada;
+- PRODUCT_IMAGE: contrato físico e teste estrutural;
+- PRODUCT_QUESTION: contrato físico e teste estrutural.
 
-Somente após esse alinhamento iniciaremos CATEGORY, seguindo:
+PRODUCT usa Public ID em todas as fronteiras externas, autorização centralizada
+em STORE, classificação ativa resolvida pelos Services responsáveis, locking
+nas escritas e transação exclusivamente na API.
 
-```text
-arquitetura
-↓
-DDL
-↓
-RULE
-↓
-REPOSITORY
-↓
-SERVICE
-↓
-API
-↓
-Oracle
-↓
-Git
-```
+Os próximos ciclos do Catálogo poderão implementar os packages de
+PRODUCT_IMAGE e PRODUCT_QUESTION sem alterar o núcleo já publicado.
