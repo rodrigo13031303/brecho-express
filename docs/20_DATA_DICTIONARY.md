@@ -1148,6 +1148,11 @@ STORE_PLAN é uma entidade de configuração do módulo Brechós.
 
 Ela descreve os planos comerciais disponíveis, sem armazenar dados financeiros completos.
 
+Nesta etapa, STORE_PLAN é somente o catálogo oficial de planos. A associação
+contratual de uma STORE a um plano permanece adiada até existir um agregado de
+assinatura com vigência, histórico e cobrança; não será criada uma foreign key
+direta e sem temporalidade em BEX_STORE.
+
 # STORE_EVENT
 
 ## Ficha Técnica
@@ -1221,7 +1226,8 @@ Brechós
 | STE_CREATED_BY | NUMBER | Não |
 | STE_UPDATED_BY | NUMBER | Não |
 
-STE_CREATED_BY e STE_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+STE_CREATED_BY e STE_UPDATED_BY referenciam BEX_ACCOUNT.ACC_ID, pois eventos são
+administrados por contas autorizadas a operar a STORE.
 
 ## Índices
 
