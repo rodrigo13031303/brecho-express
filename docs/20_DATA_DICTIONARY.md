@@ -1807,11 +1807,13 @@ Runtime Contract e não possuem foreign key para PROFILE.
 - PK_PRODUCT
 - UK_PRODUCT_PUBLIC_ID
 - UK_PRODUCT_STORE_SLUG
-- IDX_PRODUCT_STORE
 - IDX_PRODUCT_CATEGORY
 - IDX_PRODUCT_BRAND
 - IDX_PRODUCT_STATUS
 - IDX_PRODUCT_PRICE
+
+UK_PRODUCT_STORE_SLUG inicia por STR_ID e também atende às consultas por STORE;
+por isso não existe IDX_PRODUCT_STORE redundante.
 
 ## Packages Oracle
 

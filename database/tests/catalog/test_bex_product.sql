@@ -1,0 +1,191 @@
+SET SERVEROUTPUT ON
+SET DEFINE OFF
+WHENEVER SQLERROR EXIT SQL.SQLCODE
+DECLARE
+  l_count PLS_INTEGER; l_account NUMBER; l_store NUMBER; l_other_store NUMBER;
+  l_category NUMBER; l_brand NUMBER; l_product NUMBER;
+  l_token VARCHAR2(12):=LOWER(SUBSTR(RAWTOHEX(SYS_GUID()),1,12));
+  l_public VARCHAR2(32):=LOWER(RAWTOHEX(SYS_GUID()));
+  l_slug VARCHAR2(200);
+  l_status VARCHAR2(20); l_raised BOOLEAN;
+  PROCEDURE fail(p VARCHAR2) IS BEGIN RAISE_APPLICATION_ERROR(-20999,p); END;
+  PROCEDURE ok(p BOOLEAN,m VARCHAR2) IS BEGIN IF p IS NULL OR NOT p THEN fail(m); END IF; END;
+BEGIN
+  SELECT COUNT(*) INTO l_count FROM USER_TAB_COLUMNS WHERE TABLE_NAME='BEX_PRODUCT';
+  ok(l_count=20,'PRODUCT deve possuir 20 colunas.');
+  SELECT COUNT(*) INTO l_count FROM USER_TAB_IDENTITY_COLS
+   WHERE TABLE_NAME='BEX_PRODUCT' AND COLUMN_NAME='PRD_ID' AND GENERATION_TYPE='ALWAYS';
+  ok(l_count=1,'PRD_ID identity.');
+  SELECT COUNT(*) INTO l_count FROM USER_CONSTRAINTS
+   WHERE TABLE_NAME='BEX_PRODUCT'
+     AND CONSTRAINT_NAME IN (
+       'PK_PRODUCT','UK_PRODUCT_PUBLIC_ID','UK_PRODUCT_STORE_SLUG',
+       'FK_PRD_STORE','FK_PRD_CATEGORY','FK_PRD_BRAND',
+       'CK_PRD_PRICE','CK_PRD_QUANTITY','CK_PRD_CONDITION',
+       'CK_PRD_WEIGHT','CK_PRD_DIMENSIONS_POSITIVE',
+       'CK_PRD_DIMENSIONS_SET','CK_PRD_STATUS'
+     ) AND STATUS='ENABLED' AND VALIDATED='VALIDATED';
+  ok(l_count=13,'Constraints divergentes.');
+  SELECT COUNT(*) INTO l_count FROM USER_INDEXES
+   WHERE TABLE_NAME='BEX_PRODUCT'
+     AND INDEX_NAME IN (
+       'PK_PRODUCT','UK_PRODUCT_PUBLIC_ID','UK_PRODUCT_STORE_SLUG',
+       'IDX_PRODUCT_CATEGORY','IDX_PRODUCT_BRAND',
+       'IDX_PRODUCT_STATUS','IDX_PRODUCT_PRICE'
+     );
+  ok(l_count=7,'Indices divergentes.');
+  SELECT COUNT(*) INTO l_count FROM USER_COL_COMMENTS
+   WHERE TABLE_NAME='BEX_PRODUCT' AND COMMENTS IS NOT NULL;
+  ok(l_count=20,'Comentarios divergentes.');
+  SELECT COUNT(*) INTO l_count FROM USER_TRIGGERS WHERE TABLE_NAME='BEX_PRODUCT';
+  ok(l_count=0,'Triggers proibidos.');
+  SELECT COUNT(*) INTO l_count
+    FROM USER_CONSTRAINTS c
+    JOIN USER_CONSTRAINTS r ON r.CONSTRAINT_NAME=c.R_CONSTRAINT_NAME
+   WHERE c.TABLE_NAME='BEX_PRODUCT'
+     AND c.CONSTRAINT_TYPE='R'
+     AND r.TABLE_NAME IN ('BEX_STORE','BEX_CATEGORY','BEX_BRAND');
+  ok(l_count=3,'Foreign keys de dominio divergentes.');
+  SELECT COUNT(*) INTO l_count
+    FROM USER_CONSTRAINTS c
+    JOIN USER_CONSTRAINTS r ON r.CONSTRAINT_NAME=c.R_CONSTRAINT_NAME
+   WHERE c.TABLE_NAME='BEX_PRODUCT'
+     AND c.CONSTRAINT_TYPE='R'
+     AND r.TABLE_NAME NOT IN ('BEX_STORE','BEX_CATEGORY','BEX_BRAND');
+  ok(l_count=0,'Foreign key tecnica proibida.');
+
+  INSERT INTO BEX_ACCOUNT(
+    ACC_PUBLIC_ID,ACC_EMAIL,ACC_PASSWORD_HASH,
+    ACC_PASSWORD_CHANGED_AT,ACC_STATUS
+  ) VALUES(
+    LOWER(RAWTOHEX(SYS_GUID())),'product.'||l_token||'@example.invalid',
+    'test-hash',SYSTIMESTAMP,'ACTIVE'
+  ) RETURNING ACC_ID INTO l_account;
+  INSERT INTO BEX_STORE(
+    STR_PUBLIC_ID,ACC_ID,STR_NAME,STR_SLUG
+  ) VALUES(
+    LOWER(RAWTOHEX(SYS_GUID())),l_account,'Product Store',
+    'product-store-'||l_token
+  ) RETURNING STR_ID INTO l_store;
+  INSERT INTO BEX_STORE(
+    STR_PUBLIC_ID,ACC_ID,STR_NAME,STR_SLUG
+  ) VALUES(
+    LOWER(RAWTOHEX(SYS_GUID())),l_account,'Other Product Store',
+    'other-product-store-'||l_token
+  ) RETURNING STR_ID INTO l_other_store;
+  INSERT INTO BEX_CATEGORY(CAT_PUBLIC_ID,CAT_NAME,CAT_SLUG)
+  VALUES(LOWER(RAWTOHEX(SYS_GUID())),'Product Category','prd-cat-'||l_token)
+  RETURNING CAT_ID INTO l_category;
+  INSERT INTO BEX_BRAND(BRD_PUBLIC_ID,BRD_NAME,BRD_SLUG)
+  VALUES(LOWER(RAWTOHEX(SYS_GUID())),'Product Brand','prd-brd-'||l_token)
+  RETURNING BRD_ID INTO l_brand;
+
+  l_slug:='achado-'||l_token;
+  INSERT INTO BEX_PRODUCT(
+    PRD_PUBLIC_ID,STR_ID,CAT_ID,BRD_ID,PRD_TITLE,PRD_SLUG,
+    PRD_DESCRIPTION,PRD_PRICE,PRD_QUANTITY,PRD_CONDITION,
+    PRD_WEIGHT,PRD_WIDTH,PRD_HEIGHT,PRD_LENGTH
+  ) VALUES(
+    l_public,l_store,l_category,l_brand,'Achado Teste',l_slug,
+    NULL,0,1,'GOOD',0.500,10,20,30
+  ) RETURNING PRD_ID,PRD_STATUS INTO l_product,l_status;
+  ok(l_product IS NOT NULL AND l_status='DRAFT','Insert valido/default.');
+
+  INSERT INTO BEX_PRODUCT(
+    PRD_PUBLIC_ID,STR_ID,CAT_ID,PRD_TITLE,PRD_SLUG,
+    PRD_PRICE,PRD_QUANTITY,PRD_CONDITION
+  ) VALUES(
+    LOWER(RAWTOHEX(SYS_GUID())),l_store,l_category,'Sem Marca',
+    'sem-marca-'||l_token,10,1,'LIKE_NEW'
+  );
+  SELECT COUNT(*) INTO l_count FROM BEX_PRODUCT
+   WHERE STR_ID=l_store AND BRD_ID IS NULL;
+  ok(l_count=1,'BRAND opcional.');
+
+  l_raised:=FALSE;
+  BEGIN
+    INSERT INTO BEX_PRODUCT(PRD_PUBLIC_ID,STR_ID,CAT_ID,PRD_TITLE,PRD_SLUG,PRD_PRICE,PRD_QUANTITY,PRD_CONDITION)
+    VALUES(LOWER(RAWTOHEX(SYS_GUID())),l_store,l_category,'Dup',l_slug,1,1,'NEW');
+  EXCEPTION WHEN DUP_VAL_ON_INDEX THEN l_raised:=TRUE; END;
+  ok(l_raised,'Slug por STORE.');
+
+  INSERT INTO BEX_PRODUCT(
+    PRD_PUBLIC_ID,STR_ID,CAT_ID,PRD_TITLE,PRD_SLUG,
+    PRD_PRICE,PRD_QUANTITY,PRD_CONDITION
+  ) VALUES(
+    LOWER(RAWTOHEX(SYS_GUID())),l_other_store,l_category,
+    'Mesmo Slug Outra Loja',l_slug,1,1,'NEW'
+  );
+  SELECT COUNT(*) INTO l_count FROM BEX_PRODUCT WHERE PRD_SLUG=l_slug;
+  ok(l_count=2,'Slug deve ser reutilizavel em outra STORE.');
+
+  l_raised:=FALSE;
+  BEGIN
+    INSERT INTO BEX_PRODUCT(
+      PRD_PUBLIC_ID,STR_ID,CAT_ID,PRD_TITLE,PRD_SLUG,
+      PRD_PRICE,PRD_QUANTITY,PRD_CONDITION
+    ) VALUES(
+      l_public,l_store,l_category,'Public ID Dup',
+      'public-id-dup-'||l_token,1,1,'NEW'
+    );
+  EXCEPTION WHEN DUP_VAL_ON_INDEX THEN l_raised:=TRUE; END;
+  ok(l_raised,'Public ID deve ser unico.');
+
+  l_raised:=FALSE;
+  BEGIN
+    INSERT INTO BEX_PRODUCT(PRD_PUBLIC_ID,STR_ID,CAT_ID,PRD_TITLE,PRD_SLUG,PRD_PRICE,PRD_QUANTITY,PRD_CONDITION)
+    VALUES(LOWER(RAWTOHEX(SYS_GUID())),l_store,l_category,'Bad Price','bad-price-'||l_token,-1,1,'NEW');
+  EXCEPTION WHEN OTHERS THEN l_raised:=SQLCODE=-2290; END;
+  ok(l_raised,'Preco negativo.');
+
+  l_raised:=FALSE;
+  BEGIN
+    INSERT INTO BEX_PRODUCT(PRD_PUBLIC_ID,STR_ID,CAT_ID,PRD_TITLE,PRD_SLUG,PRD_PRICE,PRD_QUANTITY,PRD_CONDITION)
+    VALUES(LOWER(RAWTOHEX(SYS_GUID())),l_store,l_category,'Bad Qty','bad-qty-'||l_token,1,-1,'NEW');
+  EXCEPTION WHEN OTHERS THEN l_raised:=SQLCODE=-2290; END;
+  ok(l_raised,'Quantidade negativa.');
+
+  l_raised:=FALSE;
+  BEGIN
+    INSERT INTO BEX_PRODUCT(PRD_PUBLIC_ID,STR_ID,CAT_ID,PRD_TITLE,PRD_SLUG,PRD_PRICE,PRD_QUANTITY,PRD_CONDITION)
+    VALUES(LOWER(RAWTOHEX(SYS_GUID())),l_store,l_category,'Bad Condition','bad-cond-'||l_token,1,1,'USED');
+  EXCEPTION WHEN OTHERS THEN l_raised:=SQLCODE=-2290; END;
+  ok(l_raised,'Condicao invalida.');
+
+  l_raised:=FALSE;
+  BEGIN
+    INSERT INTO BEX_PRODUCT(
+      PRD_PUBLIC_ID,STR_ID,CAT_ID,PRD_TITLE,PRD_SLUG,
+      PRD_PRICE,PRD_QUANTITY,PRD_CONDITION,PRD_WIDTH
+    ) VALUES(
+      LOWER(RAWTOHEX(SYS_GUID())),l_store,l_category,'Partial Dim',
+      'partial-'||l_token,1,1,'FAIR',10
+    );
+  EXCEPTION WHEN OTHERS THEN l_raised:=SQLCODE=-2290; END;
+  ok(l_raised,'Dimensoes parciais.');
+
+  l_raised:=FALSE;
+  BEGIN
+    INSERT INTO BEX_PRODUCT(
+      PRD_PUBLIC_ID,STR_ID,CAT_ID,PRD_TITLE,PRD_SLUG,
+      PRD_PRICE,PRD_QUANTITY,PRD_CONDITION,
+      PRD_WEIGHT,PRD_WIDTH,PRD_HEIGHT,PRD_LENGTH
+    ) VALUES(
+      LOWER(RAWTOHEX(SYS_GUID())),l_store,l_category,'Bad Measures',
+      'bad-measures-'||l_token,1,1,'FAIR',-1,10,0,30
+    );
+  EXCEPTION WHEN OTHERS THEN l_raised:=SQLCODE=-2290; END;
+  ok(l_raised,'Peso e dimensoes devem ser positivos.');
+
+  l_raised:=FALSE;
+  BEGIN
+    INSERT INTO BEX_PRODUCT(PRD_PUBLIC_ID,STR_ID,CAT_ID,PRD_TITLE,PRD_SLUG,PRD_PRICE,PRD_QUANTITY,PRD_CONDITION,PRD_STATUS)
+    VALUES(LOWER(RAWTOHEX(SYS_GUID())),l_store,l_category,'Bad Status','bad-status-'||l_token,1,1,'NEW','RESERVED');
+  EXCEPTION WHEN OTHERS THEN l_raised:=SQLCODE=-2290; END;
+  ok(l_raised,'Status invalido.');
+
+  DBMS_OUTPUT.PUT_LINE('BEX_PRODUCT physical contract: PASSED');
+  ROLLBACK;
+EXCEPTION WHEN OTHERS THEN ROLLBACK; RAISE;
+END;
+/

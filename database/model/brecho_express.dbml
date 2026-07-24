@@ -115,13 +115,33 @@ Table BEX_BRAND {
 
 Table BEX_PRODUCT {
   PRD_ID bigint [pk, increment]
-  STR_ID bigint
-  PRD_TITLE varchar(200)
-  PRD_DESCRIPTION text
-  PRD_PRICE decimal
-  PRD_STATUS varchar(30)
-  PRD_CREATED_AT timestamp
-  PRD_UPDATED_AT timestamp
+  PRD_PUBLIC_ID char(32) [not null, unique]
+  STR_ID bigint [not null]
+  CAT_ID bigint [not null]
+  BRD_ID bigint
+  PRD_TITLE varchar(200) [not null]
+  PRD_SLUG varchar(200) [not null]
+  PRD_DESCRIPTION varchar(4000)
+  PRD_PRICE decimal(12,2) [not null]
+  PRD_QUANTITY bigint [not null]
+  PRD_CONDITION varchar(20) [not null]
+  PRD_WEIGHT decimal(10,3)
+  PRD_WIDTH decimal(10,3)
+  PRD_HEIGHT decimal(10,3)
+  PRD_LENGTH decimal(10,3)
+  PRD_STATUS varchar(20) [not null, default: 'DRAFT']
+  PRD_CREATED_AT timestamp [not null, default: `SYSTIMESTAMP`]
+  PRD_CREATED_BY bigint
+  PRD_UPDATED_AT timestamp [not null, default: `SYSTIMESTAMP`]
+  PRD_UPDATED_BY bigint
+
+  indexes {
+    (STR_ID, PRD_SLUG) [unique, name: 'UK_PRODUCT_STORE_SLUG']
+    CAT_ID [name: 'IDX_PRODUCT_CATEGORY']
+    BRD_ID [name: 'IDX_PRODUCT_BRAND']
+    PRD_STATUS [name: 'IDX_PRODUCT_STATUS']
+    PRD_PRICE [name: 'IDX_PRODUCT_PRICE']
+  }
 }
 
 Ref: BEX_PROFILE.ACC_ID > BEX_ACCOUNT.ACC_ID
@@ -131,3 +151,5 @@ Ref: BEX_STORE_USER.ACC_ID > BEX_ACCOUNT.ACC_ID
 Ref: BEX_STORE_USER.STU_CREATED_BY > BEX_ACCOUNT.ACC_ID
 Ref: BEX_STORE_USER.STU_UPDATED_BY > BEX_ACCOUNT.ACC_ID
 Ref: BEX_PRODUCT.STR_ID > BEX_STORE.STR_ID
+Ref: BEX_PRODUCT.CAT_ID > BEX_CATEGORY.CAT_ID
+Ref: BEX_PRODUCT.BRD_ID > BEX_BRAND.BRD_ID
