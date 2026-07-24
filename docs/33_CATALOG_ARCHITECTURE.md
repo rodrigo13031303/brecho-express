@@ -88,7 +88,7 @@ não apaga nem invalida historicamente os Achados existentes.
 
 Auditoria segue o padrão físico vigente:
 
-- timestamps `TIMESTAMP WITH TIME ZONE`;
+- timestamps `TIMESTAMP(6)`;
 - `createdBy` e `updatedBy` são atores técnicos numéricos;
 - não existe foreign key de auditoria para PROFILE;
 - ACCOUNT é a identidade técnica usada na autorização;

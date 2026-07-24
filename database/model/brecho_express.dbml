@@ -75,6 +75,25 @@ Table BEX_STORE_USER {
   Note: 'Operational account membership in a store. No conventional unique constraint exists on STR_ID plus ACC_ID, preserving INACTIVE history. STU_CREATED_BY and STU_UPDATED_BY reference BEX_ACCOUNT.ACC_ID.'
 }
 
+Table BEX_CATEGORY {
+  CAT_ID bigint [pk, increment]
+  CAT_PUBLIC_ID char(32) [not null, unique]
+  CAT_NAME varchar(200) [not null]
+  CAT_SLUG varchar(120) [not null, unique]
+  CAT_DESCRIPTION varchar(1000)
+  CAT_STATUS varchar(20) [not null, default: 'ACTIVE', note: 'ACTIVE or INACTIVE']
+  CAT_CREATED_AT timestamp [not null, default: `SYSTIMESTAMP`]
+  CAT_CREATED_BY bigint
+  CAT_UPDATED_AT timestamp [not null, default: `SYSTIMESTAMP`]
+  CAT_UPDATED_BY bigint
+
+  indexes {
+    CAT_STATUS [name: 'IDX_CATEGORY_STATUS']
+  }
+
+  Note: 'Official classification used to organize catalog products.'
+}
+
 Table BEX_PRODUCT {
   PRD_ID bigint [pk, increment]
   STR_ID bigint
