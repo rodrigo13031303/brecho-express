@@ -1522,7 +1522,9 @@ Catálogo
 - RN-004 — CATEGORY pode ser utilizada para filtros e navegação.
 - RN-005 — CAT_PUBLIC_ID deve ser CHAR(32).
 - RN-006 — APIs externas usam CAT_PUBLIC_ID, nunca CAT_ID.
-- RN-007 — A exclusão deve ser lógica via CAT_STATUS.
+- RN-007 — A inativação deve ocorrer via CAT_STATUS; não existe exclusão física como operação normal.
+- RN-008 — CAT_STATUS aceita ACTIVE e INACTIVE.
+- RN-009 — PRODUCT novo ou alterado só pode referenciar CATEGORY ACTIVE.
 
 ## Relacionamentos
 
@@ -1532,18 +1534,19 @@ Catálogo
 
 | Campo | Tipo | Obrigatório |
 |--------|------|-------------|
-| CAT_ID | NUMBER Identity | Sim |
-| CAT_PUBLIC_ID | CHAR(32) | Sim |
-| CAT_NAME | VARCHAR2(200) | Sim |
-| CAT_SLUG | VARCHAR2(120) | Sim |
-| CAT_DESCRIPTION | VARCHAR2(1000) | Não |
-| CAT_STATUS | VARCHAR2(20) | Sim |
-| CAT_CREATED_AT | TIMESTAMP | Sim |
-| CAT_UPDATED_AT | TIMESTAMP | Sim |
+| CAT_ID | NUMBER(19) Identity | Sim |
+| CAT_PUBLIC_ID | CHAR(32 CHAR) | Sim |
+| CAT_NAME | VARCHAR2(200 CHAR) | Sim |
+| CAT_SLUG | VARCHAR2(120 CHAR) | Sim |
+| CAT_DESCRIPTION | VARCHAR2(1000 CHAR) | Não |
+| CAT_STATUS | VARCHAR2(20 CHAR) | Sim |
+| CAT_CREATED_AT | TIMESTAMP WITH TIME ZONE | Sim |
+| CAT_UPDATED_AT | TIMESTAMP WITH TIME ZONE | Sim |
 | CAT_CREATED_BY | NUMBER | Não |
 | CAT_UPDATED_BY | NUMBER | Não |
 
-CAT_CREATED_BY e CAT_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+CAT_CREATED_BY e CAT_UPDATED_BY armazenam o ator técnico confiável conforme o
+Runtime Contract e não possuem foreign key para PROFILE.
 
 ## Índices
 
@@ -1554,15 +1557,17 @@ CAT_CREATED_BY e CAT_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações
 
 ## Packages Oracle
 
-- CAT_API_PKG
 - CAT_RULE_PKG
+- CAT_REPOSITORY_PKG
+- CAT_SERVICE_PKG
+- CAT_API_PKG
 
 ## APIs
 
 - GET /categories
 - GET /categories/{publicId}
-- POST /categories
-- PUT /categories/{publicId}
+Escritas administrativas não serão expostas antes de existir contrato de
+autoridade global da plataforma.
 
 ## Flutter
 
@@ -1626,7 +1631,9 @@ Catálogo
 - RN-004 — BRAND pode ser utilizada para filtros e navegação.
 - RN-005 — BRD_PUBLIC_ID deve ser CHAR(32).
 - RN-006 — APIs externas usam BRD_PUBLIC_ID, nunca BRD_ID.
-- RN-007 — A exclusão deve ser lógica via BRD_STATUS.
+- RN-007 — A inativação deve ocorrer via BRD_STATUS; não existe exclusão física como operação normal.
+- RN-008 — BRD_STATUS aceita ACTIVE e INACTIVE.
+- RN-009 — PRODUCT novo ou alterado só pode referenciar BRAND ACTIVE.
 
 ## Relacionamentos
 
@@ -1636,18 +1643,19 @@ Catálogo
 
 | Campo | Tipo | Obrigatório |
 |--------|------|-------------|
-| BRD_ID | NUMBER Identity | Sim |
-| BRD_PUBLIC_ID | CHAR(32) | Sim |
-| BRD_NAME | VARCHAR2(200) | Sim |
-| BRD_SLUG | VARCHAR2(120) | Sim |
-| BRD_DESCRIPTION | VARCHAR2(1000) | Não |
-| BRD_STATUS | VARCHAR2(20) | Sim |
-| BRD_CREATED_AT | TIMESTAMP | Sim |
-| BRD_UPDATED_AT | TIMESTAMP | Sim |
+| BRD_ID | NUMBER(19) Identity | Sim |
+| BRD_PUBLIC_ID | CHAR(32 CHAR) | Sim |
+| BRD_NAME | VARCHAR2(200 CHAR) | Sim |
+| BRD_SLUG | VARCHAR2(120 CHAR) | Sim |
+| BRD_DESCRIPTION | VARCHAR2(1000 CHAR) | Não |
+| BRD_STATUS | VARCHAR2(20 CHAR) | Sim |
+| BRD_CREATED_AT | TIMESTAMP WITH TIME ZONE | Sim |
+| BRD_UPDATED_AT | TIMESTAMP WITH TIME ZONE | Sim |
 | BRD_CREATED_BY | NUMBER | Não |
 | BRD_UPDATED_BY | NUMBER | Não |
 
-BRD_CREATED_BY e BRD_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+BRD_CREATED_BY e BRD_UPDATED_BY armazenam o ator técnico confiável conforme o
+Runtime Contract e não possuem foreign key para PROFILE.
 
 ## Índices
 
@@ -1658,15 +1666,17 @@ BRD_CREATED_BY e BRD_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações
 
 ## Packages Oracle
 
-- BRD_API_PKG
 - BRD_RULE_PKG
+- BRD_REPOSITORY_PKG
+- BRD_SERVICE_PKG
+- BRD_API_PKG
 
 ## APIs
 
 - GET /brands
 - GET /brands/{publicId}
-- POST /brands
-- PUT /brands/{publicId}
+Escritas administrativas não serão expostas antes de existir contrato de
+autoridade global da plataforma.
 
 ## Flutter
 
@@ -1683,102 +1693,17 @@ Ela organiza os Achados por marcas oficiais, com foco em navegação e filtragem
 
 # PRODUCT_STATUS
 
-## Ficha Técnica
+PRODUCT_STATUS permanece como conceito evolutivo e não será materializado no
+MVP. O ciclo de vida inicial possui fonte única em `BEX_PRODUCT.PRD_STATUS`,
+validada por constraint física e por `PRD_RULE_PKG`.
 
-| Campo | Valor |
-|--------|--------|
-| Entidade | PRODUCT_STATUS |
-| Prefixo | PST |
-| Tipo | CONFIGURATION |
-| Responsável | Catálogo |
-| Soft Delete | Sim |
-| Auditoria | Sim |
-| Exposto pela API | Não |
-| Cache | Sim |
+Os estados aprovados são DRAFT, ACTIVE, INACTIVE, SOLD e ARCHIVED. RESERVED não
+é estado de PRODUCT: carrinho não reserva, e qualquer reserva futura pertence
+ao fluxo transacional de Purchase Request.
 
-## Objetivo
-
-Representar os status oficiais de ciclo de vida de um Achado, controlando visibilidade e disponibilidade.
-
-## Classificação
-
-CONFIGURATION
-
-## Responsabilidades
-
-- Definir os status oficiais de um Achado.
-- Controlar visibilidade e disponibilidade do catálogo.
-- Apoiar regras de negócio de ciclo de vida.
-- Servir como referência para operação do produto.
-
-## Não é responsabilidade
-
-- Representar produtos.
-- Armazenar dados de estoque.
-- Definir regras comerciais complexas.
-- Substituir a entidade PRODUCT.
-
-## Dono da Informação
-
-Catálogo
-
-## Regras de Negócio
-
-- RN-001 — PRODUCT_STATUS representa os status oficiais de um Achado.
-- RN-002 — PST_CODE deve ser único.
-- RN-003 — Exemplos oficiais: ACTIVE, RESERVED, SOLD, INACTIVE, ARCHIVED.
-- RN-004 — PRODUCT_STATUS controla visibilidade e disponibilidade do Achado.
-- RN-005 — PRODUCT_STATUS não deve ser excluído fisicamente.
-- RN-006 — PST_PUBLIC_ID deve ser CHAR(32).
-- RN-007 — A exclusão deve ser lógica via PST_STATUS.
-
-## Relacionamentos
-
-- PRODUCT (1:N)
-
-## Atributos
-
-| Campo | Tipo | Obrigatório |
-|--------|------|-------------|
-| PST_ID | NUMBER Identity | Sim |
-| PST_PUBLIC_ID | CHAR(32) | Sim |
-| PST_CODE | VARCHAR2(50) | Sim |
-| PST_NAME | VARCHAR2(100) | Sim |
-| PST_DESCRIPTION | VARCHAR2(500) | Não |
-| PST_STATUS | VARCHAR2(20) | Sim |
-| PST_CREATED_AT | TIMESTAMP | Sim |
-| PST_UPDATED_AT | TIMESTAMP | Sim |
-| PST_CREATED_BY | NUMBER | Não |
-| PST_UPDATED_BY | NUMBER | Não |
-
-PST_CREATED_BY e PST_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
-
-## Índices
-
-- PK_PRODUCT_STATUS
-- UK_PRODUCT_STATUS_PUBLIC_ID
-- UK_PRODUCT_STATUS_CODE
-- IDX_PRODUCT_STATUS_STATUS
-
-## Packages Oracle
-
-- PST_API_PKG
-- PST_RULE_PKG
-
-## APIs
-
-Nenhuma API pública prevista no MVP.
-As operações de status serão tratadas internamente por regras de catálogo.
-
-## Flutter
-
-Uso interno para controle de status e visibilidade.
-
-## Observações
-
-PRODUCT_STATUS é uma entidade de configuração do módulo Catálogo.
-
-Ela controla o ciclo de vida dos Achados de forma uniforme e governada.
+Uma futura entidade configurável de status exigirá ADR e migração próprios,
+substituindo `PRD_STATUS`; nunca coexistirá com ele como segunda fonte de
+verdade. Não existem DDL, packages ou API de PRODUCT_STATUS previstos no MVP.
 
 # PRODUCT
 
@@ -1808,7 +1733,7 @@ MASTER
 - Representar os Achados anunciados no catálogo.
 - Organizar os dados comerciais e descritivos de um Achado.
 - Apoiar a navegação, filtros, carrinho e pedidos.
-- Vincular um Achado a um Brechó, categoria, marca e status.
+- Vincular um Achado a um Brechó, categoria e marca.
 
 ## Não é responsabilidade
 
@@ -1827,7 +1752,7 @@ Catálogo
 - RN-002 — Um PRODUCT pertence a um STORE.
 - RN-003 — Um PRODUCT deve possuir CATEGORY.
 - RN-004 — BRAND pode ser opcional caso a marca seja desconhecida.
-- RN-005 — PRODUCT_STATUS controla ciclo de vida e visibilidade.
+- RN-005 — PRD_STATUS controla ciclo de vida e visibilidade.
 - RN-006 — Carrinho não reserva PRODUCT.
 - RN-007 — PRODUCT pode ser peça única ou possuir quantidade em estoque.
 - RN-008 — PRODUCT nunca deve ser excluído fisicamente.
@@ -1836,42 +1761,46 @@ Catálogo
 - RN-011 — PRD_SLUG deve ser único por STORE.
 - RN-012 — Preço deve ser maior ou igual a zero.
 - RN-013 — Quantidade deve ser maior ou igual a zero.
+- RN-014 — PRD_STATUS aceita DRAFT, ACTIVE, INACTIVE, SOLD e ARCHIVED.
+- RN-015 — PRODUCT só pode ser ativado com quantidade maior que zero.
+- RN-016 — RESERVED não é estado de PRODUCT.
+- RN-017 — Podem administrar catálogo o proprietário da STORE e membros ACTIVE com papel ADMIN, MANAGER ou COLLABORATOR.
+- RN-018 — ATTENDANT não administra catálogo no MVP.
 
 ## Relacionamentos
 
 - STORE (N:1)
 - CATEGORY (N:1)
 - BRAND (N:1)
-- PRODUCT_STATUS (N:1)
 - PRODUCT_IMAGE (1:N)
 
 ## Atributos
 
 | Campo | Tipo | Obrigatório |
 |--------|------|-------------|
-| PRD_ID | NUMBER Identity | Sim |
-| PRD_PUBLIC_ID | CHAR(32) | Sim |
-| STR_ID | NUMBER | Sim |
-| CAT_ID | NUMBER | Sim |
-| BRD_ID | NUMBER | Não |
-| PST_ID | NUMBER | Sim |
-| PRD_TITLE | VARCHAR2(200) | Sim |
-| PRD_SLUG | VARCHAR2(200) | Sim |
-| PRD_DESCRIPTION | VARCHAR2(4000) | Não |
+| PRD_ID | NUMBER(19) Identity | Sim |
+| PRD_PUBLIC_ID | CHAR(32 CHAR) | Sim |
+| STR_ID | NUMBER(19) | Sim |
+| CAT_ID | NUMBER(19) | Sim |
+| BRD_ID | NUMBER(19) | Não |
+| PRD_TITLE | VARCHAR2(200 CHAR) | Sim |
+| PRD_SLUG | VARCHAR2(200 CHAR) | Sim |
+| PRD_DESCRIPTION | VARCHAR2(4000 CHAR) | Não |
 | PRD_PRICE | NUMBER(12,2) | Sim |
-| PRD_QUANTITY | NUMBER | Sim |
-| PRD_CONDITION | VARCHAR2(50) | Sim |
+| PRD_QUANTITY | NUMBER(12) | Sim |
+| PRD_CONDITION | VARCHAR2(20 CHAR) | Sim |
 | PRD_WEIGHT | NUMBER(10,3) | Não |
 | PRD_WIDTH | NUMBER(10,3) | Não |
 | PRD_HEIGHT | NUMBER(10,3) | Não |
 | PRD_LENGTH | NUMBER(10,3) | Não |
-| PRD_STATUS | VARCHAR2(20) | Sim |
-| PRD_CREATED_AT | TIMESTAMP | Sim |
-| PRD_UPDATED_AT | TIMESTAMP | Sim |
+| PRD_STATUS | VARCHAR2(20 CHAR) | Sim |
+| PRD_CREATED_AT | TIMESTAMP WITH TIME ZONE | Sim |
+| PRD_UPDATED_AT | TIMESTAMP WITH TIME ZONE | Sim |
 | PRD_CREATED_BY | NUMBER | Não |
 | PRD_UPDATED_BY | NUMBER | Não |
 
-PRD_CREATED_BY e PRD_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+PRD_CREATED_BY e PRD_UPDATED_BY armazenam o ator técnico confiável conforme o
+Runtime Contract e não possuem foreign key para PROFILE.
 
 ## Índices
 
@@ -1886,15 +1815,21 @@ PRD_CREATED_BY e PRD_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações
 
 ## Packages Oracle
 
-- PRD_API_PKG
 - PRD_RULE_PKG
+- PRD_REPOSITORY_PKG
+- PRD_SERVICE_PKG
+- PRD_API_PKG
 
 ## APIs
 
 - GET /products
 - GET /products/{publicId}
-- POST /products
-- PUT /products/{publicId}
+- POST /stores/{storePublicId}/products
+- PATCH /stores/{storePublicId}/products/{productPublicId}
+- POST /stores/{storePublicId}/products/{productPublicId}/activation
+- POST /stores/{storePublicId}/products/{productPublicId}/inactivation
+- POST /stores/{storePublicId}/products/{productPublicId}/sold
+- POST /stores/{storePublicId}/products/{productPublicId}/archival
 
 ## Flutter
 
@@ -1908,6 +1843,9 @@ PRD_CREATED_BY e PRD_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações
 PRODUCT é a entidade principal do módulo Catálogo.
 
 Na interface, o termo oficial é Achado, mesmo sendo modelado tecnicamente como PRODUCT.
+
+O contrato detalhado, o ciclo de vida e a ordem de implementação seguem
+`33_CATALOG_ARCHITECTURE.md`.
 
 # PRODUCT_IMAGE
 
