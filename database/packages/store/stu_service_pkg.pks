@@ -36,6 +36,11 @@ CREATE OR REPLACE PACKAGE stu_service_pkg AS
     p_account_id IN BEX_STORE_USER.ACC_ID%TYPE
   ) RETURN BOOLEAN;
 
+  FUNCTION is_active_catalog_manager(
+    p_store_id   IN BEX_STORE_USER.STR_ID%TYPE,
+    p_account_id IN BEX_STORE_USER.ACC_ID%TYPE
+  ) RETURN BOOLEAN;
+
   FUNCTION count_active_admins(
     p_store_id IN BEX_STORE_USER.STR_ID%TYPE
   ) RETURN PLS_INTEGER;

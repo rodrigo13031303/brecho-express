@@ -75,6 +75,7 @@ CREATE OR REPLACE PACKAGE str_service_pkg AS
   e_active_member_link_exists EXCEPTION;
   e_member_forbidden EXCEPTION;
   e_last_admin_required EXCEPTION;
+  e_catalog_forbidden EXCEPTION;
 
   PRAGMA EXCEPTION_INIT(e_store_not_found, -20860);
   PRAGMA EXCEPTION_INIT(e_account_not_found, -20840);
@@ -101,6 +102,7 @@ CREATE OR REPLACE PACKAGE str_service_pkg AS
   PRAGMA EXCEPTION_INIT(e_active_member_link_exists, -20890);
   PRAGMA EXCEPTION_INIT(e_member_forbidden, -20891);
   PRAGMA EXCEPTION_INIT(e_last_admin_required, -20892);
+  PRAGMA EXCEPTION_INIT(e_catalog_forbidden, -20893);
 
   FUNCTION create_by_account_public_id(
     p_account_public_id IN BEX_ACCOUNT.ACC_PUBLIC_ID%TYPE,
@@ -132,6 +134,13 @@ CREATE OR REPLACE PACKAGE str_service_pkg AS
   -- Services. Nao constitui fronteira externa.
   FUNCTION resolve_store_id(
     p_store_public_id IN BEX_STORE.STR_PUBLIC_ID%TYPE
+  ) RETURN BEX_STORE.STR_ID%TYPE;
+
+  -- Autoriza um Service consumidor a administrar o catalogo da STORE e
+  -- devolve somente a identidade tecnica necessaria para a foreign key.
+  FUNCTION resolve_catalog_store_id(
+    p_store_public_id IN BEX_STORE.STR_PUBLIC_ID%TYPE,
+    p_actor_id        IN BEX_ACCOUNT.ACC_ID%TYPE
   ) RETURN BEX_STORE.STR_ID%TYPE;
 
   FUNCTION get_by_slug(

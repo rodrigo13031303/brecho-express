@@ -6,7 +6,7 @@ DECLARE
   g_test_count   PLS_INTEGER := 0;
   g_current_test VARCHAR2(200);
 
-  c_expected_test_count CONSTANT PLS_INTEGER := 78;
+  c_expected_test_count CONSTANT PLS_INTEGER := 82;
   c_create_actor        CONSTANT NUMBER := 5101;
   c_update_actor        CONSTANT NUMBER := 5102;
   c_state_actor         CONSTANT NUMBER := 5103;
@@ -29,6 +29,7 @@ DECLARE
   l_stores       str_service_pkg.t_store_table;
   l_member       str_service_pkg.t_member_record;
   l_other_member str_service_pkg.t_member_record;
+  l_attendant_member str_service_pkg.t_member_record;
   l_members      str_service_pkg.t_member_table;
   l_patch        str_service_pkg.t_store_patch;
   l_raised       BOOLEAN;
@@ -155,6 +156,7 @@ DECLARE
         WHEN 23 THEN RAISE str_service_pkg.e_active_member_link_exists;
         WHEN 24 THEN RAISE str_service_pkg.e_member_forbidden;
         WHEN 25 THEN RAISE str_service_pkg.e_last_admin_required;
+        WHEN 26 THEN RAISE str_service_pkg.e_catalog_forbidden;
         ELSE RAISE VALUE_ERROR;
       END CASE;
     EXCEPTION
@@ -194,7 +196,7 @@ DECLARE
     FOR i IN 3..18 LOOP
       assert_public_exception_code(i, -20858 - i);
     END LOOP;
-    FOR i IN 19..25 LOOP
+    FOR i IN 19..26 LOOP
       assert_public_exception_code(i, -20867 - i);
     END LOOP;
     pass;
@@ -656,14 +658,14 @@ DECLARE
     pass;
 
     start_test('ADD_MEMBER permite ADMIN ACTIVE');
-    l_other_member := str_service_pkg.add_member(
+    l_attendant_member := str_service_pkg.add_member(
       l_store.store_public_id,
       l_empty_account_public_id,
       'ATTENDANT',
       l_other_account_id
     );
     assert_true(
-      l_other_member.role_code = 'ATTENDANT',
+      l_attendant_member.role_code = 'ATTENDANT',
       'ADMIN ACTIVE deveria adicionar membro.'
     );
     pass;
@@ -888,6 +890,87 @@ DECLARE
      WHERE STU_PUBLIC_ID = l_member.store_user_public_id
        AND STU_UPDATED_BY = l_account_id;
     assert_true(l_count = 1, 'Auditoria administrativa incorreta.');
+    pass;
+
+    start_test('Catalogo permite proprietario da STORE');
+    assert_true(
+      str_service_pkg.resolve_catalog_store_id(
+        l_store.store_public_id,
+        l_account_id
+      ) = l_original.str_id,
+      'Proprietario deveria administrar catalogo.'
+    );
+    pass;
+
+    start_test('Catalogo permite ADMIN e MANAGER ACTIVE');
+    assert_true(
+      str_service_pkg.resolve_catalog_store_id(
+        l_store.store_public_id,
+        l_blocked_account_id
+      ) = l_original.str_id,
+      'ADMIN ACTIVE deveria administrar catalogo.'
+    );
+    assert_true(
+      str_service_pkg.resolve_catalog_store_id(
+        l_store.store_public_id,
+        l_other_account_id
+      ) = l_original.str_id,
+      'MANAGER ACTIVE deveria administrar catalogo.'
+    );
+    pass;
+
+    start_test('Catalogo diferencia ATTENDANT e COLLABORATOR ACTIVE');
+    l_raised := FALSE;
+    BEGIN
+      l_count := str_service_pkg.resolve_catalog_store_id(
+        l_store.store_public_id,
+        l_empty_account_id
+      );
+    EXCEPTION
+      WHEN str_service_pkg.e_catalog_forbidden THEN
+        l_raised := SQLCODE = -20893;
+    END;
+    assert_true(l_raised, 'ATTENDANT nao deveria administrar catalogo.');
+
+    l_attendant_member := str_service_pkg.change_member_role(
+      l_store.store_public_id,
+      l_attendant_member.store_user_public_id,
+      'COLLABORATOR',
+      l_account_id
+    );
+    assert_true(
+      str_service_pkg.resolve_catalog_store_id(
+        l_store.store_public_id,
+        l_empty_account_id
+      ) = l_original.str_id,
+      'COLLABORATOR ACTIVE deveria administrar catalogo.'
+    );
+
+    l_raised := FALSE;
+    BEGIN
+      l_count := str_service_pkg.resolve_catalog_store_id(
+        l_store.store_public_id,
+        NULL
+      );
+    EXCEPTION
+      WHEN str_service_pkg.e_catalog_forbidden THEN
+        l_raised := SQLCODE = -20893;
+    END;
+    assert_true(l_raised, 'Ator ausente deveria ser rejeitado.');
+    pass;
+
+    start_test('Autorizacao de catalogo exige STORE existente');
+    l_raised := FALSE;
+    BEGIN
+      l_count := str_service_pkg.resolve_catalog_store_id(
+        LOWER(RAWTOHEX(SYS_GUID())),
+        l_account_id
+      );
+    EXCEPTION
+      WHEN str_service_pkg.e_store_not_found THEN
+        l_raised := SQLCODE = -20860;
+    END;
+    assert_true(l_raised, 'STORE inexistente deveria ser rejeitada.');
     pass;
 
     start_test('Service nao possui SQL transacao ou apresentacao');

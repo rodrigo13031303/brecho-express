@@ -111,6 +111,26 @@ CREATE OR REPLACE PACKAGE BODY stu_service_pkg AS
     );
   END is_active_admin;
 
+  FUNCTION is_active_catalog_manager(
+    p_store_id   IN BEX_STORE_USER.STR_ID%TYPE,
+    p_account_id IN BEX_STORE_USER.ACC_ID%TYPE
+  ) RETURN BOOLEAN IS
+    l_member stu_repository_pkg.t_store_user_record;
+  BEGIN
+    l_member := stu_repository_pkg.get_active_by_store_account(
+      p_store_id,
+      p_account_id
+    );
+    RETURN l_member.stu_role_code IN (
+      stu_rule_pkg.c_role_admin,
+      stu_rule_pkg.c_role_manager,
+      stu_rule_pkg.c_role_collaborator
+    );
+  EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+      RETURN FALSE;
+  END is_active_catalog_manager;
+
   FUNCTION count_active_admins(
     p_store_id IN BEX_STORE_USER.STR_ID%TYPE
   ) RETURN PLS_INTEGER IS

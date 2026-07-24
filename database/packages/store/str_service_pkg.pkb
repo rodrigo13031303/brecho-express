@@ -309,6 +309,29 @@ CREATE OR REPLACE PACKAGE BODY str_service_pkg AS
       RAISE e_store_not_found;
   END resolve_store_id;
 
+  FUNCTION resolve_catalog_store_id(
+    p_store_public_id IN BEX_STORE.STR_PUBLIC_ID%TYPE,
+    p_actor_id        IN BEX_ACCOUNT.ACC_ID%TYPE
+  ) RETURN BEX_STORE.STR_ID%TYPE IS
+    l_store str_repository_pkg.t_store_record;
+  BEGIN
+    l_store := require_internal_store(p_store_public_id);
+
+    IF p_actor_id IS NULL OR p_actor_id <= 0 THEN
+      RAISE e_catalog_forbidden;
+    END IF;
+
+    IF l_store.acc_id = p_actor_id
+       OR stu_service_pkg.is_active_catalog_manager(
+            l_store.str_id,
+            p_actor_id
+          ) THEN
+      RETURN l_store.str_id;
+    END IF;
+
+    RAISE e_catalog_forbidden;
+  END resolve_catalog_store_id;
+
   FUNCTION get_by_slug(
     p_slug IN BEX_STORE.STR_SLUG%TYPE
   ) RETURN t_store_record IS
