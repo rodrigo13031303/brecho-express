@@ -227,5 +227,40 @@ CREATE OR REPLACE PACKAGE BODY prd_service_pkg AS
     );
     RETURN map_row(prd_repository_pkg.get_by_id(p.prd_id));
   END;
+
+  FUNCTION resolve_product_identity(
+    p_product_public_id BEX_PRODUCT.PRD_PUBLIC_ID%TYPE
+  ) RETURN t_product_identity IS
+    p prd_repository_pkg.t_product_record; r t_product_identity;
+  BEGIN
+    p:=get_internal(p_product_public_id);
+    r.product_id:=p.prd_id; r.store_id:=p.str_id; r.status:=p.prd_status;
+    RETURN r;
+  END;
+
+  FUNCTION resolve_catalog_product_identity(
+    p_product_public_id BEX_PRODUCT.PRD_PUBLIC_ID%TYPE,
+    p_store_public_id BEX_STORE.STR_PUBLIC_ID%TYPE,
+    p_actor_id BEX_ACCOUNT.ACC_ID%TYPE
+  ) RETURN t_product_identity IS
+    r t_product_identity; l_store BEX_STORE.STR_ID%TYPE;
+  BEGIN
+    l_store:=str_service_pkg.resolve_catalog_store_id(
+      p_store_public_id,p_actor_id
+    );
+    r:=resolve_product_identity(p_product_public_id);
+    IF r.store_id<>l_store THEN RAISE e_product_not_found; END IF;
+    RETURN r;
+  END;
+
+  FUNCTION resolve_product_public_id(
+    p_product_id BEX_PRODUCT.PRD_ID%TYPE
+  ) RETURN BEX_PRODUCT.PRD_PUBLIC_ID%TYPE IS
+    l_product prd_repository_pkg.t_product_record;
+  BEGIN
+    l_product:=prd_repository_pkg.get_by_id(p_product_id);
+    RETURN l_product.prd_public_id;
+  EXCEPTION WHEN NO_DATA_FOUND THEN RAISE e_product_not_found;
+  END;
 END prd_service_pkg;
 /

@@ -1,0 +1,25 @@
+CREATE OR REPLACE PACKAGE pqa_repository_pkg AS
+  TYPE t_row IS RECORD(
+    pqa_id BEX_PRODUCT_QUESTION.PQA_ID%TYPE,pqa_public_id BEX_PRODUCT_QUESTION.PQA_PUBLIC_ID%TYPE,
+    prd_id BEX_PRODUCT_QUESTION.PRD_ID%TYPE,str_id BEX_PRODUCT_QUESTION.STR_ID%TYPE,
+    pfl_question_by BEX_PRODUCT_QUESTION.PFL_QUESTION_BY%TYPE,
+    pfl_answered_by BEX_PRODUCT_QUESTION.PFL_ANSWERED_BY%TYPE,
+    pqa_question_text BEX_PRODUCT_QUESTION.PQA_QUESTION_TEXT%TYPE,
+    pqa_answer_text BEX_PRODUCT_QUESTION.PQA_ANSWER_TEXT%TYPE,
+    pqa_asked_at BEX_PRODUCT_QUESTION.PQA_ASKED_AT%TYPE,
+    pqa_answered_at BEX_PRODUCT_QUESTION.PQA_ANSWERED_AT%TYPE,
+    pqa_status BEX_PRODUCT_QUESTION.PQA_STATUS%TYPE,
+    pqa_created_at BEX_PRODUCT_QUESTION.PQA_CREATED_AT%TYPE,
+    pqa_updated_at BEX_PRODUCT_QUESTION.PQA_UPDATED_AT%TYPE,
+    pqa_created_by BEX_PRODUCT_QUESTION.PQA_CREATED_BY%TYPE,
+    pqa_updated_by BEX_PRODUCT_QUESTION.PQA_UPDATED_BY%TYPE);
+  TYPE t_table IS TABLE OF t_row INDEX BY PLS_INTEGER;
+  PROCEDURE insert_row(p t_row,o_id OUT NUMBER);
+  FUNCTION get_by_id(p_id NUMBER) RETURN t_row;
+  FUNCTION get_by_public_id(p VARCHAR2) RETURN t_row;
+  FUNCTION list_by_product(p_product NUMBER,p_status VARCHAR2 DEFAULT NULL) RETURN t_table;
+  PROCEDURE lock_by_id(p_id NUMBER);
+  PROCEDURE answer_row(p_id NUMBER,p_profile NUMBER,p_text VARCHAR2,p_actor NUMBER,o_updated OUT BOOLEAN);
+  PROCEDURE update_status(p_id NUMBER,p_status VARCHAR2,p_actor NUMBER,o_updated OUT BOOLEAN);
+END pqa_repository_pkg;
+/

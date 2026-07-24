@@ -271,12 +271,13 @@ O núcleo do Catálogo está implementado e validado no Oracle:
 - CATEGORY: DDL, Rule, Repository, Service, API e suíte consolidada;
 - BRAND: DDL, Rule, Repository, Service, API e suíte consolidada;
 - PRODUCT: DDL, Rule, Repository, Service, API e suíte consolidada;
-- PRODUCT_IMAGE: contrato físico e teste estrutural;
-- PRODUCT_QUESTION: contrato físico e teste estrutural.
+- PRODUCT_IMAGE: DDL, Rule, Repository, Service, API e suíte consolidada;
+- PRODUCT_QUESTION: DDL, Rule, Repository, Service, API e suíte consolidada.
 
 PRODUCT usa Public ID em todas as fronteiras externas, autorização centralizada
 em STORE, classificação ativa resolvida pelos Services responsáveis, locking
 nas escritas e transação exclusivamente na API.
 
-Os próximos ciclos do Catálogo poderão implementar os packages de
-PRODUCT_IMAGE e PRODUCT_QUESTION sem alterar o núcleo já publicado.
+Com as duas entidades de suporte implementadas, o módulo Catálogo não possui
+pendências internas no escopo contratado. Novas capacidades exigirão ciclo e
+contrato próprios.

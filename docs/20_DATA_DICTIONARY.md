@@ -1935,15 +1935,18 @@ possuem foreign key para PROFILE.
 
 ## Packages Oracle
 
-- PIM_API_PKG
 - PIM_RULE_PKG
+- PIM_REPOSITORY_PKG
+- PIM_SERVICE_PKG
+- PIM_API_PKG
 
 ## APIs
 
 - GET /product-images
 - GET /product-images/{publicId}
 - POST /product-images
-- PUT /product-images/{publicId}
+- PATCH /product-images/{publicId}
+- POST /product-images/{publicId}/deactivate
 
 ## Flutter
 
@@ -2062,15 +2065,18 @@ resposta são todos nulos ou todos preenchidos. A foreign key composta
 
 ## Packages Oracle
 
-- PQA_API_PKG
 - PQA_RULE_PKG
+- PQA_REPOSITORY_PKG
+- PQA_SERVICE_PKG
+- PQA_API_PKG
 
 ## APIs
 
 - GET /product-questions
 - GET /product-questions/{publicId}
 - POST /product-questions
-- PUT /product-questions/{publicId}
+- POST /product-questions/{publicId}/answer
+- POST /product-questions/{publicId}/moderate
 
 ## Flutter
 

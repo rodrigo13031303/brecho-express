@@ -19,6 +19,11 @@ CREATE OR REPLACE PACKAGE prd_service_pkg AS
     updated_at BEX_PRODUCT.PRD_UPDATED_AT%TYPE
   );
   TYPE t_product_table IS TABLE OF t_product_record INDEX BY PLS_INTEGER;
+  TYPE t_product_identity IS RECORD (
+    product_id BEX_PRODUCT.PRD_ID%TYPE,
+    store_id BEX_PRODUCT.STR_ID%TYPE,
+    status BEX_PRODUCT.PRD_STATUS%TYPE
+  );
 
   e_product_not_found EXCEPTION; e_invalid_product EXCEPTION;
   e_invalid_status EXCEPTION; e_invalid_transition EXCEPTION;
@@ -72,5 +77,16 @@ CREATE OR REPLACE PACKAGE prd_service_pkg AS
     p_new_status BEX_PRODUCT.PRD_STATUS%TYPE,
     p_actor_id BEX_ACCOUNT.ACC_ID%TYPE
   ) RETURN t_product_record;
+  FUNCTION resolve_product_identity(
+    p_product_public_id BEX_PRODUCT.PRD_PUBLIC_ID%TYPE
+  ) RETURN t_product_identity;
+  FUNCTION resolve_catalog_product_identity(
+    p_product_public_id BEX_PRODUCT.PRD_PUBLIC_ID%TYPE,
+    p_store_public_id BEX_STORE.STR_PUBLIC_ID%TYPE,
+    p_actor_id BEX_ACCOUNT.ACC_ID%TYPE
+  ) RETURN t_product_identity;
+  FUNCTION resolve_product_public_id(
+    p_product_id BEX_PRODUCT.PRD_ID%TYPE
+  ) RETURN BEX_PRODUCT.PRD_PUBLIC_ID%TYPE;
 END prd_service_pkg;
 /
