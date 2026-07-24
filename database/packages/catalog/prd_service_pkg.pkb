@@ -235,6 +235,7 @@ CREATE OR REPLACE PACKAGE BODY prd_service_pkg AS
   BEGIN
     p:=get_internal(p_product_public_id);
     r.product_id:=p.prd_id; r.store_id:=p.str_id; r.status:=p.prd_status;
+    r.unit_price:=p.prd_price;r.available_quantity:=p.prd_quantity;
     RETURN r;
   END;
 
@@ -261,6 +262,20 @@ CREATE OR REPLACE PACKAGE BODY prd_service_pkg AS
     l_product:=prd_repository_pkg.get_by_id(p_product_id);
     RETURN l_product.prd_public_id;
   EXCEPTION WHEN NO_DATA_FOUND THEN RAISE e_product_not_found;
+  END;
+
+  FUNCTION resolve_available_product(
+    p_product_public_id BEX_PRODUCT.PRD_PUBLIC_ID%TYPE,
+    p_requested_quantity NUMBER
+  ) RETURN t_product_identity IS r t_product_identity;
+  BEGIN
+    r:=resolve_product_identity(p_product_public_id);
+    IF r.status<>prd_rule_pkg.c_status_active OR p_requested_quantity IS NULL
+       OR p_requested_quantity<=0 OR p_requested_quantity<>TRUNC(p_requested_quantity)
+       OR r.available_quantity<p_requested_quantity THEN
+      RAISE e_invalid_product;
+    END IF;
+    RETURN r;
   END;
 END prd_service_pkg;
 /

@@ -2602,7 +2602,8 @@ Compra
 | CRT_CREATED_BY | NUMBER | Não |
 | CRT_UPDATED_BY | NUMBER | Não |
 
-CRT_CREATED_BY e CRT_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+CRT_CREATED_BY e CRT_UPDATED_BY são identificadores técnicos de auditoria e não
+possuem foreign key. A participação de domínio é protegida por PFL_ID.
 
 ## Índices
 
@@ -2610,10 +2611,13 @@ CRT_CREATED_BY e CRT_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações
 - UK_CART_PUBLIC_ID
 - IDX_CART_PROFILE
 - IDX_CART_STATUS
+- UK_CART_ACTIVE_PROFILE
 
 ## Packages Oracle
 
 - CRT_API_PKG
+- CRT_SERVICE_PKG
+- CRT_REPOSITORY_PKG
 - CRT_RULE_PKG
 
 ## APIs
@@ -2711,7 +2715,9 @@ Compra
 | CTI_CREATED_BY | NUMBER | Não |
 | CTI_UPDATED_BY | NUMBER | Não |
 
-CTI_CREATED_BY e CTI_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+CTI_CREATED_BY e CTI_UPDATED_BY são identificadores técnicos de auditoria e não
+possuem foreign key. O PRODUCT e sua STORE são protegidos por foreign key
+composta.
 
 ## Índices
 
@@ -2721,11 +2727,14 @@ CTI_CREATED_BY e CTI_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações
 - IDX_CART_ITEM_PRODUCT
 - IDX_CART_ITEM_STORE
 - IDX_CART_ITEM_STATUS
+- UK_CART_ITEM_ACTIVE_PRODUCT
 
 ## Packages Oracle
 
-- CTI_API_PKG
-- CTI_RULE_PKG
+- CRT_API_PKG
+- CRT_SERVICE_PKG
+- CRT_REPOSITORY_PKG
+- CRT_RULE_PKG
 
 ## APIs
 
@@ -2816,7 +2825,7 @@ Compra
 | PUR_ID | NUMBER Identity | Sim |
 | PUR_PUBLIC_ID | CHAR(32) | Sim |
 | PFL_ID | NUMBER | Sim |
-| PUR_STATUS | VARCHAR2(20) | Sim |
+| PUR_STATUS | VARCHAR2(30) | Sim |
 | PUR_REQUESTED_AT | TIMESTAMP | Sim |
 | PUR_CONFIRMED_AT | TIMESTAMP | Não |
 | PUR_RESPONSE_AT | TIMESTAMP | Não |
@@ -2826,7 +2835,8 @@ Compra
 | PUR_CREATED_BY | NUMBER | Não |
 | PUR_UPDATED_BY | NUMBER | Não |
 
-PUR_CREATED_BY e PUR_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+PUR_CREATED_BY e PUR_UPDATED_BY são identificadores técnicos de auditoria e não
+possuem foreign key. A participação de domínio é protegida por PFL_ID.
 
 ## Índices
 
@@ -2839,6 +2849,8 @@ PUR_CREATED_BY e PUR_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações
 ## Packages Oracle
 
 - PUR_API_PKG
+- PUR_SERVICE_PKG
+- PUR_REPOSITORY_PKG
 - PUR_RULE_PKG
 
 ## APIs
@@ -2932,27 +2944,31 @@ Compra
 | PRI_CONFIRMED_QUANTITY | NUMBER | Não |
 | PRI_UNIT_PRICE | NUMBER(12,2) | Sim |
 | PRI_REJECT_REASON | VARCHAR2(500) | Não |
-| PRI_STATUS | VARCHAR2(20) | Sim |
+| PRI_STATUS | VARCHAR2(30) | Sim |
 | PRI_CREATED_AT | TIMESTAMP | Sim |
 | PRI_UPDATED_AT | TIMESTAMP | Sim |
 | PRI_CREATED_BY | NUMBER | Não |
 | PRI_UPDATED_BY | NUMBER | Não |
 
-PRI_CREATED_BY e PRI_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+PRI_CREATED_BY e PRI_UPDATED_BY são identificadores técnicos de auditoria e não
+possuem foreign key. O PRODUCT e sua STORE são protegidos por foreign key
+composta.
 
 ## Índices
 
 - PK_PURCHASE_REQUEST_ITEM
 - UK_PURCHASE_REQUEST_ITEM_PUBLIC_ID
-- IDX_PURCHASE_REQUEST_ITEM_PURCHASE_REQUEST
+- IDX_PURCHASE_REQUEST_ITEM_REQUEST
 - IDX_PURCHASE_REQUEST_ITEM_PRODUCT
 - IDX_PURCHASE_REQUEST_ITEM_STORE
 - IDX_PURCHASE_REQUEST_ITEM_STATUS
 
 ## Packages Oracle
 
-- PRI_API_PKG
-- PRI_RULE_PKG
+- PUR_API_PKG
+- PUR_SERVICE_PKG
+- PUR_REPOSITORY_PKG
+- PUR_RULE_PKG
 
 ## APIs
 

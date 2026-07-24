@@ -22,7 +22,9 @@ CREATE OR REPLACE PACKAGE prd_service_pkg AS
   TYPE t_product_identity IS RECORD (
     product_id BEX_PRODUCT.PRD_ID%TYPE,
     store_id BEX_PRODUCT.STR_ID%TYPE,
-    status BEX_PRODUCT.PRD_STATUS%TYPE
+    status BEX_PRODUCT.PRD_STATUS%TYPE,
+    unit_price BEX_PRODUCT.PRD_PRICE%TYPE,
+    available_quantity BEX_PRODUCT.PRD_QUANTITY%TYPE
   );
 
   e_product_not_found EXCEPTION; e_invalid_product EXCEPTION;
@@ -88,5 +90,9 @@ CREATE OR REPLACE PACKAGE prd_service_pkg AS
   FUNCTION resolve_product_public_id(
     p_product_id BEX_PRODUCT.PRD_ID%TYPE
   ) RETURN BEX_PRODUCT.PRD_PUBLIC_ID%TYPE;
+  FUNCTION resolve_available_product(
+    p_product_public_id BEX_PRODUCT.PRD_PUBLIC_ID%TYPE,
+    p_requested_quantity NUMBER
+  ) RETURN t_product_identity;
 END prd_service_pkg;
 /

@@ -178,6 +178,96 @@ Table BEX_PRODUCT_QUESTION {
   PQA_UPDATED_BY bigint
 }
 
+Table BEX_CART {
+  CRT_ID bigint [pk, increment]
+  CRT_PUBLIC_ID char(32) [not null, unique]
+  PFL_ID bigint [not null]
+  CRT_STATUS varchar(20) [not null, default: 'ACTIVE']
+  CRT_EXPIRES_AT timestamp
+  CRT_CREATED_AT timestamp [not null, default: `SYSTIMESTAMP`]
+  CRT_UPDATED_AT timestamp [not null, default: `SYSTIMESTAMP`]
+  CRT_CREATED_BY bigint
+  CRT_UPDATED_BY bigint
+
+  indexes {
+    PFL_ID [name: 'IDX_CART_PROFILE']
+    CRT_STATUS [name: 'IDX_CART_STATUS']
+    (`CASE WHEN CRT_STATUS = 'ACTIVE' THEN PFL_ID END`) [unique, name: 'UK_CART_ACTIVE_PROFILE']
+  }
+
+  Note: 'Temporary multi-store purchase intention without stock reservation.'
+}
+
+Table BEX_CART_ITEM {
+  CTI_ID bigint [pk, increment]
+  CTI_PUBLIC_ID char(32) [not null, unique]
+  CRT_ID bigint [not null]
+  PRD_ID bigint [not null]
+  STR_ID bigint [not null]
+  CTI_QUANTITY bigint [not null]
+  CTI_UNIT_PRICE decimal(12,2) [not null]
+  CTI_STATUS varchar(20) [not null, default: 'ACTIVE']
+  CTI_CREATED_AT timestamp [not null, default: `SYSTIMESTAMP`]
+  CTI_UPDATED_AT timestamp [not null, default: `SYSTIMESTAMP`]
+  CTI_CREATED_BY bigint
+  CTI_UPDATED_BY bigint
+
+  indexes {
+    CRT_ID [name: 'IDX_CART_ITEM_CART']
+    PRD_ID [name: 'IDX_CART_ITEM_PRODUCT']
+    STR_ID [name: 'IDX_CART_ITEM_STORE']
+    CTI_STATUS [name: 'IDX_CART_ITEM_STATUS']
+    (`CASE WHEN CTI_STATUS = 'ACTIVE' THEN CRT_ID END`, `CASE WHEN CTI_STATUS = 'ACTIVE' THEN PRD_ID END`) [unique, name: 'UK_CART_ITEM_ACTIVE_PRODUCT']
+  }
+}
+
+Table BEX_PURCHASE_REQUEST {
+  PUR_ID bigint [pk, increment]
+  PUR_PUBLIC_ID char(32) [not null, unique]
+  PFL_ID bigint [not null]
+  PUR_STATUS varchar(30) [not null, default: 'PENDING']
+  PUR_REQUESTED_AT timestamp [not null, default: `SYSTIMESTAMP`]
+  PUR_CONFIRMED_AT timestamp
+  PUR_RESPONSE_AT timestamp
+  PUR_EXPIRES_AT timestamp
+  PUR_CREATED_AT timestamp [not null, default: `SYSTIMESTAMP`]
+  PUR_UPDATED_AT timestamp [not null, default: `SYSTIMESTAMP`]
+  PUR_CREATED_BY bigint
+  PUR_UPDATED_BY bigint
+
+  indexes {
+    PFL_ID [name: 'IDX_PURCHASE_REQUEST_PROFILE']
+    PUR_STATUS [name: 'IDX_PURCHASE_REQUEST_STATUS']
+    PUR_REQUESTED_AT [name: 'IDX_PURCHASE_REQUEST_REQUESTED_AT']
+  }
+
+  Note: 'Multi-store commercial availability request.'
+}
+
+Table BEX_PURCHASE_REQUEST_ITEM {
+  PRI_ID bigint [pk, increment]
+  PRI_PUBLIC_ID char(32) [not null, unique]
+  PUR_ID bigint [not null]
+  PRD_ID bigint [not null]
+  STR_ID bigint [not null]
+  PRI_REQUESTED_QUANTITY bigint [not null]
+  PRI_CONFIRMED_QUANTITY bigint
+  PRI_UNIT_PRICE decimal(12,2) [not null]
+  PRI_REJECT_REASON varchar(500)
+  PRI_STATUS varchar(30) [not null, default: 'PENDING']
+  PRI_CREATED_AT timestamp [not null, default: `SYSTIMESTAMP`]
+  PRI_UPDATED_AT timestamp [not null, default: `SYSTIMESTAMP`]
+  PRI_CREATED_BY bigint
+  PRI_UPDATED_BY bigint
+
+  indexes {
+    PUR_ID [name: 'IDX_PURCHASE_REQUEST_ITEM_REQUEST']
+    PRD_ID [name: 'IDX_PURCHASE_REQUEST_ITEM_PRODUCT']
+    STR_ID [name: 'IDX_PURCHASE_REQUEST_ITEM_STORE']
+    PRI_STATUS [name: 'IDX_PURCHASE_REQUEST_ITEM_STATUS']
+  }
+}
+
 Ref: BEX_PROFILE.ACC_ID > BEX_ACCOUNT.ACC_ID
 Ref: BEX_STORE.ACC_ID > BEX_ACCOUNT.ACC_ID
 Ref: BEX_STORE_USER.STR_ID > BEX_STORE.STR_ID
@@ -191,3 +281,9 @@ Ref: BEX_PRODUCT_IMAGE.PRD_ID > BEX_PRODUCT.PRD_ID
 Ref: BEX_PRODUCT_QUESTION.[PRD_ID, STR_ID] > BEX_PRODUCT.[PRD_ID, STR_ID]
 Ref: BEX_PRODUCT_QUESTION.PFL_QUESTION_BY > BEX_PROFILE.PFL_ID
 Ref: BEX_PRODUCT_QUESTION.PFL_ANSWERED_BY > BEX_PROFILE.PFL_ID
+Ref: BEX_CART.PFL_ID > BEX_PROFILE.PFL_ID
+Ref: BEX_CART_ITEM.CRT_ID > BEX_CART.CRT_ID
+Ref: BEX_CART_ITEM.[PRD_ID, STR_ID] > BEX_PRODUCT.[PRD_ID, STR_ID]
+Ref: BEX_PURCHASE_REQUEST.PFL_ID > BEX_PROFILE.PFL_ID
+Ref: BEX_PURCHASE_REQUEST_ITEM.PUR_ID > BEX_PURCHASE_REQUEST.PUR_ID
+Ref: BEX_PURCHASE_REQUEST_ITEM.[PRD_ID, STR_ID] > BEX_PRODUCT.[PRD_ID, STR_ID]

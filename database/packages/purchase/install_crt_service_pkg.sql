@@ -1,0 +1,20 @@
+WHENEVER SQLERROR EXIT SQL.SQLCODE
+SET DEFINE OFF
+PROMPT Installing CRT_SERVICE_PKG...
+@@crt_service_pkg.pks
+SHOW ERRORS PACKAGE crt_service_pkg
+@@crt_service_pkg.pkb
+SHOW ERRORS PACKAGE BODY crt_service_pkg
+DECLARE
+  l_errors PLS_INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO l_errors
+    FROM USER_ERRORS
+   WHERE NAME='CRT_SERVICE_PKG'
+     AND TYPE IN('PACKAGE','PACKAGE BODY');
+  IF l_errors>0 THEN
+    RAISE_APPLICATION_ERROR(-20999,'CRT_SERVICE_PKG possui erros.');
+  END IF;
+END;
+/
+PROMPT CRT_SERVICE_PKG installed successfully.
