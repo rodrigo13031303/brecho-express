@@ -149,12 +149,12 @@ STORE.
 | `update_by_public_id` | Atualizar dados básicos; proprietário autenticado | loja editável, PATCH válido; retorna estado atualizado | inexistente, atualização vazia, campo inválido/imutável | Escrita | Rule, Repository | Sim |
 | `activate_by_public_id` | Publicar loja; proprietário autenticado | estado e dados mínimos válidos, ACCOUNT ativa | transição inválida, conta inativa | Escrita | `ACC_SERVICE_PKG`, Rule, Repository | Sim |
 | `close_by_public_id` | Encerrar loja; proprietário autenticado | loja não fechada; preserva histórico | inexistente, já fechada, transição inválida | Escrita | Rule, Repository | Sim |
-| `add_member` | Adicionar membro; proprietário ou ADMIN autenticado | STORE e ACCOUNT existentes; cria vínculo ACTIVE | não autorizado, papel inválido, vínculo ACTIVE existente | Escrita | `STU_SERVICE_PKG` | Próxima implementação |
-| `list_members` | Listar membros; proprietário ou ADMIN autenticado | STORE existente e ator autorizado; lista possivelmente vazia | não autorizado | Consulta | `STU_SERVICE_PKG` | Próxima implementação |
-| `get_member` | Consultar membro da STORE; proprietário ou ADMIN autenticado | vínculo pertence à STORE | não autorizado, membro inexistente | Consulta | `STU_SERVICE_PKG` | Próxima implementação |
-| `change_member_role` | Alterar papel operacional; proprietário ou ADMIN autenticado | papel válido e preserva último ADMIN ACTIVE | não autorizado, membro inexistente, último ADMIN | Escrita | `STU_SERVICE_PKG` | Próxima implementação |
-| `activate_member` | Reativar vínculo; proprietário ou ADMIN autenticado | não existe outro vínculo ACTIVE da combinação | não autorizado, transição inválida, duplicidade | Escrita | `STU_SERVICE_PKG` | Próxima implementação |
-| `deactivate_member` | Inativar vínculo; proprietário ou ADMIN autenticado | preserva último ADMIN ACTIVE | não autorizado, transição inválida, último ADMIN | Escrita | `STU_SERVICE_PKG` | Próxima implementação |
+| `add_member` | Adicionar membro; proprietário ou ADMIN autenticado | STORE e ACCOUNT existentes; cria vínculo ACTIVE | não autorizado, papel inválido, vínculo ACTIVE existente | Escrita | `STU_SERVICE_PKG` | Sim |
+| `list_members` | Listar membros; proprietário ou ADMIN autenticado | STORE existente e ator autorizado; lista possivelmente vazia | não autorizado | Consulta | `STU_SERVICE_PKG` | Sim |
+| `get_member` | Consultar membro da STORE; proprietário ou ADMIN autenticado | vínculo pertence à STORE | não autorizado, membro inexistente | Consulta | `STU_SERVICE_PKG` | Sim |
+| `change_member_role` | Alterar papel operacional; proprietário ou ADMIN autenticado | papel válido e preserva último ADMIN ACTIVE | não autorizado, membro inexistente, último ADMIN | Escrita | `STU_SERVICE_PKG` | Sim |
+| `activate_member` | Reativar vínculo; proprietário ou ADMIN autenticado | não existe outro vínculo ACTIVE da combinação | não autorizado, transição inválida, duplicidade | Escrita | `STU_SERVICE_PKG` | Sim |
+| `deactivate_member` | Inativar vínculo; proprietário ou ADMIN autenticado | preserva último ADMIN ACTIVE | não autorizado, transição inválida, último ADMIN | Escrita | `STU_SERVICE_PKG` | Sim |
 | `suspend_by_public_id` | Suspender administrativamente | ator administrativo e motivo ainda não definidos | não autorizado, transição inválida | Escrita | autorização futura, Rule, Repository | Não; pendente |
 
 ## 16. Arquitetura em camadas
@@ -395,8 +395,10 @@ Nenhuma pendência autoriza improvisação durante a implementação.
 
 Este documento deve ser lido em conjunto com `20_DATA_DICTIONARY.md`, `21_DATABASE_CONVENTIONS.md`, `26_PHYSICAL_ARCHITECTURE.md`, `27_API_STANDARDS.md`, `28_CORE_FRAMEWORK.md` e `31_API_RUNTIME_CONTRACT.md`. Em caso de conflito com documento hierarquicamente superior, a implementação deve parar para revisão.
 
-A estrutura física e as camadas internas de BEX_STORE_USER estão implementadas.
+A estrutura física, as camadas internas e a exposição administrativa de
+BEX_STORE_USER por STR_API_PKG estão implementadas e cobertas pela suíte
+consolidada do módulo STORE.
 ACCOUNT permanece como identidade estrutural e operacional, enquanto PROFILE
 é exclusivamente um repositório de dados pessoais, sem participação estrutural
-em STORE ou STORE_USER. A exposição administrativa seguirá
+em STORE ou STORE_USER. O contrato administrativo implementado segue
 `ADR-018_STORE_MEMBER_ADMINISTRATION.md`.
