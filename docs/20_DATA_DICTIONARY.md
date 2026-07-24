@@ -68,6 +68,9 @@ O documento abaixo organiza as entidades por módulos de negócio, preservando a
 - NOTIFICATION
 - ACTIVITY_LOG
 
+### CONFIGURAÇÃO DE NEGÓCIO
+- BUSINESS_CONFIGURATION
+
 # PROFILE
 
 ## Ficha Técnica
@@ -4462,3 +4465,109 @@ STORE_REPUTATION representa uma visão consolidada e otimizada da confiança do 
 Ela separa percepção do cliente, confiança operacional, nível do Brechó e selos especiais.
 
 Ela deve ser tratada como uma consequência dos eventos e experiências da plataforma, nunca como substituta das avaliações individuais.
+
+# BUSINESS_CONFIGURATION
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | BUSINESS_CONFIGURATION |
+| Prefixo | BCF |
+| Tipo | CONFIGURATION |
+| Responsável | Plataforma |
+| Soft Delete | Sim |
+| Auditoria | Sim |
+| Exposto pela API | Não |
+| Cache | Sim |
+
+## Objetivo
+
+Representar políticas operacionais configuráveis da plataforma, permitindo ajustar
+regras sem alterar a estrutura do domínio sempre que possível.
+
+## Classificação
+
+CONFIGURATION
+
+## Responsabilidades
+
+- Centralizar políticas operacionais por módulo.
+- Permitir parametrização de prazos, limites, flags e valores padrão.
+- Servir como referência para compra, logística, catálogo, pós-venda, fidelização e social.
+- Manter rastreabilidade das alterações de política.
+
+## Não é responsabilidade
+
+- Armazenar dados transacionais de negócio.
+- Substituir as entidades permanentes do domínio.
+- Executar cálculos operacionais complexos.
+- Expor APIs públicas no MVP.
+
+## Dono da Informação
+
+Plataforma
+
+## Regras de Negócio
+
+- RN-001 — Toda política pertence a um código único.
+- RN-002 — Uma política pode ser parametrizada por módulo.
+- RN-003 — A política deve suportar valor textual, numérico ou booleano.
+- RN-004 — A política pode possuir unidade de medida.
+- RN-005 — A política deve possuir status para ativação e inativação.
+- RN-006 — Alterações devem ser auditáveis.
+- RN-007 — A política não substitui regras de domínio imutáveis.
+
+## Relacionamentos
+
+- Nenhum relacionamento estrutural obrigatório no MVP.
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| BCF_ID | NUMBER Identity | Sim |
+| BCF_PUBLIC_ID | CHAR(32) | Sim |
+| BCF_CODE | VARCHAR2(100) | Sim |
+| BCF_MODULE | VARCHAR2(50) | Sim |
+| BCF_NAME | VARCHAR2(150) | Sim |
+| BCF_DESCRIPTION | VARCHAR2(1000) | Não |
+| BCF_VALUE_TEXT | VARCHAR2(4000) | Não |
+| BCF_VALUE_NUMBER | NUMBER | Não |
+| BCF_VALUE_BOOLEAN | CHAR(1) | Não |
+| BCF_UNIT | VARCHAR2(50) | Não |
+| BCF_STATUS | VARCHAR2(20) | Sim |
+| BCF_CREATED_AT | TIMESTAMP | Sim |
+| BCF_UPDATED_AT | TIMESTAMP | Sim |
+| BCF_CREATED_BY | NUMBER | Não |
+| BCF_UPDATED_BY | NUMBER | Não |
+
+BCF_CREATED_BY e BCF_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações
+automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+
+## Índices
+
+- PK_BUSINESS_CONFIGURATION
+- UK_BUSINESS_CONFIGURATION_PUBLIC_ID
+- UK_BUSINESS_CONFIGURATION_CODE
+- IDX_BUSINESS_CONFIGURATION_MODULE
+- IDX_BUSINESS_CONFIGURATION_STATUS
+
+## Packages Oracle
+
+- BCF_RULE_PKG
+- BCF_REPOSITORY_PKG
+- BCF_SERVICE_PKG
+
+## APIs
+
+Nenhuma API pública prevista no MVP.
+
+## Flutter
+
+Uso interno para administração futura.
+
+## Observações
+
+BUSINESS_CONFIGURATION representa a base comum de políticas do Brechó Express.
+Ela deve crescer com cuidado, evitando virar depósito genérico sem governança.
