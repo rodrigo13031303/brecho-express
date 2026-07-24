@@ -381,6 +381,10 @@ Uso interno para controle de associação de papéis e permissões.
 
 PROFILE_ROLE é uma entidade de suporte, com papel estrutural no relacionamento entre Profile e Role, e deve ser tratada como uma associação com rastreio e potencial evolução.
 
+No contrato inicial, revogação utiliza PRL_STATUS `INACTIVE` e uma concessão
+posterior reativa a mesma associação `(PFL_ID, ROL_ID)`. Uma associação expirada
+não concede autorização, ainda que permaneça registrada para auditoria.
+
 # ACCOUNT
 
 ## Ficha Técnica
