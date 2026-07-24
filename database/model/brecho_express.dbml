@@ -94,6 +94,25 @@ Table BEX_CATEGORY {
   Note: 'Official classification used to organize catalog products.'
 }
 
+Table BEX_BRAND {
+  BRD_ID bigint [pk, increment]
+  BRD_PUBLIC_ID char(32) [not null, unique]
+  BRD_NAME varchar(200) [not null]
+  BRD_SLUG varchar(120) [not null, unique]
+  BRD_DESCRIPTION varchar(1000)
+  BRD_STATUS varchar(20) [not null, default: 'ACTIVE', note: 'ACTIVE or INACTIVE']
+  BRD_CREATED_AT timestamp [not null, default: `SYSTIMESTAMP`]
+  BRD_CREATED_BY bigint
+  BRD_UPDATED_AT timestamp [not null, default: `SYSTIMESTAMP`]
+  BRD_UPDATED_BY bigint
+
+  indexes {
+    BRD_STATUS [name: 'IDX_BRAND_STATUS']
+  }
+
+  Note: 'Official brand reference used to classify catalog products.'
+}
+
 Table BEX_PRODUCT {
   PRD_ID bigint [pk, increment]
   STR_ID bigint
