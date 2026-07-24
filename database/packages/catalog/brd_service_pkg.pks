@@ -27,5 +27,7 @@ CREATE OR REPLACE PACKAGE brd_service_pkg AS
     RETURN t_brand_table;
   FUNCTION resolve_active_brand_id(p_public_id BEX_BRAND.BRD_PUBLIC_ID%TYPE)
     RETURN BEX_BRAND.BRD_ID%TYPE;
+  FUNCTION resolve_brand_public_id(p_brand_id BEX_BRAND.BRD_ID%TYPE)
+    RETURN BEX_BRAND.BRD_PUBLIC_ID%TYPE;
 END brd_service_pkg;
 /

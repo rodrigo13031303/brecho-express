@@ -117,5 +117,18 @@ CREATE OR REPLACE PACKAGE BODY cat_service_pkg AS
     END IF;
     RETURN l_record.cat_id;
   END resolve_active_category_id;
+
+  FUNCTION resolve_category_public_id(
+    p_category_id IN BEX_CATEGORY.CAT_ID%TYPE
+  ) RETURN BEX_CATEGORY.CAT_PUBLIC_ID%TYPE IS
+    l_record cat_repository_pkg.t_category_record;
+  BEGIN
+    BEGIN
+      l_record := cat_repository_pkg.get_by_id(p_category_id);
+    EXCEPTION
+      WHEN NO_DATA_FOUND THEN RAISE e_category_not_found;
+    END;
+    RETURN l_record.cat_public_id;
+  END resolve_category_public_id;
 END cat_service_pkg;
 /

@@ -45,5 +45,9 @@ CREATE OR REPLACE PACKAGE cat_service_pkg AS
   FUNCTION resolve_active_category_id(
     p_public_id IN BEX_CATEGORY.CAT_PUBLIC_ID%TYPE
   ) RETURN BEX_CATEGORY.CAT_ID%TYPE;
+
+  FUNCTION resolve_category_public_id(
+    p_category_id IN BEX_CATEGORY.CAT_ID%TYPE
+  ) RETURN BEX_CATEGORY.CAT_PUBLIC_ID%TYPE;
 END cat_service_pkg;
 /

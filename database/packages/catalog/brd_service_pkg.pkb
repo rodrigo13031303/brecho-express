@@ -68,5 +68,13 @@ CREATE OR REPLACE PACKAGE BODY brd_service_pkg AS
     END IF;
     RETURN p.brd_id;
   END;
+  FUNCTION resolve_brand_public_id(p_brand_id BEX_BRAND.BRD_ID%TYPE)
+    RETURN BEX_BRAND.BRD_PUBLIC_ID%TYPE IS
+    p brd_repository_pkg.t_brand_record;
+  BEGIN
+    BEGIN p:=brd_repository_pkg.get_by_id(p_brand_id);
+    EXCEPTION WHEN NO_DATA_FOUND THEN RAISE e_brand_not_found; END;
+    RETURN p.brd_public_id;
+  END;
 END brd_service_pkg;
 /

@@ -34,6 +34,10 @@ BEGIN
   ok(l_raised,'Status.');
   l_resolved:=brd_service_pkg.resolve_active_brand_id(l_pub1);
   ok(l_resolved=l_id1,'Resolve.');
+  ok(
+    TRIM(brd_service_pkg.resolve_brand_public_id(l_id1))=TRIM(l_pub1),
+    'Resolve Public ID.'
+  );
   l_raised:=FALSE;
   BEGIN l_resolved:=brd_service_pkg.resolve_active_brand_id(l_pub2);
   EXCEPTION WHEN brd_service_pkg.e_brand_inactive THEN l_raised:=SQLCODE=-20771; END;

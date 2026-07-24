@@ -5,7 +5,7 @@ WHENEVER SQLERROR EXIT SQL.SQLCODE
 DECLARE
   g_count        PLS_INTEGER := 0;
   g_current_test VARCHAR2(200);
-  c_expected     CONSTANT PLS_INTEGER := 21;
+  c_expected     CONSTANT PLS_INTEGER := 22;
 
   l_active_id       BEX_CATEGORY.CAT_ID%TYPE;
   l_inactive_id     BEX_CATEGORY.CAT_ID%TYPE;
@@ -193,6 +193,13 @@ BEGIN
   start_test('RESOLVE_ACTIVE_CATEGORY_ID retorna identidade interna');
   l_resolved_id:=cat_service_pkg.resolve_active_category_id(l_active_public);
   assert_true(l_resolved_id=l_active_id,'ID resolvido incorreto.'); pass;
+
+  start_test('RESOLVE_CATEGORY_PUBLIC_ID retorna identidade publica');
+  assert_true(
+    TRIM(cat_service_pkg.resolve_category_public_id(l_active_id))=
+      TRIM(l_active_public),
+    'Public ID resolvido incorreto.'
+  ); pass;
 
   start_test('RESOLVE_ACTIVE_CATEGORY_ID rejeita INACTIVE');
   l_raised:=FALSE;
