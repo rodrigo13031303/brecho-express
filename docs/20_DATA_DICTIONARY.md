@@ -2187,7 +2187,8 @@ SBT_CREATED_BY e SBT_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações
 
 ## Packages Oracle
 
-- SBT_API_PKG
+- SBT_SERVICE_PKG
+- SBT_REPOSITORY_PKG
 - SBT_RULE_PKG
 
 ## APIs
@@ -2289,7 +2290,7 @@ SBL_CREATED_BY e SBL_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações
 ## Packages Oracle
 
 - SBL_API_PKG
-- SBL_RULE_PKG
+- SBL_QUERY_PKG
 
 ## APIs
 
@@ -2401,7 +2402,8 @@ COM_CREATED_BY e COM_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações
 
 ## Packages Oracle
 
-- COM_API_PKG
+- COM_SERVICE_PKG
+- COM_REPOSITORY_PKG
 - COM_RULE_PKG
 
 ## APIs
@@ -2506,6 +2508,8 @@ POT_CREATED_BY e POT_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações
 ## Packages Oracle
 
 - POT_API_PKG
+- POT_SERVICE_PKG
+- POT_REPOSITORY_PKG
 - POT_RULE_PKG
 
 ## APIs

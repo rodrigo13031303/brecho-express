@@ -372,6 +372,42 @@ Table BEX_PAYMENT_EVENT {
   PEV_STATUS varchar(20) [not null, default: 'RECEIVED']
 }
 
+Table BEX_COMMISSION {
+  COM_ID bigint [pk, increment]
+  COM_PUBLIC_ID char(32) [not null, unique]
+  STR_ID bigint [not null]
+  ORD_ID bigint [not null]
+  PAY_ID bigint [not null]
+  COM_BASE_AMOUNT decimal(12,2) [not null]
+  COM_COMMISSION_RATE decimal(5,2) [not null]
+  COM_COMMISSION_AMOUNT decimal(12,2) [not null]
+  COM_GATEWAY_FEE_AMOUNT decimal(12,2) [not null]
+  COM_NET_AMOUNT decimal(12,2) [not null]
+}
+
+Table BEX_PAYOUT {
+  POT_ID bigint [pk, increment]
+  POT_PUBLIC_ID char(32) [not null, unique]
+  STR_ID bigint [not null]
+  POT_AMOUNT decimal(12,2) [not null]
+  POT_PIX_KEY varchar(200) [not null]
+  POT_PIX_KEY_TYPE varchar(20) [not null]
+  POT_STATUS varchar(20) [not null]
+}
+
+Table BEX_STORE_BALANCE_TRANSACTION {
+  SBT_ID bigint [pk, increment]
+  SBT_PUBLIC_ID char(32) [not null, unique]
+  STR_ID bigint [not null]
+  ORD_ID bigint
+  PAY_ID bigint
+  POT_ID bigint
+  SBT_TYPE varchar(50) [not null]
+  SBT_AMOUNT decimal(12,2) [not null]
+  SBT_DIRECTION varchar(10) [not null]
+  SBT_STATUS varchar(20) [not null]
+}
+
 Ref: BEX_PROFILE.ACC_ID > BEX_ACCOUNT.ACC_ID
 Ref: BEX_STORE.ACC_ID > BEX_ACCOUNT.ACC_ID
 Ref: BEX_STORE_USER.STR_ID > BEX_STORE.STR_ID
@@ -407,3 +443,11 @@ Ref: BEX_PAYMENT.PUR_ID > BEX_PURCHASE_REQUEST.PUR_ID
 Ref: BEX_PAYMENT.ORD_ID > BEX_ORDER.ORD_ID
 Ref: BEX_PAYMENT.PPR_ID > BEX_PAYMENT_PROVIDER.PPR_ID
 Ref: BEX_PAYMENT_EVENT.PAY_ID > BEX_PAYMENT.PAY_ID
+Ref: BEX_COMMISSION.STR_ID > BEX_STORE.STR_ID
+Ref: BEX_COMMISSION.ORD_ID > BEX_ORDER.ORD_ID
+Ref: BEX_COMMISSION.PAY_ID > BEX_PAYMENT.PAY_ID
+Ref: BEX_PAYOUT.STR_ID > BEX_STORE.STR_ID
+Ref: BEX_STORE_BALANCE_TRANSACTION.STR_ID > BEX_STORE.STR_ID
+Ref: BEX_STORE_BALANCE_TRANSACTION.ORD_ID > BEX_ORDER.ORD_ID
+Ref: BEX_STORE_BALANCE_TRANSACTION.PAY_ID > BEX_PAYMENT.PAY_ID
+Ref: BEX_STORE_BALANCE_TRANSACTION.POT_ID > BEX_PAYOUT.POT_ID

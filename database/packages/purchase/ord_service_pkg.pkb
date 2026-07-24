@@ -41,5 +41,15 @@ CREATE OR REPLACE PACKAGE BODY ord_service_pkg AS
   BEGIN o:=get_internal(p_public);BEGIN ord_rule_pkg.validate_transition(o.ord_status,UPPER(TRIM(p_status)));
     EXCEPTION WHEN ord_rule_pkg.e_invalid_transition THEN RAISE e_invalid;END;
     ord_repository_pkg.update_status(o.ord_id,UPPER(TRIM(p_status)),p_actor);RETURN map_order(ord_repository_pkg.by_id(o.ord_id));END;
+  FUNCTION settlement_source(p_order_id NUMBER) RETURN t_settlement_source IS
+    xs ord_repository_pkg.t_items;r t_settlement_source;i PLS_INTEGER;j PLS_INTEGER;
+    found BOOLEAN;o ord_repository_pkg.t_order;
+  BEGIN BEGIN o:=ord_repository_pkg.by_id(p_order_id);r.order_id:=o.ord_id;
+    EXCEPTION WHEN NO_DATA_FOUND THEN RAISE e_not_found;END;xs:=ord_repository_pkg.list_items(p_order_id);i:=xs.FIRST;
+    WHILE i IS NOT NULL LOOP found:=FALSE;j:=r.items.FIRST;WHILE j IS NOT NULL LOOP
+      IF r.items(j).store_id=xs(i).str_id THEN r.items(j).base_amount:=r.items(j).base_amount+xs(i).ori_total_price;
+        found:=TRUE;EXIT;END IF;j:=r.items.NEXT(j);END LOOP;
+      IF NOT found THEN r.items(r.items.COUNT+1).store_id:=xs(i).str_id;
+        r.items(r.items.COUNT).base_amount:=xs(i).ori_total_price;END IF;i:=xs.NEXT(i);END LOOP;RETURN r;END;
 END ord_service_pkg;
 /
