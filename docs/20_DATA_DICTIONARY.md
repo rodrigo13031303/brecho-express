@@ -1807,6 +1807,7 @@ Runtime Contract e não possuem foreign key para PROFILE.
 - PK_PRODUCT
 - UK_PRODUCT_PUBLIC_ID
 - UK_PRODUCT_STORE_SLUG
+- UK_PRODUCT_ID_STORE
 - IDX_PRODUCT_CATEGORY
 - IDX_PRODUCT_BRAND
 - IDX_PRODUCT_STATUS
@@ -1921,7 +1922,8 @@ Catálogo
 | PIM_CREATED_BY | NUMBER | Não |
 | PIM_UPDATED_BY | NUMBER | Não |
 
-PIM_CREATED_BY e PIM_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+PIM_CREATED_BY e PIM_UPDATED_BY armazenam o ator técnico confiável e não
+possuem foreign key para PROFILE.
 
 ## Índices
 
@@ -2040,7 +2042,13 @@ Catálogo
 | PQA_CREATED_BY | NUMBER | Não |
 | PQA_UPDATED_BY | NUMBER | Não |
 
-PQA_CREATED_BY e PQA_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+PQA_CREATED_BY e PQA_UPDATED_BY armazenam o ator técnico confiável e não
+possuem foreign key para PROFILE. PFL_QUESTION_BY e PFL_ANSWERED_BY são
+participantes do domínio e, por isso, referenciam PROFILE.
+
+PQA_STATUS aceita ACTIVE, HIDDEN e MODERATED. Resposta, autor e timestamp de
+resposta são todos nulos ou todos preenchidos. A foreign key composta
+(PRD_ID, STR_ID) garante que a STORE preservada seja a proprietária do PRODUCT.
 
 ## Índices
 

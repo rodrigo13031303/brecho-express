@@ -137,11 +137,45 @@ Table BEX_PRODUCT {
 
   indexes {
     (STR_ID, PRD_SLUG) [unique, name: 'UK_PRODUCT_STORE_SLUG']
+    (PRD_ID, STR_ID) [unique, name: 'UK_PRODUCT_ID_STORE']
     CAT_ID [name: 'IDX_PRODUCT_CATEGORY']
     BRD_ID [name: 'IDX_PRODUCT_BRAND']
     PRD_STATUS [name: 'IDX_PRODUCT_STATUS']
     PRD_PRICE [name: 'IDX_PRODUCT_PRICE']
   }
+}
+
+Table BEX_PRODUCT_IMAGE {
+  PIM_ID bigint [pk, increment]
+  PIM_PUBLIC_ID char(32) [not null, unique]
+  PRD_ID bigint [not null]
+  PIM_URL varchar(1000) [not null]
+  PIM_ALT_TEXT varchar(200)
+  PIM_SORT_ORDER bigint [not null]
+  PIM_IS_PRIMARY int [not null, default: 0]
+  PIM_STATUS varchar(20) [not null, default: 'ACTIVE']
+  PIM_CREATED_AT timestamp [not null, default: `SYSTIMESTAMP`]
+  PIM_UPDATED_AT timestamp [not null, default: `SYSTIMESTAMP`]
+  PIM_CREATED_BY bigint
+  PIM_UPDATED_BY bigint
+}
+
+Table BEX_PRODUCT_QUESTION {
+  PQA_ID bigint [pk, increment]
+  PQA_PUBLIC_ID char(32) [not null, unique]
+  PRD_ID bigint [not null]
+  STR_ID bigint [not null]
+  PFL_QUESTION_BY bigint [not null]
+  PFL_ANSWERED_BY bigint
+  PQA_QUESTION_TEXT varchar(4000) [not null]
+  PQA_ANSWER_TEXT varchar(4000)
+  PQA_ASKED_AT timestamp [not null, default: `SYSTIMESTAMP`]
+  PQA_ANSWERED_AT timestamp
+  PQA_STATUS varchar(20) [not null, default: 'ACTIVE']
+  PQA_CREATED_AT timestamp [not null, default: `SYSTIMESTAMP`]
+  PQA_UPDATED_AT timestamp [not null, default: `SYSTIMESTAMP`]
+  PQA_CREATED_BY bigint
+  PQA_UPDATED_BY bigint
 }
 
 Ref: BEX_PROFILE.ACC_ID > BEX_ACCOUNT.ACC_ID
@@ -153,3 +187,7 @@ Ref: BEX_STORE_USER.STU_UPDATED_BY > BEX_ACCOUNT.ACC_ID
 Ref: BEX_PRODUCT.STR_ID > BEX_STORE.STR_ID
 Ref: BEX_PRODUCT.CAT_ID > BEX_CATEGORY.CAT_ID
 Ref: BEX_PRODUCT.BRD_ID > BEX_BRAND.BRD_ID
+Ref: BEX_PRODUCT_IMAGE.PRD_ID > BEX_PRODUCT.PRD_ID
+Ref: BEX_PRODUCT_QUESTION.[PRD_ID, STR_ID] > BEX_PRODUCT.[PRD_ID, STR_ID]
+Ref: BEX_PRODUCT_QUESTION.PFL_QUESTION_BY > BEX_PROFILE.PFL_ID
+Ref: BEX_PRODUCT_QUESTION.PFL_ANSWERED_BY > BEX_PROFILE.PFL_ID
