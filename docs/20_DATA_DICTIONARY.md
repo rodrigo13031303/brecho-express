@@ -594,6 +594,8 @@ ADR_CREATED_BY e ADR_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações
 ## Packages Oracle
 
 - ADR_API_PKG
+- ADR_SERVICE_PKG
+- ADR_REPOSITORY_PKG
 - ADR_RULE_PKG
 
 ## APIs
@@ -3084,6 +3086,8 @@ ORD_CREATED_BY e ORD_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações
 ## Packages Oracle
 
 - ORD_API_PKG
+- ORD_SERVICE_PKG
+- ORD_REPOSITORY_PKG
 - ORD_RULE_PKG
 
 ## APIs
@@ -3319,6 +3323,8 @@ SHP_CREATED_BY e SHP_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações
 ## Packages Oracle
 
 - SHP_API_PKG
+- SHP_SERVICE_PKG
+- SHP_REPOSITORY_PKG
 - SHP_RULE_PKG
 
 ## APIs
@@ -3547,6 +3553,8 @@ DLP_CREATED_BY e DLP_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações
 ## Packages Oracle
 
 - DLP_API_PKG
+- DLP_SERVICE_PKG
+- DLP_REPOSITORY_PKG
 - DLP_RULE_PKG
 
 ## APIs

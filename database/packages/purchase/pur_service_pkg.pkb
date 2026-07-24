@@ -55,5 +55,16 @@ CREATE OR REPLACE PACKAGE BODY pur_service_pkg AS
       p_reject_reason,s,reason);EXCEPTION WHEN pur_rule_pkg.e_invalid_response THEN RAISE e_invalid_response;END;
     pur_repository_pkg.respond_item(x.pri_id,p_confirmed_quantity,reason,s,p_actor_id);
     recalc(r.pur_id,p_actor_id);RETURN map_request(pur_repository_pkg.get_request_by_id(r.pur_id));END;
+  FUNCTION get_order_source(p_request_public_id VARCHAR2) RETURN t_order_source IS
+    p pur_repository_pkg.t_request;xs pur_repository_pkg.t_items;r t_order_source;i PLS_INTEGER;
+  BEGIN p:=internal(p_request_public_id);
+    IF p.pur_status NOT IN('APPROVED','PARTIALLY_APPROVED') THEN RAISE e_request_closed;END IF;
+    r.request_id:=p.pur_id;r.profile_id:=p.pfl_id;xs:=pur_repository_pkg.list_items(p.pur_id);i:=xs.FIRST;
+    WHILE i IS NOT NULL LOOP IF NVL(xs(i).pri_confirmed_quantity,0)>0 THEN
+      r.items(r.items.COUNT+1).product_id:=xs(i).prd_id;
+      r.items(r.items.COUNT).store_id:=xs(i).str_id;
+      r.items(r.items.COUNT).quantity:=xs(i).pri_confirmed_quantity;
+      r.items(r.items.COUNT).unit_price:=xs(i).pri_unit_price;END IF;i:=xs.NEXT(i);END LOOP;
+    IF r.items.COUNT=0 THEN RAISE e_request_closed;END IF;RETURN r;END;
 END pur_service_pkg;
 /

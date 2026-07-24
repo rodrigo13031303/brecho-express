@@ -268,6 +268,78 @@ Table BEX_PURCHASE_REQUEST_ITEM {
   }
 }
 
+Table BEX_ADDRESS {
+  ADR_ID bigint [pk, increment]
+  ADR_PUBLIC_ID char(32) [not null, unique]
+  PFL_ID bigint [not null]
+  ADR_ZIP_CODE varchar(10) [not null]
+  ADR_STREET varchar(200) [not null]
+  ADR_NUMBER varchar(50) [not null]
+  ADR_DISTRICT varchar(100) [not null]
+  ADR_CITY varchar(100) [not null]
+  ADR_STATE char(2) [not null]
+  ADR_COUNTRY char(2) [not null, default: 'BR']
+  ADR_IS_DEFAULT int [not null, default: 0]
+  ADR_STATUS varchar(20) [not null, default: 'ACTIVE']
+}
+
+Table BEX_DELIVERY_PROFILE {
+  DLP_ID bigint [pk, increment]
+  DLP_PUBLIC_ID char(32) [not null, unique]
+  DLP_CODE varchar(50) [not null, unique]
+  DLP_NAME varchar(100) [not null]
+  DLP_BASE_PRICE decimal(12,2)
+  DLP_IS_EXPRESS int [not null]
+  DLP_STATUS varchar(20) [not null]
+}
+
+Table BEX_ORDER {
+  ORD_ID bigint [pk, increment]
+  ORD_PUBLIC_ID char(32) [not null, unique]
+  PUR_ID bigint [not null, unique]
+  PFL_ID bigint [not null]
+  ORD_NUMBER varchar(50) [not null, unique]
+  ORD_SUBTOTAL_AMOUNT decimal(12,2) [not null]
+  ORD_DISCOUNT_AMOUNT decimal(12,2) [not null]
+  ORD_SHIPPING_AMOUNT decimal(12,2) [not null]
+  ORD_TOTAL_AMOUNT decimal(12,2) [not null]
+  ORD_STATUS varchar(20) [not null]
+  ORD_PAID_AT timestamp [not null]
+}
+
+Table BEX_ORDER_ITEM {
+  ORI_ID bigint [pk, increment]
+  ORI_PUBLIC_ID char(32) [not null, unique]
+  ORD_ID bigint [not null]
+  PRD_ID bigint [not null]
+  STR_ID bigint [not null]
+  ORI_QUANTITY bigint [not null]
+  ORI_UNIT_PRICE decimal(12,2) [not null]
+  ORI_TOTAL_PRICE decimal(12,2) [not null]
+  ORI_STATUS varchar(20) [not null]
+}
+
+Table BEX_SHIPMENT {
+  SHP_ID bigint [pk, increment]
+  SHP_PUBLIC_ID char(32) [not null, unique]
+  ORD_ID bigint [not null]
+  STR_ID bigint [not null]
+  ADR_ID bigint [not null]
+  DLP_ID bigint [not null]
+  SHP_TRACKING_CODE varchar(100)
+  SHP_STATUS varchar(20) [not null]
+}
+
+Table BEX_SHIPMENT_ITEM {
+  SHI_ID bigint [pk, increment]
+  SHI_PUBLIC_ID char(32) [not null, unique]
+  SHP_ID bigint [not null]
+  ORI_ID bigint [not null]
+  PRD_ID bigint [not null]
+  SHI_QUANTITY bigint [not null]
+  SHI_STATUS varchar(20) [not null]
+}
+
 Ref: BEX_PROFILE.ACC_ID > BEX_ACCOUNT.ACC_ID
 Ref: BEX_STORE.ACC_ID > BEX_ACCOUNT.ACC_ID
 Ref: BEX_STORE_USER.STR_ID > BEX_STORE.STR_ID
@@ -287,3 +359,15 @@ Ref: BEX_CART_ITEM.[PRD_ID, STR_ID] > BEX_PRODUCT.[PRD_ID, STR_ID]
 Ref: BEX_PURCHASE_REQUEST.PFL_ID > BEX_PROFILE.PFL_ID
 Ref: BEX_PURCHASE_REQUEST_ITEM.PUR_ID > BEX_PURCHASE_REQUEST.PUR_ID
 Ref: BEX_PURCHASE_REQUEST_ITEM.[PRD_ID, STR_ID] > BEX_PRODUCT.[PRD_ID, STR_ID]
+Ref: BEX_ADDRESS.PFL_ID > BEX_PROFILE.PFL_ID
+Ref: BEX_ORDER.PUR_ID > BEX_PURCHASE_REQUEST.PUR_ID
+Ref: BEX_ORDER.PFL_ID > BEX_PROFILE.PFL_ID
+Ref: BEX_ORDER_ITEM.ORD_ID > BEX_ORDER.ORD_ID
+Ref: BEX_ORDER_ITEM.[PRD_ID, STR_ID] > BEX_PRODUCT.[PRD_ID, STR_ID]
+Ref: BEX_SHIPMENT.ORD_ID > BEX_ORDER.ORD_ID
+Ref: BEX_SHIPMENT.STR_ID > BEX_STORE.STR_ID
+Ref: BEX_SHIPMENT.ADR_ID > BEX_ADDRESS.ADR_ID
+Ref: BEX_SHIPMENT.DLP_ID > BEX_DELIVERY_PROFILE.DLP_ID
+Ref: BEX_SHIPMENT_ITEM.SHP_ID > BEX_SHIPMENT.SHP_ID
+Ref: BEX_SHIPMENT_ITEM.ORI_ID > BEX_ORDER_ITEM.ORI_ID
+Ref: BEX_SHIPMENT_ITEM.PRD_ID > BEX_PRODUCT.PRD_ID
