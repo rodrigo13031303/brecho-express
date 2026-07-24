@@ -9,6 +9,7 @@ CREATE OR REPLACE PACKAGE ord_service_pkg AS
   TYPE t_settlement_item IS RECORD(store_id NUMBER,base_amount NUMBER);
   TYPE t_settlement_items IS TABLE OF t_settlement_item INDEX BY PLS_INTEGER;
   TYPE t_settlement_source IS RECORD(order_id NUMBER,items t_settlement_items);
+  TYPE t_post_sale_source IS RECORD(order_id NUMBER,profile_id NUMBER,store_id NUMBER,status VARCHAR2(20));
   e_not_found EXCEPTION;e_forbidden EXCEPTION;e_invalid EXCEPTION;e_conflict EXCEPTION;
   FUNCTION create_paid_order(p_request_public VARCHAR2,p_discount NUMBER,p_shipping NUMBER,
     p_paid_at TIMESTAMP,p_actor NUMBER) RETURN t_record;
@@ -17,5 +18,6 @@ CREATE OR REPLACE PACKAGE ord_service_pkg AS
   FUNCTION item_internal(p_public VARCHAR2) RETURN ord_repository_pkg.t_item;
   FUNCTION change_status_internal(p_public VARCHAR2,p_status VARCHAR2,p_actor NUMBER) RETURN t_record;
   FUNCTION settlement_source(p_order_id NUMBER) RETURN t_settlement_source;
+  FUNCTION post_sale_source(p_order_public VARCHAR2,p_store_public VARCHAR2) RETURN t_post_sale_source;
 END ord_service_pkg;
 /

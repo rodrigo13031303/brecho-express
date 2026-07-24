@@ -51,5 +51,13 @@ CREATE OR REPLACE PACKAGE BODY ord_service_pkg AS
         found:=TRUE;EXIT;END IF;j:=r.items.NEXT(j);END LOOP;
       IF NOT found THEN r.items(r.items.COUNT+1).store_id:=xs(i).str_id;
         r.items(r.items.COUNT).base_amount:=xs(i).ori_total_price;END IF;i:=xs.NEXT(i);END LOOP;RETURN r;END;
+  FUNCTION post_sale_source(p_order_public VARCHAR2,p_store_public VARCHAR2) RETURN t_post_sale_source IS
+    o ord_repository_pkg.t_order;xs ord_repository_pkg.t_items;r t_post_sale_source;i PLS_INTEGER;
+  BEGIN o:=get_internal(p_order_public);r.order_id:=o.ord_id;r.profile_id:=o.pfl_id;
+    BEGIN r.store_id:=str_service_pkg.resolve_store_id(p_store_public);EXCEPTION WHEN OTHERS THEN RAISE e_not_found;END;
+    r.status:=o.ord_status;xs:=ord_repository_pkg.list_items(o.ord_id);i:=xs.FIRST;
+    WHILE i IS NOT NULL LOOP IF xs(i).str_id=r.store_id THEN RETURN r;END IF;i:=xs.NEXT(i);END LOOP;
+    RAISE e_not_found;
+  END;
 END ord_service_pkg;
 /

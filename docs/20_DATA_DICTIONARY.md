@@ -4111,7 +4111,7 @@ Cliente / Experiência do Cliente
 
 ## Regras de Negócio
 
-- RN-001 — Cada ORDER pode possuir no máximo uma STORE_REVIEW.
+- RN-001 — Cada par ORDER e STORE pode possuir no máximo uma STORE_REVIEW, permitindo uma avaliação por loja em pedidos multiloja, conforme ADR_POST_SALES_POLICY.
 - RN-002 — Apenas pedidos concluídos podem ser avaliados.
 - RN-003 — O cliente pode editar sua avaliação dentro do período definido em BUSINESS_CONFIGURATION.
 - RN-004 — O Brechó pode responder publicamente à avaliação.
@@ -4159,7 +4159,7 @@ SRV_CREATED_BY e SRV_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações
 
 - PK_STORE_REVIEW
 - UK_STORE_REVIEW_PUBLIC_ID
-- UK_STORE_REVIEW_ORDER
+- UK_STORE_REVIEW_ORDER_STORE
 - IDX_STORE_REVIEW_STORE
 - IDX_STORE_REVIEW_RATE
 

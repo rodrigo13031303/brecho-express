@@ -1,0 +1,6 @@
+CREATE OR REPLACE PACKAGE BODY rat_rule_pkg AS
+  PROCEDURE validate_create(p_type VARCHAR2,p_url VARCHAR2,p_size NUMBER)IS t VARCHAR2(50):=UPPER(TRIM(p_type));
+  BEGIN IF t NOT IN('PHOTO','VIDEO','RECEIPT','PACKAGE','LABEL','DOCUMENT','OTHER')OR TRIM(p_url)IS NULL
+    OR LENGTH(p_url)>1000 OR(p_size IS NOT NULL AND p_size<=0)THEN RAISE e_invalid;END IF;END;
+END rat_rule_pkg;
+/

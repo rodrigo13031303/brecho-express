@@ -167,3 +167,17 @@ Regras específicas de pós-venda, como prazos, limites, gratuidades e critério
 - Regras operacionais específicas, como dias, prazos, limites e gratuidades, pertencem ao documento de configuração de negócio.
 - A política deverá evoluir sem necessidade de alterar a arquitetura do domínio.
 - Este documento serve como base para a futura modelagem das entidades de pós-venda, incluindo RETURN_REQUEST, RETURN_ATTACHMENT, STORE_REVIEW e STORE_REPUTATION.
+
+---
+
+## 8. Contrato inicial implementado
+
+- Uma ocorrência somente pode ser aberta pelo cliente de um pedido `COMPLETED` e para uma loja presente nos itens desse pedido.
+- A abertura não provoca devolução, estorno, compensação ou qualquer movimentação financeira automática.
+- O fluxo inicial é `OPEN -> UNDER_REVIEW -> DECIDED -> CLOSED`; decisão e encerramento são eventos distintos.
+- Um pedido pode possuir múltiplas ocorrências quando elas representam fatos distintos.
+- Uma avaliação pertence ao par `(ORDER, STORE)`. Um pedido multiloja permite uma avaliação para cada loja comprada.
+- A avaliação exige pedido `COMPLETED` e notas inteiras de 1 a 5.
+- Evidências persistem apenas URL e metadados; o conteúdo binário permanece fora do Oracle.
+- `BEX_STORE_REPUTATION` é uma visão derivada e publica somente métricas diretamente rastreáveis nesta etapa.
+- Scores, pesos, níveis, selos, prazo de abertura e janela de edição permanecem reservados para `BUSINESS_CONFIGURATION`.
