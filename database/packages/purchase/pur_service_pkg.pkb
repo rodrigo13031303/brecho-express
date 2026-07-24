@@ -66,5 +66,8 @@ CREATE OR REPLACE PACKAGE BODY pur_service_pkg AS
       r.items(r.items.COUNT).quantity:=xs(i).pri_confirmed_quantity;
       r.items(r.items.COUNT).unit_price:=xs(i).pri_unit_price;END IF;i:=xs.NEXT(i);END LOOP;
     IF r.items.COUNT=0 THEN RAISE e_request_closed;END IF;RETURN r;END;
+  FUNCTION request_public_id_by_id(p_request_id NUMBER) RETURN CHAR IS r pur_repository_pkg.t_request;
+  BEGIN BEGIN r:=pur_repository_pkg.get_request_by_id(p_request_id);
+    EXCEPTION WHEN NO_DATA_FOUND THEN RAISE e_request_not_found;END;RETURN r.pur_public_id;END;
 END pur_service_pkg;
 /

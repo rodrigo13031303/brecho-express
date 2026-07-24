@@ -20,5 +20,6 @@ CREATE OR REPLACE PACKAGE pur_service_pkg AS
     p_store_public_id VARCHAR2,p_confirmed_quantity NUMBER,p_reject_reason VARCHAR2,
     p_actor_id NUMBER) RETURN t_record;
   FUNCTION get_order_source(p_request_public_id VARCHAR2) RETURN t_order_source;
+  FUNCTION request_public_id_by_id(p_request_id NUMBER) RETURN CHAR;
 END pur_service_pkg;
 /

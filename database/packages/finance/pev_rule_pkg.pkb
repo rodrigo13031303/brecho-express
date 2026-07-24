@@ -1,0 +1,7 @@
+CREATE OR REPLACE PACKAGE BODY pev_rule_pkg AS
+  PROCEDURE validate_event(p_type VARCHAR2,p_external VARCHAR2,p_at TIMESTAMP,p_payload CLOB) IS
+  BEGIN IF UPPER(TRIM(p_type)) NOT IN('PAYMENT_APPROVED','PAYMENT_REJECTED','PAYMENT_CANCELLED','PAYMENT_REFUNDED')
+    OR TRIM(p_external) IS NULL OR p_at IS NULL OR p_payload IS NULL OR DBMS_LOB.GETLENGTH(p_payload)=0
+    THEN RAISE e_invalid;END IF;END;
+END pev_rule_pkg;
+/

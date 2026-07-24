@@ -1,0 +1,11 @@
+CREATE OR REPLACE PACKAGE BODY pay_rule_pkg AS
+  PROCEDURE validate_creation(p_amount NUMBER,p_method VARCHAR2) IS BEGIN
+    IF p_amount<=0 OR UPPER(TRIM(p_method)) NOT IN('PIX','CREDIT_CARD','DEBIT_CARD') THEN RAISE e_invalid;END IF;END;
+  PROCEDURE validate_event(p_old VARCHAR2,p_event VARCHAR2,o_new OUT VARCHAR2) IS e VARCHAR2(50):=UPPER(TRIM(p_event));
+  BEGIN IF p_old='PENDING' AND e='PAYMENT_APPROVED' THEN o_new:='APPROVED';
+    ELSIF p_old='PENDING' AND e='PAYMENT_REJECTED' THEN o_new:='REJECTED';
+    ELSIF p_old='PENDING' AND e='PAYMENT_CANCELLED' THEN o_new:='CANCELLED';
+    ELSIF p_old='APPROVED' AND e='PAYMENT_REFUNDED' THEN o_new:='REFUNDED';
+    ELSE RAISE e_invalid_transition;END IF;END;
+END pay_rule_pkg;
+/

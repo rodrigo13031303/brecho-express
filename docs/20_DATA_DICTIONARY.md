@@ -3663,6 +3663,8 @@ PPR_CREATED_BY e PPR_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações
 ## Packages Oracle
 
 - PPR_API_PKG
+- PPR_SERVICE_PKG
+- PPR_REPOSITORY_PKG
 - PPR_RULE_PKG
 
 ## APIs
@@ -3710,7 +3712,7 @@ TRANSACTION
 
 ## Responsabilidades
 
-- Registrar um pagamento associado a um pedido.
+- Registrar uma tentativa de pagamento associada a uma Purchase Request finalizada.
 - Vincular o pagamento ao provedor financeiro utilizado.
 - Apoiar o acompanhamento do fluxo de cobrança.
 - Permitir a integração com eventos de confirmação emitidos pelos Gateways.
@@ -3728,17 +3730,20 @@ Financeiro
 
 ## Regras de Negócio
 
-- RN-001 — Todo PAYMENT pertence a um ORDER.
+- RN-001 — Todo PAYMENT nasce vinculado a uma PURCHASE_REQUEST finalizada.
 - RN-002 — Todo PAYMENT utiliza um PAYMENT_PROVIDER.
 - RN-003 — PAYMENT nunca confirma pagamento sozinho.
 - RN-004 — A confirmação ocorre exclusivamente através de PAYMENT_EVENT.
 - RN-005 — APIs nunca utilizam PAY_ID.
 - RN-006 — PAY_PUBLIC_ID deve ser CHAR(32).
 - RN-007 — A exclusão deve ser lógica via PAY_STATUS.
+- RN-008 — ORDER só é criado após PAYMENT_EVENT de aprovação.
+- RN-009 — ORD_ID permanece nulo antes da aprovação e é preenchido atomicamente depois.
 
 ## Relacionamentos
 
-- ORDER (N:1)
+- PURCHASE_REQUEST (1:1)
+- ORDER (1:1 opcional antes da aprovação)
 - PAYMENT_PROVIDER (N:1)
 - PAYMENT_EVENT (1:N)
 
@@ -3748,7 +3753,8 @@ Financeiro
 |--------|------|-------------|
 | PAY_ID | NUMBER Identity | Sim |
 | PAY_PUBLIC_ID | CHAR(32) | Sim |
-| ORD_ID | NUMBER | Sim |
+| PUR_ID | NUMBER | Sim |
+| ORD_ID | NUMBER | Não |
 | PPR_ID | NUMBER | Sim |
 | PAY_EXTERNAL_ID | VARCHAR2(100) | Não |
 | PAY_AMOUNT | NUMBER(12,2) | Sim |
@@ -3765,13 +3771,16 @@ PAY_CREATED_BY e PAY_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações
 
 - PK_PAYMENT
 - UK_PAYMENT_PUBLIC_ID
-- IDX_PAYMENT_ORDER
+- UK_PAYMENT_REQUEST
+- UK_PAYMENT_ORDER
 - IDX_PAYMENT_PROVIDER
 - IDX_PAYMENT_STATUS
 
 ## Packages Oracle
 
 - PAY_API_PKG
+- PAY_SERVICE_PKG
+- PAY_REPOSITORY_PKG
 - PAY_RULE_PKG
 
 ## APIs
@@ -3881,6 +3890,8 @@ PEV_CREATED_BY e PEV_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações
 ## Packages Oracle
 
 - PEV_API_PKG
+- PEV_SERVICE_PKG
+- PEV_REPOSITORY_PKG
 - PEV_RULE_PKG
 
 ## APIs

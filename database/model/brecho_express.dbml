@@ -340,6 +340,38 @@ Table BEX_SHIPMENT_ITEM {
   SHI_STATUS varchar(20) [not null]
 }
 
+Table BEX_PAYMENT_PROVIDER {
+  PPR_ID bigint [pk, increment]
+  PPR_PUBLIC_ID char(32) [not null, unique]
+  PPR_CODE varchar(50) [not null, unique]
+  PPR_NAME varchar(100) [not null]
+  PPR_STATUS varchar(20) [not null, default: 'ACTIVE']
+}
+
+Table BEX_PAYMENT {
+  PAY_ID bigint [pk, increment]
+  PAY_PUBLIC_ID char(32) [not null, unique]
+  PUR_ID bigint [not null, unique]
+  ORD_ID bigint [unique]
+  PPR_ID bigint [not null]
+  PAY_EXTERNAL_ID varchar(100)
+  PAY_AMOUNT decimal(12,2) [not null]
+  PAY_METHOD varchar(20) [not null]
+  PAY_STATUS varchar(20) [not null, default: 'PENDING']
+  PAY_APPROVED_AT timestamp
+}
+
+Table BEX_PAYMENT_EVENT {
+  PEV_ID bigint [pk, increment]
+  PEV_PUBLIC_ID char(32) [not null, unique]
+  PAY_ID bigint [not null]
+  PEV_EVENT_TYPE varchar(50) [not null]
+  PEV_EXTERNAL_EVENT_ID varchar(100) [not null]
+  PEV_EVENT_AT timestamp [not null]
+  PEV_RAW_PAYLOAD clob [not null]
+  PEV_STATUS varchar(20) [not null, default: 'RECEIVED']
+}
+
 Ref: BEX_PROFILE.ACC_ID > BEX_ACCOUNT.ACC_ID
 Ref: BEX_STORE.ACC_ID > BEX_ACCOUNT.ACC_ID
 Ref: BEX_STORE_USER.STR_ID > BEX_STORE.STR_ID
@@ -371,3 +403,7 @@ Ref: BEX_SHIPMENT.DLP_ID > BEX_DELIVERY_PROFILE.DLP_ID
 Ref: BEX_SHIPMENT_ITEM.SHP_ID > BEX_SHIPMENT.SHP_ID
 Ref: BEX_SHIPMENT_ITEM.ORI_ID > BEX_ORDER_ITEM.ORI_ID
 Ref: BEX_SHIPMENT_ITEM.PRD_ID > BEX_PRODUCT.PRD_ID
+Ref: BEX_PAYMENT.PUR_ID > BEX_PURCHASE_REQUEST.PUR_ID
+Ref: BEX_PAYMENT.ORD_ID > BEX_ORDER.ORD_ID
+Ref: BEX_PAYMENT.PPR_ID > BEX_PAYMENT_PROVIDER.PPR_ID
+Ref: BEX_PAYMENT_EVENT.PAY_ID > BEX_PAYMENT.PAY_ID

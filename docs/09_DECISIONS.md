@@ -276,3 +276,33 @@ Nenhuma entidade adicional será criada neste momento.
 
 ### Motivação
 Permitir retenção de valores para devoluções e disputas utilizando a própria arquitetura do Ledger.
+
+## ADR-015 — Pagamento precede a criação do Pedido
+
+| Campo | Valor |
+|------|-------|
+| Status | Aceito |
+| Data | 2026-07-24 |
+| Área | Compra / Financeiro |
+
+### Contexto
+
+O domínio determina que ORDER nasce somente após pagamento aprovado. O contrato
+anterior de PAYMENT exigia ORDER já existente, criando uma dependência circular.
+
+### Decisão
+
+PAYMENT nasce vinculado à PURCHASE_REQUEST finalizada. PAYMENT_EVENT é a única
+fonte de mudança do estado financeiro. Ao processar idempotentemente um evento
+de aprovação, PAY_SERVICE_PKG cria ORDER pelo contrato interno
+ORD_SERVICE_PKG.create_paid_order e então vincula PAYMENT ao ORDER criado.
+
+PAYMENT.ORD_ID é opcional antes da aprovação, obrigatório no estado APPROVED e
+único quando preenchido.
+
+### Consequências
+
+- nenhum ORDER existe antes do pagamento aprovado;
+- webhooks repetidos não criam pedidos duplicados;
+- PAYMENT preserva rastreabilidade antes e depois da aprovação;
+- a criação de ORDER permanece interna e transacional.
