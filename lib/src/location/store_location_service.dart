@@ -60,9 +60,14 @@ class StoreLocationService {
   }
 
   static String _firstText(dynamic preferred, dynamic fallback) {
-    final first = preferred?.toString().trim() ?? '';
-    return first.isNotEmpty ? first : fallback?.toString().trim() ?? '';
+    return _prefer(preferred?.toString() ?? '', fallback?.toString() ?? '');
   }
+
+  static String _prefer(String preferred, String fallback) {
+    final first = preferred.trim();
+    return first.isNotEmpty ? first : fallback.trim();
+  }
+
   Future<GeoPoint> currentCoordinates() async {
     if (!await Geolocator.isLocationServiceEnabled()) {
       throw const StoreLocationException(
@@ -99,7 +104,7 @@ class StoreLocationService {
         .whereType<String>()
         .map((item) => item.trim())
         .firstWhere((item) => item.isNotEmpty, orElse: () => '');
-    return StoreLocationDraft(
+    final gpsDraft = StoreLocationDraft(
       postalCode: (place?.postalCode ?? '').replaceAll(RegExp(r'[^0-9]'), ''),
       street: (place?.street ?? place?.thoroughfare ?? '').trim(),
       number: (place?.subThoroughfare ?? '').trim(),
@@ -110,6 +115,23 @@ class StoreLocationService {
       latitude: position.latitude,
       longitude: position.longitude,
     );
+    if (gpsDraft.postalCode.length != 8) return gpsDraft;
+    try {
+      final postalDraft = await lookupPostalCode(gpsDraft.postalCode);
+      return StoreLocationDraft(
+        postalCode: gpsDraft.postalCode,
+        street: _prefer(gpsDraft.street, postalDraft.street),
+        number: gpsDraft.number,
+        complement: '',
+        district: _prefer(gpsDraft.district, postalDraft.district),
+        city: _prefer(gpsDraft.city, postalDraft.city),
+        state: _prefer(gpsDraft.state, postalDraft.state),
+        latitude: position.latitude,
+        longitude: position.longitude,
+      );
+    } catch (_) {
+      return gpsDraft;
+    }
   }
 
   Future<StoreLocationDraft> ensureCoordinates(StoreLocationDraft draft) async {

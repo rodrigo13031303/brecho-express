@@ -266,10 +266,16 @@ class _SellerPageState extends State<SellerPage> {
         slug: _storeSlug.text.trim(),
         description: _storeDescription.text,
       );
+      if (!mounted) return;
+      setState(() => _store = store);
       if (store.status == 'DRAFT') {
         store = await _service.activateStore(widget.session, store.publicId);
+        if (!mounted) return;
+        setState(() => _store = store);
       }
       store = await _uploadSelectedLogo(store);
+      if (!mounted) return;
+      setState(() => _store = store);
       if (preparedLocation != null) {
         await _service.saveLocation(
           session: widget.session,
