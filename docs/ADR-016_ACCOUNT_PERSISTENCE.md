@@ -2,13 +2,17 @@
 
 ## Status
 
-Aceito
+Aceito e implementado
 
 ## Contexto
 
-O Data Dictionary define funcionalmente ACCOUNT, mas ainda não existe DDL Oracle vigente para `BEX_ACCOUNT`. O DBML legado diverge desse contrato e não deve orientar a implementação física.
+Quando esta ADR foi proposta, ainda não existia DDL Oracle vigente para
+`BEX_ACCOUNT` e o DBML divergente não podia orientar a implementação. O DDL,
+packages e testes de ACCOUNT foram posteriormente materializados.
 
-A criação de `ACC_REPOSITORY_PKG` também depende da definição prévia da tabela, de seus identificadores, constraints e regras de atualização. Além disso, o projeto ainda não possui o componente seguro responsável por gerar e verificar hashes de senha.
+`ACC_REPOSITORY_PKG` e `ACC_PASSWORD_PKG` foram implementados a partir deste
+contrato. As formulações futuras mantidas abaixo registram a decisão no momento
+em que foi tomada.
 
 ---
 
@@ -16,7 +20,9 @@ A criação de `ACC_REPOSITORY_PKG` também depende da definição prévia da ta
 
 ### 1. Referência vigente
 
-O `docs/20_DATA_DICTIONARY.md` é a referência funcional vigente de ACCOUNT. O DBML legado não representa o contrato físico atual. O futuro DDL Oracle será a materialização executável das decisões aprovadas neste ADR e nos documentos de autoridade superior.
+O `docs/20_DATA_DICTIONARY.md` é a referência funcional de ACCOUNT. O DDL
+vigente materializa esta ADR e as autoridades superiores. DBML somente possui
+autoridade quando estiver sincronizado com esse conjunto.
 
 ### 2. Tabela
 
@@ -30,7 +36,8 @@ O identificador técnico será declarado como:
 ACC_ID NUMBER GENERATED ALWAYS AS IDENTITY
 ```
 
-`ACC_ID` será gerado exclusivamente pelo Oracle, não será recebido pelas camadas superiores nem exposto externamente. Não será criada sequence manual. Os detalhes finais da identity serão definidos no futuro DDL.
+`ACC_ID` é gerado exclusivamente pelo Oracle, não é recebido pelas camadas
+superiores nem exposto externamente. Não existe sequence manual.
 
 ### 4. Identificador público
 
@@ -54,7 +61,10 @@ Na troca de e-mail, `ACC_EMAIL_VERIFIED_AT` será definido como `NULL`.
 
 ### 6. Senha
 
-`ACC_PASSWORD_HASH VARCHAR2(255) NOT NULL` armazenará uma credencial serializada contendo:
+No contrato local original, `ACC_PASSWORD_HASH VARCHAR2(255) NOT NULL`
+armazenava uma credencial serializada. A `ADR-025_SOCIAL_AUTHENTICATION.md`
+posteriormente tornou a coluna anulável para ACCOUNT exclusivamente social.
+Quando presente, a credencial mantém o formato e todas as proteções abaixo:
 
 - versão do formato;
 - identificador do algoritmo;
@@ -138,7 +148,10 @@ ACC_CREATED_AT TIMESTAMP(6) DEFAULT SYSTIMESTAMP NOT NULL
 ACC_UPDATED_AT TIMESTAMP(6) DEFAULT SYSTIMESTAMP NOT NULL
 ```
 
-Na criação, `ACC_PASSWORD_CHANGED_AT` receberá `SYSTIMESTAMP` e `ACC_EMAIL_VERIFIED_AT` receberá `NULL`.
+Na criação local, `ACC_PASSWORD_CHANGED_AT` receberá `SYSTIMESTAMP` e
+`ACC_EMAIL_VERIFIED_AT` receberá `NULL`. Na criação social,
+`ACC_PASSWORD_CHANGED_AT` e `ACC_PASSWORD_HASH` recebem `NULL`, enquanto o
+e-mail validado pelo provedor segue a política da ADR-025.
 
 Na troca de e-mail, `ACC_EMAIL_VERIFIED_AT` será limpo e `ACC_UPDATED_AT` será atualizado. Na troca de senha, `ACC_PASSWORD_CHANGED_AT` e `ACC_UPDATED_AT` serão atualizados. Em uma alteração efetiva de status, `ACC_UPDATED_AT` será atualizado.
 
@@ -157,7 +170,7 @@ Esses campos serão opcionais nesta etapa. Não serão criadas foreign keys nem 
 
 ### 10. Constraints físicas futuras
 
-O futuro DDL deverá definir:
+O DDL implementado define:
 
 - primary key de `ACC_ID`;
 - unique constraint de `ACC_PUBLIC_ID`;

@@ -8,6 +8,57 @@ CREATE OR REPLACE PACKAGE core_json_pkg AS
   e_invalid_json_element   EXCEPTION;
   e_serialization_failed   EXCEPTION;
   e_invalid_temporal_value EXCEPTION;
+  e_request_body_required  EXCEPTION;
+  e_invalid_json           EXCEPTION;
+  e_required_attribute     EXCEPTION;
+  e_invalid_attribute_type EXCEPTION;
+  e_unknown_attribute      EXCEPTION;
+
+  FUNCTION parse_object(
+    p_request_body IN CLOB
+  ) RETURN JSON_OBJECT_T;
+
+  FUNCTION required_string(
+    p_object         IN JSON_OBJECT_T,
+    p_attribute_name IN t_attribute_name
+  ) RETURN VARCHAR2;
+
+  FUNCTION required_number(
+    p_object         IN JSON_OBJECT_T,
+    p_attribute_name IN t_attribute_name
+  ) RETURN NUMBER;
+
+  FUNCTION required_boolean(
+    p_object         IN JSON_OBJECT_T,
+    p_attribute_name IN t_attribute_name
+  ) RETURN BOOLEAN;
+
+  FUNCTION optional_string(
+    p_object         IN JSON_OBJECT_T,
+    p_attribute_name IN t_attribute_name
+  ) RETURN VARCHAR2;
+
+  FUNCTION required_array(
+    p_object         IN JSON_OBJECT_T,
+    p_attribute_name IN t_attribute_name
+  ) RETURN JSON_ARRAY_T;
+
+  PROCEDURE assert_allowed_attributes(
+    p_object      IN JSON_OBJECT_T,
+    p_allowed_csv IN VARCHAR2
+  );
+
+  FUNCTION required_timestamp(
+    p_object         IN JSON_OBJECT_T,
+    p_attribute_name IN t_attribute_name,
+    p_format         IN VARCHAR2
+  ) RETURN TIMESTAMP;
+
+  FUNCTION required_timestamp_tz(
+    p_object         IN JSON_OBJECT_T,
+    p_attribute_name IN t_attribute_name,
+    p_format         IN VARCHAR2
+  ) RETURN TIMESTAMP WITH TIME ZONE;
 
   PROCEDURE put_string(
     io_object        IN OUT NOCOPY JSON_OBJECT_T,

@@ -1,5 +1,11 @@
 # Modelo de Domínio Oficial - Brechó Express
 
+> **Status: SUBSTITUÍDO.** Este documento preserva o modelo inicial e não deve
+> orientar nova implementação. Tabelas abreviadas, siglas, endpoints e padrão
+> de packages abaixo são históricos. As fontes vigentes são
+> `13_UBIQUITOUS_LANGUAGE.md`, `20_DATA_DICTIONARY.md`,
+> `23_DOMAIN_MODEL.md`, `27_API_STANDARDS.md` e as ADRs aplicáveis.
+
 ## 1. Objetivo do documento
 Este documento define o modelo de domínio oficial do Brechó Express, alinhando linguagem ubíqua, nomenclaturas Oracle, contratos de API e estrutura de features Flutter. Tem como meta garantir consistência entre negócio, banco de dados e camadas de aplicação.
 

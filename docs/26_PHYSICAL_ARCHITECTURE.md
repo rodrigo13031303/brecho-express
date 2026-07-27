@@ -1,5 +1,9 @@
 # Arquitetura Física - Brechó Express
 
+> **Status:** arquitetura aceita e amplamente implementada. Formulações no
+> futuro preservam o contexto de desenho original; o estado executável deve ser
+> confirmado em `database/`, nos testes e nas arquiteturas modulares.
+
 ## 1. Objetivo
 
 Este documento tem por objetivo organizar a referência oficial da Arquitetura Física do Brechó Express.

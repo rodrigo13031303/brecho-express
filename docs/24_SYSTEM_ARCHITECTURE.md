@@ -101,13 +101,16 @@ Purchase Request
 Confirmação do Brechó
   │
   ▼
-Order
+Reserva Temporária
   │
   ▼
 Pagamento
   │
   ▼
 Webhook / Payment Event
+  │
+  ▼
+Order
   │
   ▼
 Logística

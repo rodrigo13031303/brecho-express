@@ -1,5 +1,9 @@
 # Prompt Book - Brechó Express
 
+> **Status:** material auxiliar. Prompts não possuem autoridade arquitetural e
+> devem sempre consultar `README.md`, ADRs aplicáveis e documentos vigentes
+> antes de produzir qualquer alteração.
+
 ## Objetivo
 Manter um conjunto organizado de prompts oficiais para tarefas de IA, documentação e implementação, alinhado à visão do projeto, à Linguagem Ubíqua e às decisões arquiteturais consolidadas.
 
@@ -18,7 +22,11 @@ Gere o DBML a partir do Data Dictionary e das convenções do projeto. Não crie
 Gere o Oracle SQL somente após o DBML e a documentação oficial. Não crie tabelas sem existir no Data Dictionary. Não use DELETE físico para entidades de negócio. Utilize os padrões de nomenclatura e constraints definidos pelo projeto.
 
 ### 5. Prompt oficial para geração de Packages Oracle
-Crie packages Oracle seguindo o padrão *_API_PKG para operações consumidas pela API e *_RULE_PKG para regras de negócio. Nunca crie package genérico como PKG_UTIL e mantenha a separação de responsabilidades.
+Crie packages Oracle conforme a necessidade concreta do caso de uso e a
+arquitetura API → SERVICE → RULE/REPOSITORY → TABLE. API controla transporte e
+transação; Service orquestra; Rule preserva regras puras; Repository concentra
+persistência. Packages Query, Event e Job seguem o padrão permanente. Nunca
+crie package genérico como PKG_UTIL.
 
 ### 6. Prompt oficial para geração de APIs ORDS
 Gere endpoints ORDS alinhados ao domínio, usando PUBLIC_ID para comunicação externa e sem expor o ID interno. ORDS deve chamar packages Oracle e não executar SQL solto.
@@ -27,7 +35,11 @@ Gere endpoints ORDS alinhados ao domínio, usando PUBLIC_ID para comunicação e
 Desenvolva a camada Flutter respeitando a arquitetura do projeto. Nunca acesse SQL nem conheça a estrutura interna do banco. Use repositories/providers para consumir APIs e preserve a Linguagem Ubíqua na interface, utilizando termos como Achado e Brechó.
 
 ### 8. Prompt oficial para revisão arquitetural
-Avalie uma mudança ou implementação com base na arquitetura do Brechó Express. Verifique se ela respeita Data Dictionary, Linguagem Ubíqua, PUBLIC_ID como CHAR(32), ausência de DELETE físico, separação entre *_API_PKG e *_RULE_PKG, e a regra de que o Flutter não contém regra de negócio nem acesso direto ao banco.
+Avalie uma mudança pela hierarquia de `README.md`. Verifique ADRs, Data
+Dictionary, Linguagem Ubíqua, Public ID, preservação histórica, camadas
+API/Service/Rule/Repository, contrato de runtime, transação, auditoria,
+autorização e testes. Flutter não contém regra de negócio nem acesso direto ao
+banco.
 
 ## Regras obrigatórias para todos os prompts
 - Respeitar a Linguagem Ubíqua.

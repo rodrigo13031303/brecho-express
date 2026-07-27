@@ -10,15 +10,17 @@ CREATE OR REPLACE PACKAGE BODY pay_api_pkg AS
     core_json_pkg.put_string(j,'status',p.status);RETURN j;END;
   PROCEDURE create_payment(p_body CLOB,p_actor NUMBER,o_status OUT PLS_INTEGER,o_body OUT NOCOPY CLOB) IS
     j JSON_OBJECT_T;r pay_service_pkg.t_record;
-  BEGIN j:=JSON_OBJECT_T.parse(p_body);r:=pay_service_pkg.create_payment(j.get_string('requestPublicId'),
-    j.get_string('providerPublicId'),j.get_string('externalId'),j.get_string('method'),p_actor);
-    COMMIT;o_body:=core_response_pkg.build_success(js(r));o_status:=201;
-  EXCEPTION WHEN pay_service_pkg.e_conflict THEN ROLLBACK;o_status:=409;o_body:=NULL;
-    WHEN pay_service_pkg.e_invalid THEN ROLLBACK;o_status:=422;o_body:=NULL;
-    WHEN OTHERS THEN ROLLBACK;o_status:=500;o_body:=NULL;END;
+  BEGIN j:=core_json_pkg.parse_object(p_body);core_json_pkg.assert_allowed_attributes(j,'requestPublicId,providerPublicId,externalId,method');r:=pay_service_pkg.create_payment(core_json_pkg.required_string(j,'requestPublicId'),
+    core_json_pkg.required_string(j,'providerPublicId'),core_json_pkg.required_string(j,'externalId'),core_json_pkg.required_string(j,'method'),p_actor);
+    o_body:=core_response_pkg.build_success(js(r));COMMIT;o_status:=201;
+  EXCEPTION WHEN core_json_pkg.e_unknown_attribute THEN ROLLBACK;o_status:=400;o_body:=core_response_pkg.build_known_error('BEX-REQ-006',core_error_pkg.c_category_validation,'A requisicao contem campo desconhecido.');
+    WHEN core_json_pkg.e_request_body_required OR core_json_pkg.e_invalid_json OR core_json_pkg.e_json_object_required OR core_json_pkg.e_required_attribute OR core_json_pkg.e_invalid_attribute_type THEN ROLLBACK;o_status:=400;o_body:=core_response_pkg.build_known_error('BEX-REQ-002',core_error_pkg.c_category_validation,'A requisicao de pagamento e invalida.');
+    WHEN pay_service_pkg.e_conflict THEN ROLLBACK;o_status:=409;o_body:=core_response_pkg.build_known_error('BEX-PAY-002',core_error_pkg.c_category_conflict,'O pagamento esta em conflito com o estado atual.');
+    WHEN pay_service_pkg.e_invalid THEN ROLLBACK;o_status:=422;o_body:=core_response_pkg.build_known_error('BEX-PAY-004',core_error_pkg.c_category_validation,'Os dados do pagamento sao invalidos.');
+    WHEN OTHERS THEN ROLLBACK;o_status:=500;o_body:=core_response_pkg.build_technical_error;END;
   PROCEDURE get_payment(p_public VARCHAR2,p_actor NUMBER,o_status OUT PLS_INTEGER,o_body OUT NOCOPY CLOB) IS r pay_service_pkg.t_record;
   BEGIN r:=pay_service_pkg.get_payment(p_public,p_actor);o_body:=core_response_pkg.build_success(js(r));o_status:=200;
-  EXCEPTION WHEN pay_service_pkg.e_not_found THEN o_status:=404;o_body:=NULL;
-    WHEN pay_service_pkg.e_forbidden THEN o_status:=403;o_body:=NULL;WHEN OTHERS THEN o_status:=500;o_body:=NULL;END;
+  EXCEPTION WHEN pay_service_pkg.e_not_found THEN o_status:=404;o_body:=core_response_pkg.build_known_error('BEX-PAY-001',core_error_pkg.c_category_not_found,'O pagamento informado nao foi encontrado.');
+    WHEN pay_service_pkg.e_forbidden THEN o_status:=403;o_body:=core_response_pkg.build_known_error('BEX-PAY-003',core_error_pkg.c_category_authorization,'Operacao nao autorizada para este pagamento.');WHEN OTHERS THEN o_status:=500;o_body:=core_response_pkg.build_technical_error;END;
 END pay_api_pkg;
 /

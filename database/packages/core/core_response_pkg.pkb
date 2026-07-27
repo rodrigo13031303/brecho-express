@@ -127,5 +127,47 @@ CREATE OR REPLACE PACKAGE BODY core_response_pkg AS
 
     RETURN core_json_pkg.serialize(l_envelope);
   END build_error;
+
+  FUNCTION build_known_error(
+    p_code             IN core_error_pkg.t_error_code,
+    p_category         IN core_error_pkg.t_category,
+    p_external_message IN core_error_pkg.t_external_message,
+    p_retryable        IN BOOLEAN
+  ) RETURN t_response_body IS
+    l_public_error core_error_pkg.t_public_error;
+    l_error_policy core_error_pkg.t_error_policy;
+  BEGIN
+    core_error_pkg.build_known_error(
+      p_code             => p_code,
+      p_category         => p_category,
+      p_external_message => p_external_message,
+      p_severity         => core_error_pkg.c_severity_warn,
+      p_retryable        => p_retryable,
+      p_should_log       => FALSE,
+      o_public_error     => l_public_error,
+      o_error_policy     => l_error_policy
+    );
+
+    RETURN build_error(l_public_error);
+  END build_known_error;
+
+  FUNCTION build_technical_error(
+    p_code             IN core_error_pkg.t_error_code,
+    p_external_message IN core_error_pkg.t_external_message,
+    p_retryable        IN BOOLEAN
+  ) RETURN t_response_body IS
+    l_public_error core_error_pkg.t_public_error;
+    l_error_policy core_error_pkg.t_error_policy;
+  BEGIN
+    core_error_pkg.build_technical_error(
+      p_code             => p_code,
+      p_external_message => p_external_message,
+      p_retryable        => p_retryable,
+      o_public_error     => l_public_error,
+      o_error_policy     => l_error_policy
+    );
+
+    RETURN build_error(l_public_error);
+  END build_technical_error;
 END core_response_pkg;
 /

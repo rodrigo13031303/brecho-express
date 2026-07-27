@@ -6,6 +6,6 @@ CREATE OR REPLACE PACKAGE BODY srp_api_pkg AS
     core_json_pkg.put_number(j,'orderCount',r.order_count);core_json_pkg.put_number(j,'returnRequestCount',r.return_request_count);
     core_json_pkg.put_number(j,'returnRate',r.return_rate);core_json_pkg.put_number(j,'wouldBuyAgainRate',r.would_buy_again_rate);
     o_status:=200;o_body:=core_response_pkg.build_success(j);
-  EXCEPTION WHEN srp_query_pkg.e_not_found THEN o_status:=404;o_body:=NULL;WHEN OTHERS THEN o_status:=500;o_body:=NULL;END;
+  EXCEPTION WHEN srp_query_pkg.e_not_found THEN o_status:=404;o_body:=core_response_pkg.build_known_error('BEX-SRP-001',core_error_pkg.c_category_not_found,'O resumo pos-venda informado nao foi encontrado.');WHEN OTHERS THEN o_status:=500;o_body:=core_response_pkg.build_technical_error;END;
 END srp_api_pkg;
 /

@@ -1,23 +1,45 @@
+Project brecho_express {
+  database_type: 'Oracle'
+  Note: '''
+  Structural model synchronized with the 39 tables implemented on 2026-07-26.
+  This DBML documents entities, principal attributes and relationships. Exact
+  Oracle types, defaults, checks, indexes, audit details and installation
+  behavior remain authoritative in DDL, accepted ADRs and the Data Dictionary.
+  PURCHASE_RESERVATION is approved but is intentionally absent until its
+  physical contract is implemented.
+  '''
+}
+
 Table BEX_ACCOUNT {
   ACC_ID bigint [pk, increment]
-  ACC_EMAIL varchar(150)
+  ACC_PUBLIC_ID char(32) [not null, unique]
+  ACC_EMAIL varchar(255) [not null, unique]
   ACC_PASSWORD_HASH varchar(255)
-  ACC_PROVIDER varchar(30)
-  ACC_PROVIDER_ID varchar(150)
-  ACC_STATUS varchar(30)
-  ACC_CREATED_AT timestamp
-  ACC_UPDATED_AT timestamp
+  ACC_EMAIL_VERIFIED_AT timestamp
+  ACC_PASSWORD_CHANGED_AT timestamp
+  ACC_STATUS varchar(30) [not null]
+  ACC_LAST_LOGIN_AT timestamp
+  ACC_CREATED_AT timestamp [not null]
+  ACC_UPDATED_AT timestamp [not null]
+  ACC_CREATED_BY bigint
+  ACC_UPDATED_BY bigint
 }
 
 Table BEX_PROFILE {
-  PRF_ID bigint [pk, increment]
-  ACC_ID bigint
-  PRF_NAME varchar(150)
-  PRF_PHONE varchar(20)
-  PRF_DOCUMENT varchar(20)
-  PRF_PHOTO_URL varchar(500)
-  PRF_CREATED_AT timestamp
-  PRF_UPDATED_AT timestamp
+  PFL_ID bigint [pk, increment]
+  ACC_ID bigint [not null, unique]
+  PFL_PUBLIC_ID char(32) [not null, unique]
+  PFL_DISPLAY_NAME varchar(100) [not null]
+  PFL_FULL_NAME varchar(200)
+  PFL_BIRTH_DATE date
+  PFL_BIO varchar(500)
+  PFL_AVATAR_URL varchar(1000)
+  PFL_LOCALE_CODE varchar(10) [not null, default: 'pt-BR']
+  PFL_TIMEZONE_NAME varchar(64) [not null, default: 'America/Sao_Paulo']
+  PFL_CREATED_AT timestamp [not null]
+  PFL_UPDATED_AT timestamp [not null]
+  PFL_CREATED_BY bigint
+  PFL_UPDATED_BY bigint
 }
 
 Table BEX_STORE {
@@ -43,6 +65,30 @@ Table BEX_STORE {
   }
 
   Note: 'Store or commercial sales operation structurally owned by an account. ACC_ID is not unique.'
+}
+
+Table BEX_ACCOUNT_IDENTITY {
+  AID_ID bigint [pk, increment]
+  AID_PUBLIC_ID char(32) [not null, unique]
+  ACC_ID bigint [not null]
+  AID_PROVIDER varchar(20) [not null]
+  AID_ISSUER varchar(500) [not null]
+  AID_SUBJECT varchar(255) [not null]
+  AID_EMAIL varchar(255)
+  AID_EMAIL_VERIFIED char(1) [not null, default: 'N']
+  AID_STATUS varchar(20) [not null, default: 'ACTIVE']
+  AID_LINKED_AT timestamp [not null]
+  AID_LAST_LOGIN_AT timestamp
+  AID_UNLINKED_AT timestamp
+  AID_CREATED_AT timestamp [not null]
+  AID_UPDATED_AT timestamp [not null]
+  AID_CREATED_BY bigint
+  AID_UPDATED_BY bigint
+
+  indexes {
+    (AID_PROVIDER, AID_ISSUER, AID_SUBJECT) [unique, name: 'UK_AID_PROVIDER_SUBJECT']
+    (ACC_ID, AID_PROVIDER) [unique, name: 'UK_AID_ACCOUNT_PROVIDER']
+  }
 }
 
 Table BEX_STORE_USER {
@@ -408,12 +454,244 @@ Table BEX_STORE_BALANCE_TRANSACTION {
   SBT_STATUS varchar(20) [not null]
 }
 
+Table BEX_SESSION {
+  SESSION_ID bigint [pk, increment]
+  SESSION_PUBLIC_ID varchar(32) [not null, unique]
+  ACC_ID bigint [not null]
+  SESSION_TOKEN_HASH varchar(128) [not null, unique]
+  SESSION_STATUS varchar(20) [not null, default: 'ACTIVE']
+  SESSION_CREATED_AT timestamp [not null]
+  SESSION_EXPIRES_AT timestamp [not null]
+  SESSION_LAST_USED_AT timestamp
+  SESSION_REVOKED_AT timestamp
+  SESSION_CREATED_BY bigint
+  SESSION_UPDATED_BY bigint
+  SESSION_IP varchar(45)
+  SESSION_USER_AGENT varchar(1000)
+}
+
+Table BEX_ROLE {
+  ROL_ID bigint [pk, increment]
+  ROL_PUBLIC_ID char(32) [not null, unique]
+  ROL_CODE varchar(50) [not null, unique]
+  ROL_NAME varchar(100) [not null]
+  ROL_DESCRIPTION varchar(500)
+  ROL_STATUS varchar(20) [not null, default: 'ACTIVE']
+  ROL_CREATED_AT timestamp [not null]
+  ROL_UPDATED_AT timestamp [not null]
+  ROL_CREATED_BY bigint
+  ROL_UPDATED_BY bigint
+}
+
+Table BEX_PROFILE_ROLE {
+  PRL_ID bigint [pk, increment]
+  PRL_PUBLIC_ID char(32) [not null, unique]
+  PFL_ID bigint [not null]
+  ROL_ID bigint [not null]
+  PRL_STATUS varchar(20) [not null, default: 'ACTIVE']
+  PRL_GRANTED_AT timestamp [not null]
+  PRL_EXPIRES_AT timestamp
+  PRL_CREATED_AT timestamp [not null]
+  PRL_UPDATED_AT timestamp [not null]
+  PRL_CREATED_BY bigint
+  PRL_UPDATED_BY bigint
+
+  indexes {
+    (PFL_ID, ROL_ID) [unique, name: 'UK_PROFILE_ROLE_PROFILE_ROLE']
+  }
+}
+
+Table BEX_STORE_PLAN {
+  STP_ID bigint [pk, increment]
+  STP_PUBLIC_ID char(32) [not null, unique]
+  STP_CODE varchar(50) [not null, unique]
+  STP_NAME varchar(100) [not null]
+  STP_DESCRIPTION varchar(500)
+  STP_PRICE decimal(12,2)
+  STP_STATUS varchar(20) [not null, default: 'ACTIVE']
+  STP_CREATED_AT timestamp [not null]
+  STP_UPDATED_AT timestamp [not null]
+  STP_CREATED_BY bigint
+  STP_UPDATED_BY bigint
+}
+
+Table BEX_STORE_EVENT {
+  STE_ID bigint [pk, increment]
+  STE_PUBLIC_ID char(32) [not null, unique]
+  STR_ID bigint [not null]
+  STE_NAME varchar(200) [not null]
+  STE_DESCRIPTION varchar(1000)
+  STE_START_AT timestamp [not null]
+  STE_END_AT timestamp [not null]
+  STE_STATUS varchar(20) [not null, default: 'DRAFT']
+  STE_CREATED_AT timestamp [not null]
+  STE_UPDATED_AT timestamp [not null]
+  STE_CREATED_BY bigint
+  STE_UPDATED_BY bigint
+}
+
+Table BEX_STORE_FOLLOWER {
+  STF_ID bigint [pk, increment]
+  STF_PUBLIC_ID char(32) [not null, unique]
+  STR_ID bigint [not null]
+  PFL_ID bigint [not null]
+  STF_STATUS varchar(20) [not null, default: 'ACTIVE']
+  STF_FOLLOWED_AT timestamp [not null]
+  STF_UNFOLLOWED_AT timestamp
+  STF_CREATED_AT timestamp [not null]
+  STF_UPDATED_AT timestamp [not null]
+  STF_CREATED_BY bigint
+  STF_UPDATED_BY bigint
+}
+
+Table BEX_RETURN_REQUEST {
+  RRQ_ID bigint [pk, increment]
+  RRQ_PUBLIC_ID char(32) [not null, unique]
+  ORD_ID bigint [not null]
+  STR_ID bigint [not null]
+  PFL_ID bigint [not null]
+  RRQ_REASON_CODE varchar(50) [not null]
+  RRQ_DESCRIPTION varchar(2000)
+  RRQ_STATUS varchar(20) [not null, default: 'OPEN']
+  RRQ_RESULT varchar(50)
+  RRQ_PRIORITY varchar(20) [not null, default: 'NORMAL']
+  RRQ_SEVERITY varchar(20) [not null, default: 'NORMAL']
+  RRQ_SOURCE varchar(50) [not null, default: 'CUSTOMER']
+  RRQ_REQUESTED_AT timestamp [not null]
+  RRQ_DECIDED_AT timestamp
+  RRQ_DECIDED_BY bigint
+  RRQ_CLOSED_AT timestamp
+  RRQ_CLOSED_BY bigint
+  RRQ_STORE_RESPONSE varchar(2000)
+  RRQ_CREATED_AT timestamp [not null]
+  RRQ_UPDATED_AT timestamp [not null]
+  RRQ_CREATED_BY bigint
+  RRQ_UPDATED_BY bigint
+}
+
+Table BEX_RETURN_ATTACHMENT {
+  RAT_ID bigint [pk, increment]
+  RAT_PUBLIC_ID char(32) [not null, unique]
+  RRQ_ID bigint [not null]
+  PFL_ID bigint [not null]
+  RAT_TYPE varchar(50) [not null]
+  RAT_URL varchar(1000) [not null]
+  RAT_FILENAME varchar(255)
+  RAT_MIME_TYPE varchar(100)
+  RAT_SIZE_BYTES bigint
+  RAT_DESCRIPTION varchar(2000)
+  RAT_UPLOADED_AT timestamp [not null]
+  RAT_STATUS varchar(20) [not null, default: 'ACTIVE']
+  RAT_CREATED_AT timestamp [not null]
+  RAT_UPDATED_AT timestamp [not null]
+  RAT_CREATED_BY bigint
+  RAT_UPDATED_BY bigint
+}
+
+Table BEX_STORE_REVIEW {
+  SRV_ID bigint [pk, increment]
+  SRV_PUBLIC_ID char(32) [not null, unique]
+  ORD_ID bigint [not null]
+  STR_ID bigint [not null]
+  PFL_ID bigint [not null]
+  SRV_OVERALL_RATE int [not null]
+  SRV_PRODUCT_MATCH_RATE int
+  SRV_CONSERVATION_RATE int
+  SRV_SERVICE_RATE int
+  SRV_DELIVERY_RATE int
+  SRV_PACKAGING_RATE int
+  SRV_WOULD_BUY_AGAIN char(1)
+  SRV_COMMENT varchar(2000)
+  SRV_STORE_REPLY varchar(2000)
+  SRV_STATUS varchar(20) [not null, default: 'ACTIVE']
+  SRV_REVIEWED_AT timestamp [not null]
+  SRV_CREATED_AT timestamp [not null]
+  SRV_UPDATED_AT timestamp [not null]
+  SRV_CREATED_BY bigint
+  SRV_UPDATED_BY bigint
+
+  indexes {
+    (ORD_ID, STR_ID) [unique, name: 'UK_STORE_REVIEW_ORDER_STORE']
+  }
+}
+
+Table BEX_BUSINESS_CONFIGURATION {
+  BCF_ID bigint [pk, increment]
+  BCF_PUBLIC_ID char(32) [not null, unique]
+  BCF_CODE varchar(100) [not null, unique]
+  BCF_MODULE varchar(50) [not null]
+  BCF_NAME varchar(150) [not null]
+  BCF_DESCRIPTION varchar(1000)
+  BCF_VALUE_TEXT varchar(4000)
+  BCF_VALUE_NUMBER decimal(19,6)
+  BCF_VALUE_BOOLEAN char(1)
+  BCF_UNIT varchar(50)
+  BCF_STATUS varchar(20) [not null, default: 'ACTIVE']
+  BCF_CREATED_AT timestamp [not null]
+  BCF_UPDATED_AT timestamp [not null]
+  BCF_CREATED_BY bigint
+  BCF_UPDATED_BY bigint
+}
+
+Table BEX_NOTIFICATION_TEMPLATE {
+  NTP_ID bigint [pk, increment]
+  NTP_CODE varchar(100) [not null]
+  NTP_CHANNEL varchar(20) [not null]
+  NTP_TITLE varchar(200) [not null]
+  NTP_BODY varchar(4000) [not null]
+  NTP_STATUS varchar(20) [not null, default: 'ACTIVE']
+
+  indexes {
+    (NTP_CODE, NTP_CHANNEL) [unique, name: 'UK_NTP_CODE_CHANNEL']
+  }
+}
+
+Table BEX_NOTIFICATION {
+  NTF_ID bigint [pk, increment]
+  NTF_PUBLIC_ID char(32) [not null, unique]
+  PFL_ID bigint [not null]
+  NTF_TYPE varchar(80) [not null]
+  NTF_TITLE varchar(200) [not null]
+  NTF_BODY varchar(2000) [not null]
+  NTF_STATUS varchar(20) [not null, default: 'UNREAD']
+  NTF_CREATED_AT timestamp [not null]
+  NTF_READ_AT timestamp
+}
+
+Table BEX_NOTIFICATION_DELIVERY {
+  NDL_ID bigint [pk, increment]
+  NTF_ID bigint [not null]
+  NDL_CHANNEL varchar(20) [not null]
+  NDL_STATUS varchar(20) [not null, default: 'PENDING']
+  NDL_ATTEMPTS int [not null, default: 0]
+  NDL_SENT_AT timestamp
+
+  indexes {
+    (NTF_ID, NDL_CHANNEL) [unique, name: 'UK_NDL_CHANNEL']
+  }
+}
+
 Ref: BEX_PROFILE.ACC_ID > BEX_ACCOUNT.ACC_ID
+Ref: BEX_SESSION.ACC_ID > BEX_ACCOUNT.ACC_ID
+Ref: BEX_ACCOUNT_IDENTITY.ACC_ID > BEX_ACCOUNT.ACC_ID
+Ref: BEX_PROFILE_ROLE.PFL_ID > BEX_PROFILE.PFL_ID
+Ref: BEX_PROFILE_ROLE.ROL_ID > BEX_ROLE.ROL_ID
+Ref: BEX_ROLE.ROL_CREATED_BY > BEX_PROFILE.PFL_ID
+Ref: BEX_ROLE.ROL_UPDATED_BY > BEX_PROFILE.PFL_ID
+Ref: BEX_PROFILE_ROLE.PRL_CREATED_BY > BEX_PROFILE.PFL_ID
+Ref: BEX_PROFILE_ROLE.PRL_UPDATED_BY > BEX_PROFILE.PFL_ID
 Ref: BEX_STORE.ACC_ID > BEX_ACCOUNT.ACC_ID
 Ref: BEX_STORE_USER.STR_ID > BEX_STORE.STR_ID
 Ref: BEX_STORE_USER.ACC_ID > BEX_ACCOUNT.ACC_ID
 Ref: BEX_STORE_USER.STU_CREATED_BY > BEX_ACCOUNT.ACC_ID
 Ref: BEX_STORE_USER.STU_UPDATED_BY > BEX_ACCOUNT.ACC_ID
+Ref: BEX_STORE_EVENT.STR_ID > BEX_STORE.STR_ID
+Ref: BEX_STORE_EVENT.STE_CREATED_BY > BEX_ACCOUNT.ACC_ID
+Ref: BEX_STORE_EVENT.STE_UPDATED_BY > BEX_ACCOUNT.ACC_ID
+Ref: BEX_STORE_FOLLOWER.STR_ID > BEX_STORE.STR_ID
+Ref: BEX_STORE_FOLLOWER.PFL_ID > BEX_PROFILE.PFL_ID
+Ref: BEX_STORE_FOLLOWER.STF_CREATED_BY > BEX_PROFILE.PFL_ID
+Ref: BEX_STORE_FOLLOWER.STF_UPDATED_BY > BEX_PROFILE.PFL_ID
 Ref: BEX_PRODUCT.STR_ID > BEX_STORE.STR_ID
 Ref: BEX_PRODUCT.CAT_ID > BEX_CATEGORY.CAT_ID
 Ref: BEX_PRODUCT.BRD_ID > BEX_BRAND.BRD_ID
@@ -451,3 +729,23 @@ Ref: BEX_STORE_BALANCE_TRANSACTION.STR_ID > BEX_STORE.STR_ID
 Ref: BEX_STORE_BALANCE_TRANSACTION.ORD_ID > BEX_ORDER.ORD_ID
 Ref: BEX_STORE_BALANCE_TRANSACTION.PAY_ID > BEX_PAYMENT.PAY_ID
 Ref: BEX_STORE_BALANCE_TRANSACTION.POT_ID > BEX_PAYOUT.POT_ID
+Ref: BEX_RETURN_REQUEST.ORD_ID > BEX_ORDER.ORD_ID
+Ref: BEX_RETURN_REQUEST.STR_ID > BEX_STORE.STR_ID
+Ref: BEX_RETURN_REQUEST.PFL_ID > BEX_PROFILE.PFL_ID
+Ref: BEX_RETURN_REQUEST.RRQ_DECIDED_BY > BEX_PROFILE.PFL_ID
+Ref: BEX_RETURN_REQUEST.RRQ_CLOSED_BY > BEX_PROFILE.PFL_ID
+Ref: BEX_RETURN_REQUEST.RRQ_CREATED_BY > BEX_PROFILE.PFL_ID
+Ref: BEX_RETURN_REQUEST.RRQ_UPDATED_BY > BEX_PROFILE.PFL_ID
+Ref: BEX_RETURN_ATTACHMENT.RRQ_ID > BEX_RETURN_REQUEST.RRQ_ID
+Ref: BEX_RETURN_ATTACHMENT.PFL_ID > BEX_PROFILE.PFL_ID
+Ref: BEX_RETURN_ATTACHMENT.RAT_CREATED_BY > BEX_PROFILE.PFL_ID
+Ref: BEX_RETURN_ATTACHMENT.RAT_UPDATED_BY > BEX_PROFILE.PFL_ID
+Ref: BEX_STORE_REVIEW.ORD_ID > BEX_ORDER.ORD_ID
+Ref: BEX_STORE_REVIEW.STR_ID > BEX_STORE.STR_ID
+Ref: BEX_STORE_REVIEW.PFL_ID > BEX_PROFILE.PFL_ID
+Ref: BEX_STORE_REVIEW.SRV_CREATED_BY > BEX_PROFILE.PFL_ID
+Ref: BEX_STORE_REVIEW.SRV_UPDATED_BY > BEX_PROFILE.PFL_ID
+Ref: BEX_BUSINESS_CONFIGURATION.BCF_CREATED_BY > BEX_PROFILE.PFL_ID
+Ref: BEX_BUSINESS_CONFIGURATION.BCF_UPDATED_BY > BEX_PROFILE.PFL_ID
+Ref: BEX_NOTIFICATION.PFL_ID > BEX_PROFILE.PFL_ID
+Ref: BEX_NOTIFICATION_DELIVERY.NTF_ID > BEX_NOTIFICATION.NTF_ID

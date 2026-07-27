@@ -16,5 +16,20 @@ CREATE OR REPLACE PACKAGE core_response_pkg AS
   FUNCTION build_error(
     p_error IN core_error_pkg.t_public_error
   ) RETURN t_response_body;
+
+  FUNCTION build_known_error(
+    p_code             IN core_error_pkg.t_error_code,
+    p_category         IN core_error_pkg.t_category,
+    p_external_message IN core_error_pkg.t_external_message,
+    p_retryable        IN BOOLEAN DEFAULT FALSE
+  ) RETURN t_response_body;
+
+  FUNCTION build_technical_error(
+    p_code             IN core_error_pkg.t_error_code
+                          DEFAULT 'BEX-SYS-001',
+    p_external_message IN core_error_pkg.t_external_message
+                          DEFAULT 'Nao foi possivel concluir a requisicao.',
+    p_retryable        IN BOOLEAN DEFAULT FALSE
+  ) RETURN t_response_body;
 END core_response_pkg;
 /

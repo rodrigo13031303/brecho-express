@@ -39,7 +39,8 @@ PRODUCT
 suíte consolidada de CATALOG
 ```
 
-PRODUCT não será implementado antes de suas referências obrigatórias.
+PRODUCT foi implementado depois de suas referências obrigatórias, preservando
+a ordem acima.
 
 ### 3.2 Status de PRODUCT
 
@@ -110,9 +111,9 @@ Podem administrar o catálogo da STORE:
 `ATTENDANT` não altera catálogo no MVP.
 
 O módulo CATALOG não consulta `BEX_STORE` nem `BEX_STORE_USER` diretamente.
-`STR_SERVICE_PKG` deverá expor um contrato público específico para validar a
+`STR_SERVICE_PKG` expõe contrato público específico para validar a
 permissão de catálogo e retornar a identidade interna da STORE somente ao
-Service consumidor. Essa evolução será implementada e testada antes de PRODUCT.
+Service consumidor. Essa evolução foi implementada e testada antes de PRODUCT.
 
 ## 5. Modelo físico candidato
 

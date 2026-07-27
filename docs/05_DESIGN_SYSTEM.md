@@ -1,5 +1,9 @@
 # Design System do Brechó Express
 
+> **Status:** diretriz visual inicial. Tokens, componentes, estados,
+> responsividade e acessibilidade ainda precisam de contrato implementável e
+> validação no Flutter antes de este documento ser considerado completo.
+
 ## Visão do Design System
 Design moderno, leve e profissional que transmite confiança, sustentabilidade e eficiência. O sistema reforça o posicionamento do Brechó Express como um marketplace nacional de economia circular.
 

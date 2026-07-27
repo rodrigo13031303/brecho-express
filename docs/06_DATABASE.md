@@ -1,5 +1,10 @@
 # Banco de Dados - Brechó Express
 
+> **Status:** visão introdutória. O contrato vigente está em
+> `20_DATA_DICTIONARY.md`, `21_DATABASE_CONVENTIONS.md`,
+> `22_ENTITY_MODELING_STANDARD.md`, ADRs físicas aplicáveis e DDL validado.
+> Exemplos deste arquivo não prevalecem sobre essas fontes.
+
 ## Visão Geral
 O backend do Brechó Express utiliza Oracle como banco principal, com ORDS para expor APIs REST alinhadas ao domínio. O modelo de dados segue a linguagem ubíqua oficial e a arquitetura nacional de economia circular.
 

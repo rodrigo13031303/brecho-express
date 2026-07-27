@@ -58,7 +58,7 @@ CREATE OR REPLACE PACKAGE BODY pur_api_pkg AS
 
   PROCEDURE checkout(p_cart_public_id VARCHAR2,p_actor_id NUMBER,o_status OUT PLS_INTEGER,o_body OUT NOCOPY CLOB) IS r pur_service_pkg.t_record;
   BEGIN required(p_cart_public_id);actor(p_actor_id);r:=pur_service_pkg.checkout(p_cart_public_id,p_actor_id);
-    COMMIT;o_body:=core_response_pkg.build_success(request_json(r));o_status:=201;
+    o_body:=core_response_pkg.build_success(request_json(r));COMMIT;o_status:=201;
   EXCEPTION WHEN e_bad THEN ROLLBACK;err(400,'BEX-REQ-004','Valores obrigatorios.',o_status,o_body);
     WHEN crt_service_pkg.e_cart_not_found THEN ROLLBACK;err(404,'BEX-CRT-001','Carrinho nao encontrado.',o_status,o_body);
     WHEN crt_service_pkg.e_forbidden THEN ROLLBACK;err(403,'BEX-PUR-003','Operacao nao autorizada.',o_status,o_body);
@@ -78,7 +78,7 @@ CREATE OR REPLACE PACKAGE BODY pur_api_pkg AS
   BEGIN required(p_request_public_id);required(p_item_public_id);required(p_store_public_id);actor(p_actor_id);
     j:=object_body(p_body);allowed(j);r:=pur_service_pkg.respond_item(p_request_public_id,p_item_public_id,
       p_store_public_id,num(j,'confirmedQuantity'),opt_str(j,'rejectReason'),p_actor_id);
-    COMMIT;o_body:=core_response_pkg.build_success(request_json(r));o_status:=200;
+    o_body:=core_response_pkg.build_success(request_json(r));COMMIT;o_status:=200;
   EXCEPTION WHEN e_bad THEN ROLLBACK;err(400,'BEX-REQ-002','Resposta comercial invalida.',o_status,o_body);
     WHEN pur_service_pkg.e_request_not_found OR pur_service_pkg.e_item_not_found THEN ROLLBACK;err(404,'BEX-PUR-002','Item da solicitacao nao encontrado.',o_status,o_body);
     WHEN pur_service_pkg.e_forbidden OR str_service_pkg.e_catalog_forbidden THEN ROLLBACK;err(403,'BEX-PUR-003','Operacao nao autorizada.',o_status,o_body);

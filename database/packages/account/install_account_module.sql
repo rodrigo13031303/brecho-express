@@ -14,5 +14,7 @@ PROMPT ============================================================
 @@install_acc_session_pkg.sql
 @@install_acc_session_api_pkg.sql
 @@install_acc_api_pkg.sql
+@acc_auth_api_pkg.pks
+@acc_auth_api_pkg.pkb
 
 PROMPT ACCOUNT module installed successfully.

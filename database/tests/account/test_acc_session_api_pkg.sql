@@ -6,7 +6,7 @@ DECLARE
   g_test_count   PLS_INTEGER := 0;
   g_current_test VARCHAR2(200);
 
-  c_expected_test_count CONSTANT PLS_INTEGER := 6;
+  c_expected_test_count CONSTANT PLS_INTEGER := 8;
 
   l_account_id       BEX_ACCOUNT.ACC_ID%TYPE;
   l_account_public_id BEX_ACCOUNT.ACC_PUBLIC_ID%TYPE;
@@ -113,8 +113,9 @@ DECLARE
   END create_session_fixture;
 
   PROCEDURE run_tests IS
+    l_count PLS_INTEGER;
   BEGIN
-    start_test('CREATE_SESSION cria e confirma a sessao');
+    start_test('CREATE_SESSION participa da transacao do chamador');
     create_session_fixture(
       l_session_public_id,
       l_session_token,
@@ -131,7 +132,7 @@ DECLARE
     );
     pass;
 
-    start_test('VALIDATE_SESSION valida e confirma LAST_USED_AT');
+    start_test('VALIDATE_SESSION atualiza LAST_USED_AT na transacao atual');
     l_session := acc_session_api_pkg.validate_session(
       l_session_token,
       l_account_id
@@ -154,7 +155,7 @@ DECLARE
     );
     pass;
 
-    start_test('REVOKE_SESSION revoga e confirma a sessao');
+    start_test('REVOKE_SESSION revoga na transacao atual');
     acc_session_api_pkg.revoke_session(l_session_public_id, l_account_id);
     l_session := acc_session_repository_pkg.get_by_public_id(
       l_session_public_id
@@ -192,9 +193,39 @@ DECLARE
       'EXPIRE_SESSIONS nao expirou a sessao.'
     );
     pass;
+
+    start_test('chamador pode desfazer CREATE_SESSION');
+    create_session_fixture(l_second_public_id, l_second_token, l_second_expires);
+    ROLLBACK;
+    SELECT COUNT(*)
+      INTO l_count
+      FROM BEX_SESSION
+     WHERE SESSION_PUBLIC_ID = l_second_public_id;
+    assert_true(
+      l_count = 0,
+      'CREATE_SESSION confirmou internamente uma transacao do chamador.'
+    );
+    pass;
+
+    start_test('package nao contem controle transacional');
+    SELECT COUNT(*)
+      INTO l_count
+      FROM USER_SOURCE
+     WHERE NAME = 'ACC_SESSION_API_PKG'
+       AND TYPE = 'PACKAGE BODY'
+       AND (
+         REGEXP_LIKE(UPPER(TEXT), '(^|[^A-Z_])COMMIT([^A-Z_]|$)')
+         OR REGEXP_LIKE(UPPER(TEXT), '(^|[^A-Z_])ROLLBACK([^A-Z_]|$)')
+       );
+    assert_true(
+      l_count = 0,
+      'ACC_SESSION_API_PKG nao pode conter COMMIT ou ROLLBACK.'
+    );
+    pass;
   END run_tests;
 BEGIN
   create_account_fixture;
+  COMMIT;
   run_tests;
 
   IF g_test_count <> c_expected_test_count THEN

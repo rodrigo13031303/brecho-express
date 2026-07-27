@@ -1,0 +1,656 @@
+import 'package:flutter/material.dart';
+
+import '../appearance/app_palette.dart';
+import '../auth/brecho_session.dart';
+import '../branding/brecho_mark.dart';
+import '../catalog/catalog_service.dart';
+import '../catalog/product_detail_page.dart';
+import '../seller/seller_page.dart';
+
+class MainShell extends StatefulWidget {
+  const MainShell({
+    required this.session,
+    required this.palette,
+    required this.onPaletteChanged,
+    required this.onLogout,
+    required this.loggingOut,
+    this.initialCatalog,
+    super.key,
+  });
+
+  final BrechoSession session;
+  final AppPalette palette;
+  final ValueChanged<AppPalette> onPaletteChanged;
+  final Future<void> Function() onLogout;
+  final bool loggingOut;
+  final Future<CatalogSnapshot>? initialCatalog;
+
+  @override
+  State<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends State<MainShell> {
+  int _currentIndex = 0;
+  late final CatalogService _catalogService;
+  late Future<CatalogSnapshot> _catalog;
+
+  @override
+  void initState() {
+    super.initState();
+    _catalogService = CatalogService();
+    _catalog = widget.initialCatalog ?? _catalogService.load();
+  }
+
+  @override
+  void dispose() {
+    _catalogService.close();
+    super.dispose();
+  }
+
+  void _retryCatalog() {
+    setState(() => _catalog = _catalogService.load());
+  }
+
+  void _selectTab(int index) => setState(() => _currentIndex = index);
+
+  @override
+  Widget build(BuildContext context) {
+    final pages = [
+      HomePage(
+        catalog: _catalog,
+        onRetry: _retryCatalog,
+        onExplore: () => _selectTab(1),
+        onSell: () => _selectTab(2),
+      ),
+      ExplorePage(catalog: _catalog, onRetry: _retryCatalog),
+      SellerPage(
+        session: widget.session,
+        catalog: _catalog,
+        onPublished: _retryCatalog,
+      ),
+      const OrdersPage(),
+      ProfilePage(
+        session: widget.session,
+        palette: widget.palette,
+        onPaletteChanged: widget.onPaletteChanged,
+        onLogout: widget.onLogout,
+        loggingOut: widget.loggingOut,
+      ),
+    ];
+
+    return Scaffold(
+      body: IndexedStack(index: _currentIndex, children: pages),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: _selectTab,
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Início',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.search),
+            selectedIcon: Icon(Icons.manage_search),
+            label: 'Explorar',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.add_circle_outline),
+            selectedIcon: Icon(Icons.add_circle),
+            label: 'Vender',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.receipt_long_outlined),
+            selectedIcon: Icon(Icons.receipt_long),
+            label: 'Pedidos',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Perfil',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class HomePage extends StatelessWidget {
+  const HomePage({
+    required this.catalog,
+    required this.onRetry,
+    required this.onExplore,
+    required this.onSell,
+    super.key,
+  });
+  final Future<CatalogSnapshot> catalog;
+  final VoidCallback onRetry;
+  final VoidCallback onExplore;
+  final VoidCallback onSell;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return SafeArea(
+      child: CustomScrollView(
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+            sliver: SliverList.list(
+              children: [
+                const _BrandHeader(title: 'Brechó Express'),
+                const SizedBox(height: 24),
+                Text(
+                  'Olá! 👋',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Que história sua próxima peça vai contar?',
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+                const SizedBox(height: 22),
+                SearchBar(
+                  onTap: onExplore,
+                  readOnly: true,
+                  leading: const Icon(Icons.search),
+                  hintText: 'Buscar peças, marcas ou estilos',
+                ),
+                const SizedBox(height: 28),
+                Text(
+                  'Explore por categoria',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    _CategoryChip(
+                      icon: Icons.checkroom_outlined,
+                      label: 'Roupas',
+                      onTap: onExplore,
+                    ),
+                    _CategoryChip(
+                      icon: Icons.shopping_bag_outlined,
+                      label: 'Bolsas',
+                      onTap: onExplore,
+                    ),
+                    _CategoryChip(
+                      icon: Icons.diamond_outlined,
+                      label: 'Acessórios',
+                      onTap: onExplore,
+                    ),
+                    _CategoryChip(
+                      icon: Icons.directions_run_outlined,
+                      label: 'Calçados',
+                      onTap: onExplore,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 28),
+                Container(
+                  padding: const EdgeInsets.all(22),
+                  decoration: BoxDecoration(
+                    color: colors.primaryContainer,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.auto_awesome,
+                        color: colors.onPrimaryContainer,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Desapegue. Renove. Recomece.',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: colors.onPrimaryContainer,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Dê uma nova história às peças que você não usa mais.',
+                        style: TextStyle(color: colors.onPrimaryContainer),
+                      ),
+                      const SizedBox(height: 16),
+                      FilledButton.icon(
+                        onPressed: onSell,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Quero vender'),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 28),
+                Text(
+                  'Novidades',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 12),
+                _CatalogContent(
+                  catalog: catalog,
+                  onRetry: onRetry,
+                  preview: true,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ExplorePage extends StatefulWidget {
+  const ExplorePage({required this.catalog, required this.onRetry, super.key});
+  final Future<CatalogSnapshot> catalog;
+  final VoidCallback onRetry;
+  @override
+  State<ExplorePage> createState() => _ExplorePageState();
+}
+
+class _ExplorePageState extends State<ExplorePage> {
+  final _searchController = TextEditingController();
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+        children: [
+          const _BrandHeader(title: 'Explorar'),
+          const SizedBox(height: 22),
+          SearchBar(
+            controller: _searchController,
+            onChanged: (_) => setState(() {}),
+            leading: const Icon(Icons.search),
+            hintText: 'O que você procura?',
+            trailing: [
+              IconButton(
+                onPressed: () {
+                  _searchController.clear();
+                  setState(() {});
+                },
+                icon: const Icon(Icons.close),
+                tooltip: 'Limpar busca',
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Wrap(
+            spacing: 8,
+            children: [
+              FilterChip(label: Text('Categoria'), onSelected: null),
+              FilterChip(label: Text('Tamanho'), onSelected: null),
+              FilterChip(label: Text('Preço'), onSelected: null),
+            ],
+          ),
+          const SizedBox(height: 32),
+          _CatalogContent(
+            catalog: widget.catalog,
+            onRetry: widget.onRetry,
+            query: _searchController.text,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class OrdersPage extends StatelessWidget {
+  const OrdersPage({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+        children: [
+          const _BrandHeader(title: 'Pedidos'),
+          const SizedBox(height: 72),
+          Icon(
+            Icons.receipt_long_outlined,
+            size: 72,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'Nenhum pedido por aqui',
+            textAlign: TextAlign.center,
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Suas compras e vendas aparecerão aqui.',
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ProfilePage extends StatelessWidget {
+  const ProfilePage({
+    required this.session,
+    required this.palette,
+    required this.onPaletteChanged,
+    required this.onLogout,
+    required this.loggingOut,
+    this.initialCatalog,
+    super.key,
+  });
+  final BrechoSession session;
+  final AppPalette palette;
+  final ValueChanged<AppPalette> onPaletteChanged;
+  final Future<void> Function() onLogout;
+  final bool loggingOut;
+  final Future<CatalogSnapshot>? initialCatalog;
+
+  Future<void> _chooseAppearance(BuildContext context) async {
+    final selected = await showModalBottomSheet<AppPalette>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Escolha seu estilo',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 4),
+              const Text('A cor do cabide permanece sempre a mesma.'),
+              const SizedBox(height: 20),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: AppPalette.values
+                    .map(
+                      (item) => ChoiceChip(
+                        selected: item == palette,
+                        onSelected: (_) => Navigator.pop(context, item),
+                        avatar: CircleAvatar(backgroundColor: item.seedColor),
+                        label: Text(item.label),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (selected != null) onPaletteChanged(selected);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+        children: [
+          const _BrandHeader(title: 'Perfil'),
+          const SizedBox(height: 28),
+          CircleAvatar(
+            radius: 42,
+            backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+            child: Icon(
+              Icons.person,
+              size: 46,
+              color: Theme.of(context).colorScheme.onPrimaryContainer,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Minha conta',
+            textAlign: TextAlign.center,
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            session.accountPublicId,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 28),
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.palette_outlined),
+                  title: const Text('Aparência'),
+                  subtitle: Text(palette.label),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _chooseAppearance(context),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.shield_outlined),
+                  title: const Text('Sessão segura'),
+                  subtitle: Text(
+                    'Ativa até ${_formatDate(session.expiresAt.toLocal())}',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          OutlinedButton.icon(
+            onPressed: loggingOut ? null : onLogout,
+            icon: loggingOut
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.logout),
+            label: Text(loggingOut ? 'Saindo…' : 'Sair da conta'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(DateTime value) =>
+      '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year} às ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
+}
+
+class _BrandHeader extends StatelessWidget {
+  const _BrandHeader({required this.title});
+  final String title;
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      const BrechoMark(size: 36),
+      const SizedBox(width: 10),
+      Text(
+        title,
+        style: Theme.of(
+          context,
+        ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+      ),
+    ],
+  );
+}
+
+class _CategoryChip extends StatelessWidget {
+  const _CategoryChip({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => ActionChip(
+    avatar: Icon(icon, size: 19),
+    label: Text(label),
+    onPressed: onTap,
+  );
+}
+
+class _CatalogContent extends StatelessWidget {
+  const _CatalogContent({
+    required this.catalog,
+    required this.onRetry,
+    this.query = '',
+    this.preview = false,
+  });
+  final Future<CatalogSnapshot> catalog;
+  final VoidCallback onRetry;
+  final String query;
+  final bool preview;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<CatalogSnapshot>(
+      future: catalog,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(32),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+        if (snapshot.hasError) {
+          return _CatalogMessage(
+            icon: Icons.cloud_off_outlined,
+            title: 'Catálogo temporariamente indisponível',
+            message: 'Não foi possível carregar as peças agora.',
+            action: TextButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Tentar novamente'),
+            ),
+          );
+        }
+        final products = snapshot.data!.products
+            .where((item) => item.matches(query))
+            .toList();
+        if (products.isEmpty) {
+          return _CatalogMessage(
+            icon: Icons.inventory_2_outlined,
+            title: query.trim().isEmpty
+                ? 'Nenhuma peça publicada ainda'
+                : 'Nenhuma peça encontrada',
+            message: query.trim().isEmpty
+                ? 'As primeiras peças aparecerão aqui assim que forem publicadas.'
+                : 'Tente buscar por outro nome ou estilo.',
+          );
+        }
+        final visible = preview ? products.take(4) : products;
+        return Column(
+          children: visible
+              .map((product) => _ProductCard(product: product))
+              .toList(),
+        );
+      },
+    );
+  }
+}
+
+class _ProductCard extends StatelessWidget {
+  const _ProductCard({required this.product});
+  final CatalogProduct product;
+
+  @override
+  Widget build(BuildContext context) {
+    final price = product.price.toStringAsFixed(2).replaceAll('.', ',');
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(12),
+        leading: Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: const Icon(Icons.checkroom_outlined),
+        ),
+        title: Text(
+          product.title,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+        subtitle: Text('${_conditionLabel(product.condition)}\nR\$ $price'),
+        isThreeLine: true,
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (context) =>
+                ProductDetailPage(productPublicId: product.publicId),
+          ),
+        ),
+      ),
+    );
+  }
+
+  static String _conditionLabel(String value) => switch (value) {
+    'NEW' => 'Novo',
+    'LIKE_NEW' => 'Como novo',
+    'GOOD' => 'Bom estado',
+    'FAIR' => 'Usado',
+    _ => value,
+  };
+}
+
+class _CatalogMessage extends StatelessWidget {
+  const _CatalogMessage({
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.action,
+  });
+  final IconData icon;
+  final String title;
+  final String message;
+  final Widget? action;
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          Icon(icon, size: 48, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(height: 14),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 6),
+          Text(message, textAlign: TextAlign.center),
+          if (action != null) ...[const SizedBox(height: 8), action!],
+        ],
+      ),
+    ),
+  );
+}

@@ -24,6 +24,7 @@ Brechó Express é uma plataforma nacional de economia circular especializada em
 - Suporte a doações e desapego
 
 ## Estrutura de Documentos
+- README.md — índice, governança, autoridade e estado documental
 - 01_VISION.md
 - 02_PRD.md
 - 03_BUSINESS_RULES.md
@@ -38,3 +39,11 @@ Brechó Express é uma plataforma nacional de economia circular especializada em
 - 12_DOMAIN_MODEL.md
 - 13_UBIQUITOUS_LANGUAGE.md
 - 14_BUSINESS_FLOW.md
+- 20_DATA_DICTIONARY.md a 31_API_RUNTIME_CONTRACT.md — domínio e padrões técnicos
+- 32_STORE_ARCHITECTURE.md em diante — arquiteturas especializadas por módulo
+- 40_ORDS_ARCHITECTURE.md — borda HTTP e catálogo oficial de endpoints
+- ADR-*.md — decisões arquiteturais individuais
+- sprints/ — contratos operacionais temporários de implementação
+
+O catálogo completo, a ordem de autoridade e o estado vigente de cada conjunto
+documental são definidos em `docs/README.md`.

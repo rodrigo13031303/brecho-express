@@ -243,6 +243,10 @@ Deve:
 - associar o status HTTP semanticamente correto;
 - garantir ausência de corpo em respostas 204;
 - usar `CORE_JSON_PKG` para serialização;
+- usar `CORE_JSON_PKG.parse_object` e seus leitores tipados na validação
+  estrutural de requests;
+- rejeitar campos desconhecidos com `assert_allowed_attributes`;
+- converter timestamps externos com os leitores temporais exatos do Core;
 - usar a representação normalizada de `CORE_ERROR_PKG` para falhas;
 - manter HTTP e JSON fora das camadas internas.
 

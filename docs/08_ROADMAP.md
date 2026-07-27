@@ -1,5 +1,9 @@
 # Roadmap do Brechó Express
 
+> **Status:** roadmap histórico sem datas ou releases vinculantes. Não deve ser
+> usado para inferir o estado implementado. O índice vigente registra o estado
+> conhecido e cada arquitetura modular declara sua própria implementação.
+
 ## Fase 1: Plataforma Nacional
 - Revisão do modelo de domínio e linguagem ubíqua.
 - Autenticação e cadastro de Conta e Perfil.

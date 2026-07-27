@@ -136,7 +136,7 @@ CREATE OR REPLACE PACKAGE BODY prd_api_pkg AS
     c.weight_value:=number_value(j,'weight',FALSE); c.width_value:=number_value(j,'width',FALSE);
     c.height_value:=number_value(j,'height',FALSE); c.length_value:=number_value(j,'length',FALSE);
     r:=prd_service_pkg.create_product(p_store_public_id,cat,brd,c,p_actor_id);
-    COMMIT; o_response_body:=core_response_pkg.build_success(to_json(r)); o_status_code:=201;
+    o_response_body:=core_response_pkg.build_success(to_json(r)); COMMIT; o_status_code:=201;
   EXCEPTION
     WHEN e_bad_request OR e_actor_required THEN ROLLBACK; error_response(400,'BEX-REQ-002','A requisicao do Achado e invalida.',o_status_code,o_response_body);
     WHEN prd_service_pkg.e_invalid_product THEN ROLLBACK; service_error(2,o_status_code,o_response_body);
@@ -216,7 +216,7 @@ CREATE OR REPLACE PACKAGE BODY prd_api_pkg AS
     p.set_height:=j.has('height'); IF p.set_height THEN p.height_value:=number_value(j,'height',FALSE); END IF;
     p.set_length:=j.has('length'); IF p.set_length THEN p.length_value:=number_value(j,'length',FALSE); END IF;
     r:=prd_service_pkg.update_product(p_product_public_id,p_store_public_id,p,sc,cat,sb,brd,p_actor_id);
-    COMMIT; o_response_body:=core_response_pkg.build_success(to_json(r)); o_status_code:=200;
+    o_response_body:=core_response_pkg.build_success(to_json(r)); COMMIT; o_status_code:=200;
   EXCEPTION
     WHEN e_bad_request OR e_actor_required THEN ROLLBACK; error_response(400,'BEX-REQ-002','A requisicao do Achado e invalida.',o_status_code,o_response_body);
     WHEN prd_service_pkg.e_product_not_found THEN ROLLBACK; service_error(1,o_status_code,o_response_body);
@@ -235,7 +235,7 @@ CREATE OR REPLACE PACKAGE BODY prd_api_pkg AS
   BEGIN
     required(p_product_public_id); required(p_store_public_id); required(p_new_status); actor(p_actor_id);
     r:=prd_service_pkg.change_status(p_product_public_id,p_store_public_id,p_new_status,p_actor_id);
-    COMMIT; o_response_body:=core_response_pkg.build_success(to_json(r)); o_status_code:=200;
+    o_response_body:=core_response_pkg.build_success(to_json(r)); COMMIT; o_status_code:=200;
   EXCEPTION
     WHEN e_bad_request OR e_actor_required THEN ROLLBACK; error_response(400,'BEX-REQ-004','Valores obrigatorios.',o_status_code,o_response_body);
     WHEN prd_service_pkg.e_product_not_found THEN ROLLBACK; service_error(1,o_status_code,o_response_body);

@@ -80,7 +80,7 @@ CREATE OR REPLACE PACKAGE BODY crt_api_pkg AS
   PROCEDURE get_or_create_cart(p_actor_id NUMBER,o_status OUT PLS_INTEGER,o_body OUT NOCOPY CLOB) IS
     r crt_service_pkg.t_cart_record;
   BEGIN actor(p_actor_id);r:=crt_service_pkg.get_or_create_active(p_actor_id);
-    COMMIT;o_body:=core_response_pkg.build_success(cart_json(r));o_status:=200;
+    o_body:=core_response_pkg.build_success(cart_json(r));COMMIT;o_status:=200;
   EXCEPTION WHEN e_bad THEN ROLLBACK;error_response(400,'BEX-REQ-004','Ator obrigatorio.',o_status,o_body);
     WHEN crt_service_pkg.e_forbidden THEN ROLLBACK;error_response(403,'BEX-CRT-003','Perfil indisponivel.',o_status,o_body);
     WHEN OTHERS THEN ROLLBACK;internal_error(o_status,o_body);END;
@@ -98,7 +98,7 @@ CREATE OR REPLACE PACKAGE BODY crt_api_pkg AS
     j JSON_OBJECT_T;r crt_service_pkg.t_cart_record;
   BEGIN required(p_cart_public_id);actor(p_actor_id);j:=object_body(p_body);allowed(j,TRUE);
     r:=crt_service_pkg.add_item(p_cart_public_id,str(j,'productPublicId'),num(j,'quantity'),p_actor_id);
-    COMMIT;o_body:=core_response_pkg.build_success(cart_json(r));o_status:=201;
+    o_body:=core_response_pkg.build_success(cart_json(r));COMMIT;o_status:=201;
   EXCEPTION WHEN e_bad THEN ROLLBACK;error_response(400,'BEX-REQ-002','Item do carrinho invalido.',o_status,o_body);
     WHEN crt_service_pkg.e_cart_not_found THEN ROLLBACK;error_response(404,'BEX-CRT-001','Carrinho nao encontrado.',o_status,o_body);
     WHEN prd_service_pkg.e_product_not_found THEN ROLLBACK;error_response(404,'BEX-PRD-001','Achado nao encontrado.',o_status,o_body);
@@ -113,7 +113,7 @@ CREATE OR REPLACE PACKAGE BODY crt_api_pkg AS
   BEGIN required(p_cart_public_id);required(p_item_public_id);actor(p_actor_id);
     j:=object_body(p_body);allowed(j,FALSE);
     r:=crt_service_pkg.update_item(p_cart_public_id,p_item_public_id,num(j,'quantity'),p_actor_id);
-    COMMIT;o_body:=core_response_pkg.build_success(cart_json(r));o_status:=200;
+    o_body:=core_response_pkg.build_success(cart_json(r));COMMIT;o_status:=200;
   EXCEPTION WHEN e_bad THEN ROLLBACK;error_response(400,'BEX-REQ-002','Atualizacao do item invalida.',o_status,o_body);
     WHEN crt_service_pkg.e_cart_not_found OR crt_service_pkg.e_item_not_found THEN ROLLBACK;error_response(404,'BEX-CRT-002','Item nao encontrado.',o_status,o_body);
     WHEN crt_service_pkg.e_forbidden THEN ROLLBACK;error_response(403,'BEX-CRT-003','Operacao nao autorizada.',o_status,o_body);
@@ -125,7 +125,7 @@ CREATE OR REPLACE PACKAGE BODY crt_api_pkg AS
     r crt_service_pkg.t_cart_record;
   BEGIN required(p_cart_public_id);required(p_item_public_id);actor(p_actor_id);
     r:=crt_service_pkg.remove_item(p_cart_public_id,p_item_public_id,p_actor_id);
-    COMMIT;o_body:=core_response_pkg.build_success(cart_json(r));o_status:=200;
+    o_body:=core_response_pkg.build_success(cart_json(r));COMMIT;o_status:=200;
   EXCEPTION WHEN e_bad THEN ROLLBACK;error_response(400,'BEX-REQ-004','Valores obrigatorios.',o_status,o_body);
     WHEN crt_service_pkg.e_cart_not_found OR crt_service_pkg.e_item_not_found THEN ROLLBACK;error_response(404,'BEX-CRT-002','Item nao encontrado.',o_status,o_body);
     WHEN crt_service_pkg.e_forbidden THEN ROLLBACK;error_response(403,'BEX-CRT-003','Operacao nao autorizada.',o_status,o_body);

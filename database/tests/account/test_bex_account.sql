@@ -310,24 +310,6 @@ DECLARE
                     'ACTIVE'
                 );
             WHEN 3 THEN
-                l_contract := 'ACC_PASSWORD_HASH required';
-                INSERT INTO BEX_ACCOUNT
-                (
-                    ACC_PUBLIC_ID,
-                    ACC_EMAIL,
-                    ACC_PASSWORD_HASH,
-                    ACC_PASSWORD_CHANGED_AT,
-                    ACC_STATUS
-                )
-                VALUES
-                (
-                    'F0000000000000000000000000000011',
-                    'physical.null.hash@example.invalid',
-                    NULL,
-                    SYSTIMESTAMP,
-                    'ACTIVE'
-                );
-            WHEN 4 THEN
                 l_contract := 'ACC_STATUS required';
                 INSERT INTO BEX_ACCOUNT
                 (
@@ -346,7 +328,7 @@ DECLARE
                     NULL
                 );
             ELSE
-                fail('Required-column test case', '1..4', TO_CHAR(p_case));
+                fail('Required-column test case', '1..3', TO_CHAR(p_case));
         END CASE;
 
         fail(l_contract, 'ORA-01400', 'insert succeeded');
@@ -379,7 +361,7 @@ BEGIN
     assert_column('ACC_PUBLIC_ID', 2, 'CHAR', 32, NULL, 'C', 'N');
     assert_column('ACC_EMAIL', 3, 'VARCHAR2', 255, NULL, 'C', 'N');
     assert_column('ACC_EMAIL_VERIFIED_AT', 4, 'TIMESTAMP(6)', NULL, 6, NULL, 'Y');
-    assert_column('ACC_PASSWORD_HASH', 5, 'VARCHAR2', 255, NULL, 'C', 'N');
+    assert_column('ACC_PASSWORD_HASH', 5, 'VARCHAR2', 255, NULL, 'C', 'Y');
     assert_column('ACC_PASSWORD_CHANGED_AT', 6, 'TIMESTAMP(6)', NULL, 6, NULL, 'Y');
     assert_column('ACC_STATUS', 7, 'VARCHAR2', 30, NULL, 'C', 'N');
     assert_column('ACC_LAST_LOGIN_AT', 8, 'TIMESTAMP(6)', NULL, 6, NULL, 'Y');
@@ -702,7 +684,7 @@ BEGIN
             END IF;
     END;
 
-    FOR l_case IN 1 .. 4 LOOP
+    FOR l_case IN 1 .. 3 LOOP
         expect_required_failure(l_case);
     END LOOP;
 

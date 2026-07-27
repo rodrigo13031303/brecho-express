@@ -205,8 +205,6 @@ Objetivo: Demonstrar que todas as camadas representam o mesmo conceito utilizand
 - Marketplace Ads
 - Closet
 - Brechó Certificado
-- Reserva Presencial
-- Eventos Temporários
 
 Estes conceitos estão reservados para versões futuras e deverão ser documentados neste mesmo arquivo quando forem implementados.
 

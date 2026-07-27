@@ -1,5 +1,9 @@
 # Padrões de API - Brechó Express
 
+> O catálogo vigente de rotas e o estado da materialização ORDS estão em
+> `40_ORDS_ARCHITECTURE.md`. Este documento governa os padrões gerais; exemplos
+> que não constem do catálogo não criam endpoints.
+
 ## 1. Objetivo
 
 Este documento tem por objetivo organizar a referência oficial para construção, padronização e consumo das APIs REST do Brechó Express.

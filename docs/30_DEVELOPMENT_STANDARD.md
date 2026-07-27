@@ -21,13 +21,17 @@ Mudanças materiais no domínio, na arquitetura, no Core Framework, em contratos
 A implementação deve respeitar a seguinte ordem de autoridade:
 
 1. `00_CONSTITUICAO.md`, para identidade, valores e limites fundamentais do projeto;
-2. decisões aceitas em `09_DECISIONS.md`;
+2. ADRs individuais aceitas em `ADR-*.md`;
 3. modelo e regras de domínio, especialmente `20_DATA_DICTIONARY.md`, `22_ENTITY_MODELING_STANDARD.md`, `23_DOMAIN_MODEL.md` e `24_SYSTEM_ARCHITECTURE.md`;
-4. convenções físicas e de banco em `21_DATABASE_CONVENTIONS.md` e `26_PHYSICAL_ARCHITECTURE.md`;
-5. contratos externos em `27_API_STANDARDS.md`;
-6. capacidades transversais e lifecycle em `28_CORE_FRAMEWORK.md` e `29_EXECUTION_CONTEXT.md`;
-7. este padrão de desenvolvimento;
-8. código e testes vigentes, como evidência da implementação atualmente disponível.
+4. arquiteturas especializadas de módulo em `32` e posteriores;
+5. convenções físicas e de banco em `21_DATABASE_CONVENTIONS.md` e `26_PHYSICAL_ARCHITECTURE.md`;
+6. contratos externos em `27_API_STANDARDS.md` e `31_API_RUNTIME_CONTRACT.md`;
+7. capacidades transversais e lifecycle em `28_CORE_FRAMEWORK.md` e `29_EXECUTION_CONTEXT.md`;
+8. este padrão de desenvolvimento;
+9. código e testes vigentes, como evidência da implementação atualmente disponível.
+
+`README.md` é o índice de governança e deve ser consultado para localizar a
+fonte oficial por assunto.
 
 `04_ARCHITECTURE.md` e `11_AI_CONTEXT.md` fornecem visão geral e restrições de contexto, mas não substituem documentos posteriores e especializados.
 

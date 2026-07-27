@@ -6,6 +6,6 @@ CREATE OR REPLACE PACKAGE BODY sbl_api_pkg AS
     core_json_pkg.put_number(j,'blockedAmount',r.blocked_amount);core_json_pkg.put_number(j,'availableAmount',r.available_amount);
     core_json_pkg.put_number(j,'pendingPayoutAmount',r.pending_payout_amount);core_json_pkg.put_number(j,'paidAmount',r.paid_amount);
     o_body:=core_response_pkg.build_success(j);o_status:=200;
-  EXCEPTION WHEN sbl_query_pkg.e_forbidden THEN o_status:=403;o_body:=NULL;WHEN OTHERS THEN o_status:=500;o_body:=NULL;END;
+  EXCEPTION WHEN sbl_query_pkg.e_forbidden THEN o_status:=403;o_body:=core_response_pkg.build_known_error('BEX-SBL-001',core_error_pkg.c_category_authorization,'Operacao nao autorizada para consultar este saldo.');WHEN OTHERS THEN o_status:=500;o_body:=core_response_pkg.build_technical_error;END;
 END sbl_api_pkg;
 /

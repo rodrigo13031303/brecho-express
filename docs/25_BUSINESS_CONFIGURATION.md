@@ -2,14 +2,18 @@
 
 ## 1. Objetivo
 
-Este documento oficializa as políticas operacionais do Brechó Express que, no futuro, poderão ser parametrizadas de forma independente da estrutura do domínio.
+Este documento oficializa as políticas operacionais parametrizáveis do Brechó
+Express. A entidade `BUSINESS_CONFIGURATION` já existe no estado implementado;
+cada política somente produz efeito quando o módulo consumidor possuir contrato
+e integração aprovados.
 
 O objetivo é separar claramente:
 
 - estrutura do domínio: conceitos e entidades permanentes do negócio;
 - política operacional: regras configuráveis que determinam comportamento, limites e critérios de operação.
 
-Este documento não representa implementação técnica, nem banco de dados, nem tabelas. Ele é uma referência de negócio para orientar futuras decisões de configuração.
+Este documento define a semântica de negócio das configurações. A estrutura
+física pertence ao Data Dictionary e ao módulo de configuração.
 
 ---
 
@@ -30,7 +34,7 @@ Este documento não representa implementação técnica, nem banco de dados, nem
 | Código | Nome | Descrição | Valor Inicial | Unidade | Observações |
 |--------|------|-----------|---------------|---------|-------------|
 | PURCHASE_STORE_CONFIRMATION_TIMEOUT | Tempo de confirmação do Brechó | Tempo máximo para o Brechó confirmar disponibilidade após uma solicitação de compra. | 24 | horas | Pode ser ajustado por tipo de produto ou campanha. |
-| PURCHASE_PAYMENT_TIMEOUT | Tempo de pagamento | Tempo máximo para o cliente concluir o pagamento após a criação da compra. | 30 | minutos | Evita pendências de pagamento prolongadas. |
+| PURCHASE_PAYMENT_TIMEOUT | Tempo de pagamento | Tempo máximo para o cliente concluir o pagamento após a composição final ficar elegível. | 30 | minutos | Valor inicial configurável; o instante limite aplicado deve ser persistido no fluxo. |
 
 ### 3.2 Financeiro
 
@@ -86,11 +90,14 @@ A evolução desta documentação seguirá uma progressão natural.
 
 ### Versão atual
 
-- Documentação de políticas operacionais.
+- políticas operacionais documentadas;
+- entidade `BUSINESS_CONFIGURATION` e packages internos implementados;
+- integrações consumidoras ainda evoluem por módulo.
 
 ### Próxima etapa
 
-- Modelagem da entidade BUSINESS_CONFIGURATION como referência central para políticas configuráveis.
+- integrar `PURCHASE_PAYMENT_TIMEOUT` ao aceite, à reserva e ao pagamento;
+- definir vigência, versionamento e administração das políticas.
 
 ### Depois
 

@@ -5,15 +5,17 @@ CREATE OR REPLACE PACKAGE BODY pot_api_pkg AS
     core_json_pkg.put_string(j,'pixKeyType',p.pix_key_type);core_json_pkg.put_string(j,'status',p.status);RETURN j;END;
   PROCEDURE request_payout(p_store VARCHAR2,p_body CLOB,p_actor NUMBER,o_status OUT PLS_INTEGER,o_body OUT NOCOPY CLOB) IS
     j JSON_OBJECT_T;r pot_service_pkg.t_record;
-  BEGIN j:=JSON_OBJECT_T.parse(p_body);r:=pot_service_pkg.request_payout(p_store,j.get_number('amount'),
-    j.get_string('pixKey'),j.get_string('pixKeyType'),p_actor);COMMIT;
-    o_body:=core_response_pkg.build_success(js(r));o_status:=201;
-  EXCEPTION WHEN pot_service_pkg.e_insufficient THEN ROLLBACK;o_status:=422;o_body:=NULL;
-    WHEN pot_service_pkg.e_invalid THEN ROLLBACK;o_status:=422;o_body:=NULL;
-    WHEN OTHERS THEN ROLLBACK;o_status:=500;o_body:=NULL;END;
+  BEGIN j:=core_json_pkg.parse_object(p_body);core_json_pkg.assert_allowed_attributes(j,'amount,pixKey,pixKeyType');r:=pot_service_pkg.request_payout(p_store,core_json_pkg.required_number(j,'amount'),
+    core_json_pkg.required_string(j,'pixKey'),core_json_pkg.required_string(j,'pixKeyType'),p_actor);
+    o_body:=core_response_pkg.build_success(js(r));COMMIT;o_status:=201;
+  EXCEPTION WHEN core_json_pkg.e_unknown_attribute THEN ROLLBACK;o_status:=400;o_body:=core_response_pkg.build_known_error('BEX-REQ-006',core_error_pkg.c_category_validation,'A requisicao contem campo desconhecido.');
+    WHEN core_json_pkg.e_request_body_required OR core_json_pkg.e_invalid_json OR core_json_pkg.e_json_object_required OR core_json_pkg.e_required_attribute OR core_json_pkg.e_invalid_attribute_type THEN ROLLBACK;o_status:=400;o_body:=core_response_pkg.build_known_error('BEX-REQ-002',core_error_pkg.c_category_validation,'A requisicao de repasse e invalida.');
+    WHEN pot_service_pkg.e_insufficient THEN ROLLBACK;o_status:=422;o_body:=core_response_pkg.build_known_error('BEX-POT-002',core_error_pkg.c_category_business,'O saldo disponivel e insuficiente.');
+    WHEN pot_service_pkg.e_invalid THEN ROLLBACK;o_status:=422;o_body:=core_response_pkg.build_known_error('BEX-POT-003',core_error_pkg.c_category_validation,'Os dados do repasse sao invalidos.');
+    WHEN OTHERS THEN ROLLBACK;o_status:=500;o_body:=core_response_pkg.build_technical_error;END;
   PROCEDURE get_payout(p_public VARCHAR2,p_actor NUMBER,o_status OUT PLS_INTEGER,o_body OUT NOCOPY CLOB) IS r pot_service_pkg.t_record;
   BEGIN r:=pot_service_pkg.get_payout(p_public,p_actor);o_body:=core_response_pkg.build_success(js(r));o_status:=200;
-  EXCEPTION WHEN pot_service_pkg.e_not_found THEN o_status:=404;o_body:=NULL;
-    WHEN pot_service_pkg.e_forbidden THEN o_status:=403;o_body:=NULL;WHEN OTHERS THEN o_status:=500;o_body:=NULL;END;
+  EXCEPTION WHEN pot_service_pkg.e_not_found THEN o_status:=404;o_body:=core_response_pkg.build_known_error('BEX-POT-001',core_error_pkg.c_category_not_found,'O repasse informado nao foi encontrado.');
+    WHEN pot_service_pkg.e_forbidden THEN o_status:=403;o_body:=core_response_pkg.build_known_error('BEX-POT-004',core_error_pkg.c_category_authorization,'Operacao nao autorizada para este repasse.');WHEN OTHERS THEN o_status:=500;o_body:=core_response_pkg.build_technical_error;END;
 END pot_api_pkg;
 /

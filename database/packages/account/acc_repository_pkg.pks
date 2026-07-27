@@ -27,6 +27,11 @@ CREATE OR REPLACE PACKAGE acc_repository_pkg AS
     p_credential IN VARCHAR2
   );
 
+  PROCEDURE touch_last_login(
+    p_account_id IN NUMBER,
+    p_updated_by IN NUMBER
+  );
+
   FUNCTION get_by_id(
     p_account_id IN NUMBER
   ) RETURN BEX_ACCOUNT%ROWTYPE;

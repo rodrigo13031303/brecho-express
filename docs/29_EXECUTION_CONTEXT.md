@@ -485,11 +485,15 @@ Esses padrões criam dependência oculta, reduzem testabilidade e transformam um
 
 Execution Context é o conceito arquitetural descrito neste documento.
 
-`CORE_CONTEXT_PKG` será apenas uma implementação futura desse conceito no ambiente Oracle. O package deverá respeitar o modelo, o lifecycle, o ownership, os estados, as restrições e os dados proibidos definidos aqui.
+`CORE_CONTEXT_PKG` é a implementação Oracle vigente desse conceito e deve
+respeitar o modelo, lifecycle, ownership, estados, restrições e dados proibidos
+definidos aqui.
 
-O conceito não depende da existência do package. Uma futura mudança de mecanismo técnico não deve alterar o significado arquitetural do Execution Context.
+O conceito não depende do mecanismo interno do package. Uma futura mudança
+técnica não deve alterar o significado arquitetural do Execution Context.
 
-Este documento não define a interface pública, a estrutura interna, o armazenamento ou as operações de `CORE_CONTEXT_PKG`. Essas decisões exigem etapa própria de desenho e aprovação.
+A interface executável pertence à specification e aos testes vigentes de
+`CORE_CONTEXT_PKG`. Mudanças materiais exigem desenho e aprovação próprios.
 
 ---
 

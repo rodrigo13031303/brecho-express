@@ -30,7 +30,7 @@ CREATE TABLE BEX_ACCOUNT
     ACC_PUBLIC_ID           CHAR(32 CHAR) NOT NULL,
     ACC_EMAIL               VARCHAR2(255 CHAR) NOT NULL,
     ACC_EMAIL_VERIFIED_AT   TIMESTAMP(6),
-    ACC_PASSWORD_HASH       VARCHAR2(255 CHAR) NOT NULL,
+    ACC_PASSWORD_HASH       VARCHAR2(255 CHAR),
     ACC_PASSWORD_CHANGED_AT TIMESTAMP(6),
     ACC_STATUS              VARCHAR2(30 CHAR) NOT NULL,
     ACC_LAST_LOGIN_AT       TIMESTAMP(6),
@@ -73,7 +73,7 @@ COMMENT ON COLUMN BEX_ACCOUNT.ACC_EMAIL_VERIFIED_AT IS
     'Timestamp when the current account email was verified';
 
 COMMENT ON COLUMN BEX_ACCOUNT.ACC_PASSWORD_HASH IS
-    'Secure representation of the account password';
+    'Optional local password credential; null for social-only accounts';
 
 COMMENT ON COLUMN BEX_ACCOUNT.ACC_PASSWORD_CHANGED_AT IS
     'Timestamp when the account password was last defined or changed';

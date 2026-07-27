@@ -9,12 +9,14 @@ CREATE OR REPLACE PACKAGE BODY pev_api_pkg AS
     ELSE core_json_pkg.put_string(j,'orderPublicId',TRIM(p.payment.order_public_id));END IF;RETURN j;END;
   PROCEDURE receive_event(p_payment_public VARCHAR2,p_body CLOB,p_actor NUMBER,
     o_status OUT PLS_INTEGER,o_body OUT NOCOPY CLOB) IS j JSON_OBJECT_T;r pev_service_pkg.t_result;
-  BEGIN j:=JSON_OBJECT_T.parse(p_body);r:=pev_service_pkg.process_event(p_payment_public,
-    j.get_string('eventType'),j.get_string('externalEventId'),
-    TO_TIMESTAMP(j.get_string('eventAt'),'YYYY-MM-DD"T"HH24:MI:SS.FF'),p_body,p_actor);
-    COMMIT;o_body:=core_response_pkg.build_success(js(r));o_status:=200;
-  EXCEPTION WHEN pev_service_pkg.e_payment_not_found THEN ROLLBACK;o_status:=404;o_body:=NULL;
-    WHEN pev_service_pkg.e_invalid THEN ROLLBACK;o_status:=422;o_body:=NULL;
-    WHEN OTHERS THEN ROLLBACK;o_status:=500;o_body:=NULL;END;
+  BEGIN j:=core_json_pkg.parse_object(p_body);core_json_pkg.assert_allowed_attributes(j,'eventType,externalEventId,eventAt');r:=pev_service_pkg.process_event(p_payment_public,
+    core_json_pkg.required_string(j,'eventType'),core_json_pkg.required_string(j,'externalEventId'),
+    core_json_pkg.required_timestamp(j,'eventAt','YYYY-MM-DD"T"HH24:MI:SS.FF'),p_body,p_actor);
+    o_body:=core_response_pkg.build_success(js(r));COMMIT;o_status:=200;
+  EXCEPTION WHEN core_json_pkg.e_unknown_attribute THEN ROLLBACK;o_status:=400;o_body:=core_response_pkg.build_known_error('BEX-REQ-006',core_error_pkg.c_category_validation,'A requisicao contem campo desconhecido.');
+    WHEN core_json_pkg.e_request_body_required OR core_json_pkg.e_invalid_json OR core_json_pkg.e_json_object_required OR core_json_pkg.e_required_attribute OR core_json_pkg.e_invalid_attribute_type OR core_json_pkg.e_invalid_temporal_value THEN ROLLBACK;o_status:=400;o_body:=core_response_pkg.build_known_error('BEX-REQ-002',core_error_pkg.c_category_validation,'O evento de pagamento e invalido.');
+    WHEN pev_service_pkg.e_payment_not_found THEN ROLLBACK;o_status:=404;o_body:=core_response_pkg.build_known_error('BEX-PAY-001',core_error_pkg.c_category_not_found,'O pagamento informado nao foi encontrado.');
+    WHEN pev_service_pkg.e_invalid THEN ROLLBACK;o_status:=422;o_body:=core_response_pkg.build_known_error('BEX-PEV-001',core_error_pkg.c_category_validation,'O evento de pagamento e invalido.');
+    WHEN OTHERS THEN ROLLBACK;o_status:=500;o_body:=core_response_pkg.build_technical_error;END;
 END pev_api_pkg;
 /

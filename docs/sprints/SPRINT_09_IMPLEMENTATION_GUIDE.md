@@ -81,7 +81,11 @@ Não fazem parte da Sprint 9:
 Durante a implementação devem ser consultados, conforme a responsabilidade do artefato:
 
 - `docs/00_CONSTITUICAO.md`;
-- `docs/09_DECISIONS.md`;
+- `docs/ADR-004_UBIQUITOUS_LANGUAGE.md`;
+- `docs/ADR-005_PUBLIC_ID.md`;
+- `docs/ADR-006_LOGICAL_LIFECYCLE.md`;
+- `docs/ADR-007_EXTERNAL_PUBLIC_IDENTIFIERS.md`;
+- `docs/ADR-009_ORACLE_PACKAGE_LAYERS.md`;
 - `docs/11_AI_CONTEXT.md`;
 - `docs/20_DATA_DICTIONARY.md`;
 - `docs/21_DATABASE_CONVENTIONS.md`;

@@ -1,5 +1,10 @@
 # API do Brechó Express
 
+> **Status:** visão conceitual histórica. Endpoints deste arquivo são exemplos
+> não normativos. Novos contratos seguem `27_API_STANDARDS.md`,
+> `31_API_RUNTIME_CONTRACT.md`, ADRs e a arquitetura do módulo. Recursos REST
+> usam plural e versionamento aprovado.
+
 ## Visão Geral
 A API é construída sobre Oracle + ORDS para expor recursos REST consumidos pelo app Flutter. As rotas seguem o domínio oficial e a Linguagem Ubíqua do projeto.
 
@@ -22,9 +27,11 @@ Shipment
 ↓
 Avaliação
 
-As APIs seguem exatamente o fluxo oficial do domínio, garantindo que a sequência de chamadas reflita a jornada de negócio do cliente desde a descoberta até a avaliação do brechó.
+As APIs acompanham a jornada de negócio, mas não existe correspondência
+obrigatória de uma chamada pública para cada etapa interna. A sequência
+normativa pertence aos contratos especializados.
 
-## Endpoints Principais
+## Endpoints Históricos
 - `POST /auth/login`
 - `GET /api/product`
 - `GET /api/product/{id}`
@@ -32,7 +39,8 @@ As APIs seguem exatamente o fluxo oficial do domínio, garantindo que a sequênc
 - `GET /api/store/{id}`
 - `GET /api/cart`
 - `POST /api/purchase-request`
-- `POST /api/order`
+- criação direta de Order por endpoint externo não é permitida; ORDER nasce de
+  `PAYMENT_APPROVED`, conforme ADR-024;
 - `GET /api/order/{id}`
 - `POST /api/payment`
 - `GET /api/store/{id}/review`

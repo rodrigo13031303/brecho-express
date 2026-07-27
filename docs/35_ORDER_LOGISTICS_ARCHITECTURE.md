@@ -1,5 +1,11 @@
 # 35 — Arquitetura de Pedido e Logística Inicial
 
+## Status
+
+Implementado no escopo inicial. Evoluções de reserva, aceite parcial e prazo
+parametrizado pertencem ao módulo PURCHASE e devem chegar a ORDER somente por
+`PAYMENT_APPROVED`.
+
 ## Escopo
 
 A remessa implementa quatro agregados:
@@ -30,3 +36,7 @@ CANCELLED. Um ORDER_ITEM pertence a no máximo uma remessa não cancelada.
 Auditoria usa ator técnico numérico sem foreign key. Participantes estruturais
 mantêm foreign keys. Rules não executam SQL; Repositories não controlam
 transação; Services não conhecem JSON; APIs controlam envelope e transação.
+
+O ator-alvo de auditoria é ACCOUNT conforme
+`ADR-021_AUDIT_ACTOR_IDENTITY.md`; a ausência atual de FKs é uma divergência
+física conhecida, não autorização para outro modelo.

@@ -1,5 +1,8 @@
 # Contrato Técnico de Runtime das APIs - Brechó Express
 
+> A aplicação deste runtime aos handlers, bindings e rotas oficiais está
+> documentada em `40_ORDS_ARCHITECTURE.md`.
+
 ## 1. Objetivo
 
 Este documento define o contrato técnico oficial e reutilizável da fronteira entre ORDS, packages `*_API_PKG`, packages `*_SERVICE_PKG` e o Core Framework do Brechó Express.
@@ -55,7 +58,7 @@ Oracle Database
 
 A direção é unidirecional. O ORDS não executa SQL de domínio e não chama Service, Rule, Repository ou tabela diretamente. O `*_API_PKG` não acessa Repository ou tabela e não implementa regra de negócio.
 
-O `ACC_SESSION_API_PKG` é um precedente transacional anterior a este contrato, mas sua interface baseada em tipos internos e sem envelope Core não constitui o padrão para novos endpoints ORDS. Sua eventual adequação será tratada separadamente.
+O `ACC_SESSION_API_PKG` possui nome histórico de API, mas é um componente interno baseado em tipos Oracle e sem envelope Core. Ele não constitui padrão para endpoints ORDS e não controla transação: o `ACC_AUTH_API_PKG`, o job ou outro chamador autorizado decide `COMMIT` ou `ROLLBACK`.
 
 ---
 
@@ -364,7 +367,7 @@ Falha ao construir o envelope de erro mantém status 500 e body nulo para o fall
 
 ## 13. Parsing e Validação Estrutural
 
-`CORE_JSON_PKG` é obrigatório para construção, tipagem, formatação temporal e serialização JSON. A versão atual não possui operação pública de parsing. Até sua evolução, a API usa diretamente os tipos JSON nativos do Oracle, especialmente `JSON_ELEMENT_T`, `JSON_OBJECT_T` e `JSON_ARRAY_T`, somente para parsing e inspeção estrutural.
+`CORE_JSON_PKG` é obrigatório para construção, tipagem, formatação temporal e serialização JSON. Para requests, `parse_object` diferencia body ausente, JSON inválido e raiz que não seja objeto. Os leitores `required_string`, `required_number`, `required_boolean`, `required_array` e `optional_string` validam presença, nulabilidade e tipo sem depender das exceções genéricas dos tipos Oracle. `assert_allowed_attributes` rejeita propriedades não publicadas no contrato. `required_timestamp` e `required_timestamp_tz` fazem conversão exata, independente de NLS, e traduzem formato temporal inválido para uma exceção estrutural nominal. As APIs continuam usando `JSON_OBJECT_T` e `JSON_ARRAY_T` apenas para inspeções específicas, como elementos de coleções.
 
 Política oficial:
 
@@ -404,7 +407,7 @@ Regras:
 - `DUP_VAL_ON_INDEX` não é traduzido por inspeção de `SQLERRM`; sem tradução nominal confiável, segue como erro técnico;
 - `SQLERRM`, stack, backtrace e nomes internos nunca entram na resposta.
 
-`CORE_ERROR_PKG.build_known_error` constrói erros conhecidos. `build_technical_error` constrói a representação externa segura de falhas inesperadas. `CORE_RESPONSE_PKG.build_error` produz o envelope. A política `should_log` é respeitada conceitualmente, mas não executa logging por si mesma.
+`CORE_ERROR_PKG.build_known_error` e `build_technical_error` continuam sendo as primitivas que constroem e validam o registro público. `CORE_RESPONSE_PKG.build_error` produz o envelope quando a API já possui esse registro. Para evitar que cada API repita a mesma sequência, `CORE_RESPONSE_PKG.build_known_error` e `build_technical_error` oferecem atalhos oficiais que constroem o registro e o envelope numa única chamada. O atalho de erro técnico usa por padrão `BEX-SYS-001`, mensagem sanitizada e `retryable = false`. A política `should_log` é respeitada conceitualmente, mas não executa logging por si mesma.
 
 ---
 
@@ -605,6 +608,8 @@ Um `*_API_PKG` destinado ao ORDS somente está conforme quando:
 - [ ] Body nulo, vazio, inválido e de raiz incorreta são testados.
 - [ ] Campos obrigatórios, tipos, datas e faixas são testados.
 - [ ] Campos desconhecidos são rejeitados.
+- [ ] Datas e timestamps inválidos resultam em erro estrutural 400, nunca em
+      falha técnica 500.
 - [ ] API chama exclusivamente a Service aplicável.
 - [ ] Payload usa `camelCase` e tipos JSON nativos.
 - [ ] Datas e timestamps são independentes de NLS.

@@ -13,7 +13,7 @@ CREATE OR REPLACE PACKAGE BODY ord_api_pkg AS
       core_json_pkg.append_element(a,x);i:=p.items.NEXT(i);END LOOP;j.put('items',a);RETURN j;END;
   PROCEDURE get_order(p_public VARCHAR2,p_actor NUMBER,o_status OUT PLS_INTEGER,o_body OUT NOCOPY CLOB) IS r ord_service_pkg.t_record;
   BEGIN r:=ord_service_pkg.get_order(p_public,p_actor);o_body:=core_response_pkg.build_success(js(r));o_status:=200;
-  EXCEPTION WHEN ord_service_pkg.e_not_found THEN o_status:=404;o_body:=NULL;
-    WHEN ord_service_pkg.e_forbidden THEN o_status:=403;o_body:=NULL;WHEN OTHERS THEN o_status:=500;o_body:=NULL;END;
+  EXCEPTION WHEN ord_service_pkg.e_not_found THEN o_status:=404;o_body:=core_response_pkg.build_known_error('BEX-ORD-001',core_error_pkg.c_category_not_found,'O pedido informado nao foi encontrado.');
+    WHEN ord_service_pkg.e_forbidden THEN o_status:=403;o_body:=core_response_pkg.build_known_error('BEX-ORD-002',core_error_pkg.c_category_authorization,'Operacao nao autorizada para este pedido.');WHEN OTHERS THEN o_status:=500;o_body:=core_response_pkg.build_technical_error;END;
 END ord_api_pkg;
 /

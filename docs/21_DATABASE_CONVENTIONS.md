@@ -87,9 +87,11 @@ O propósito principal é garantir consistência técnica, alinhamento com o dom
   <SIGLA>_UPDATED_AT
   <SIGLA>_CREATED_BY
   <SIGLA>_UPDATED_BY
-- A entidade referenciada pelos campos de ator deve seguir o contrato de identidade aprovado para cada módulo.
-- Em BEX_STORE_USER, STU_CREATED_BY e STU_UPDATED_BY referenciam BEX_ACCOUNT.ACC_ID.
-- ACCOUNT é a identidade estrutural e operacional de BEX_STORE_USER; PROFILE não participa desse vínculo.
+- Os campos de ator seguem `ADR-021_AUDIT_ACTOR_IDENTITY.md`.
+- ACCOUNT é a identidade operacional oficial de auditoria.
+- PROFILE representa dados pessoais e não é identidade de auditoria para novas estruturas.
+- Operações automáticas usam ACCOUNT técnica SYSTEM formal; números mágicos são proibidos.
+- Estruturas legadas com FK para PROFILE somente mudam por migração explícita e reconciliada.
 
 ## 9. Status e soft delete
 

@@ -4,7 +4,9 @@
 
 O Brechó Express é um marketplace de economia circular voltado para conexão entre clientes, brechós, organizações e operações logísticas. O domínio central envolve a representação de perfis, brechós, catálogo de achados, carrinho, checkout, pedidos, logística, pagamentos, pós-venda, doações e engajamento social.
 
-O documento abaixo organiza as entidades por módulos de negócio, preservando a linguagem oficial do domínio e servindo como base para a modelagem futura.
+O documento abaixo organiza o estado funcional vigente e os contratos-alvo já
+aprovados. Cada entidade deve declarar quando ainda não estiver implementada;
+a mera presença no mapa não autoriza DDL.
 
 ## Mapa do domínio por módulos
 
@@ -20,7 +22,6 @@ O documento abaixo organiza as entidades por módulos de negócio, preservando a
 - STORE_USER
 - STORE_PLAN
 - STORE_EVENT
-- STORE_FOLLOWER
 
 ### CATÁLOGO
 - CATEGORY
@@ -35,6 +36,7 @@ O documento abaixo organiza as entidades por módulos de negócio, preservando a
 - CART_ITEM
 - PURCHASE_REQUEST
 - PURCHASE_REQUEST_ITEM
+- PURCHASE_RESERVATION *(aceita, ainda não implementada)*
 - ORDER
 - ORDER_ITEM
 
@@ -59,14 +61,19 @@ O documento abaixo organiza as entidades por módulos de negócio, preservando a
 - RETURN_ATTACHMENT
 
 ### ECONOMIA CIRCULAR
-- DONATION
-- DONATION_ITEM
-- COLLECTION_REQUEST
+- DONATION *(planejada; sem ficha aprovada)*
+- DONATION_ITEM *(planejada; sem ficha aprovada)*
+- COLLECTION_REQUEST *(planejada; sem ficha aprovada)*
 
 ### SOCIAL
-- FAVORITE
+- FAVORITE *(planejada; sem ficha aprovada)*
+- STORE_FOLLOWER
+- ACTIVITY_LOG *(planejada; sem ficha aprovada)*
+
+### NOTIFICAÇÃO
 - NOTIFICATION
-- ACTIVITY_LOG
+- NOTIFICATION_TEMPLATE
+- NOTIFICATION_DELIVERY
 
 ### CONFIGURAÇÃO DE NEGÓCIO
 - BUSINESS_CONFIGURATION
@@ -158,7 +165,8 @@ Usuário
 
 PFL_CREATED_BY e PFL_UPDATED_BY armazenam opcionalmente o identificador técnico do ator. Nenhuma foreign key de auditoria está aprovada nesta etapa.
 
-PFL_BIRTH_DATE permite NULL. A regra que rejeita datas futuras será implementada futuramente por PFL_RULE_PKG, sem trigger ou check constraint dependente da data corrente.
+PFL_BIRTH_DATE permite NULL. Datas futuras são rejeitadas por PFL_RULE_PKG,
+sem trigger ou check constraint dependente da data corrente.
 
 ## Índices
 - PK_PFL
@@ -254,7 +262,9 @@ Sistema
 | ROL_CREATED_BY | NUMBER | Não |
 | ROL_UPDATED_BY | NUMBER | Não |
 
-ROL_CREATED_BY e ROL_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+ROL_CREATED_BY e ROL_UPDATED_BY seguem `ADR-021_AUDIT_ACTOR_IDENTITY.md`.
+A estrutura física vigente ainda referencia PROFILE e requer migração explícita
+para ACCOUNT; processos automáticos usarão ACCOUNT técnica SYSTEM.
 
 ## Índices
 
@@ -358,7 +368,9 @@ Sistema
 | PRL_CREATED_BY | NUMBER | Não |
 | PRL_UPDATED_BY | NUMBER | Não |
 
-PRL_CREATED_BY e PRL_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+PRL_CREATED_BY e PRL_UPDATED_BY seguem `ADR-021_AUDIT_ACTOR_IDENTITY.md`.
+A estrutura física vigente ainda referencia PROFILE e requer migração explícita
+para ACCOUNT; processos automáticos usarão ACCOUNT técnica SYSTEM.
 
 ## Índices
 
@@ -413,7 +425,7 @@ MASTER
 
 ## Responsabilidades
 
-- Armazenar credenciais e autenticação.
+- Armazenar a credencial local opcional e o estado de autenticação.
 - Gerenciar identificação de acesso da conta.
 - Gerenciar o ciclo de vida das credenciais.
 - Suportar login e controle de acesso.
@@ -443,11 +455,14 @@ Sistema
 - RN-008 — ACC_PUBLIC_ID deve ser CHAR(32).
 - RN-009 — A exclusão deve ser lógica via ACC_STATUS.
 - RN-010 — Uma ACCOUNT pode existir antes da criação do PROFILE e possuir zero ou um PROFILE.
+- RN-011 — Uma ACCOUNT pode usar credencial local, identidade externa ou ambas.
+- RN-012 — Conta exclusivamente social não recebe senha artificial.
 
 ## Relacionamentos
 
 - PROFILE (1:0..1) — uma ACCOUNT pode possuir zero ou um PROFILE; cada PROFILE pertence exatamente a uma ACCOUNT.
 - STORE (1:0..N) — uma ACCOUNT pode possuir zero, uma ou várias STORE; cada STORE possui exatamente uma ACCOUNT proprietária, registrada estruturalmente por STORE.ACC_ID.
+- ACCOUNT_IDENTITY (1:0..N) — uma ACCOUNT pode possuir identidades externas; cada identidade pertence exatamente a uma ACCOUNT.
 
 ## Atributos
 
@@ -457,7 +472,7 @@ Sistema
 | ACC_PUBLIC_ID | CHAR(32) | Sim |
 | ACC_EMAIL | VARCHAR2(255) | Sim |
 | ACC_EMAIL_VERIFIED_AT | TIMESTAMP | Não |
-| ACC_PASSWORD_HASH | VARCHAR2(255) | Sim |
+| ACC_PASSWORD_HASH | VARCHAR2(255) | Não |
 | ACC_PASSWORD_CHANGED_AT | TIMESTAMP | Não |
 | ACC_STATUS | VARCHAR2(30) | Sim |
 | ACC_LAST_LOGIN_AT | TIMESTAMP | Não |
@@ -466,7 +481,9 @@ Sistema
 | ACC_CREATED_BY | NUMBER | Não |
 | ACC_UPDATED_BY | NUMBER | Não |
 
-ACC_CREATED_BY e ACC_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+ACC_CREATED_BY e ACC_UPDATED_BY armazenam opcionalmente a ACCOUNT responsável,
+conforme `ADR-021_AUDIT_ACTOR_IDENTITY.md`. Não há FK física vigente; criação
+anônima somente é permitida pelo caso de uso aprovado.
 
 ## Índices
 
@@ -496,13 +513,84 @@ ACC_CREATED_BY e ACC_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações
 
 ## Observações
 
-ACCOUNT representa exclusivamente credenciais de autenticação.
+ACCOUNT representa a identidade técnica e sua credencial local opcional.
 
 PROFILE representa exclusivamente a identidade da pessoa.
 
 A separação entre ACCOUNT e PROFILE é obrigatória em todo o domínio.
 
 ACCOUNT é uma entidade de identidade dedicada à autenticação e credenciais de acesso, e deve ser tratada como uma entidade mestre com controle de auditoria e status.
+
+# ACCOUNT_IDENTITY
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | ACCOUNT_IDENTITY |
+| Prefixo | AID |
+| Tipo | ASSOCIATION |
+| Responsável | Identidade |
+| Soft Delete | Sim, por AID_STATUS |
+| Auditoria | Sim |
+| Exposto pela API | Sim, somente por Public ID |
+| Cache | Não |
+
+## Objetivo
+
+Relacionar uma ACCOUNT às identidades criptograficamente verificadas em
+Google, Apple e Facebook, sem usar e-mail como identificador de autenticação.
+
+## Regras de Negócio
+
+- A identidade é localizada por provedor, emissor e subject.
+- E-mail observado é informativo e pode mudar.
+- Token, authorization code e refresh token do provedor não são persistidos.
+- Uma identidade externa pertence a exatamente uma ACCOUNT.
+- Uma ACCOUNT possui no máximo uma identidade por provedor.
+- Desvinculação altera o status para INACTIVE e preserva o histórico.
+- A última forma de autenticação de uma ACCOUNT não pode ser removida.
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| AID_ID | NUMBER Identity | Sim |
+| AID_PUBLIC_ID | CHAR(32) | Sim |
+| ACC_ID | NUMBER | Sim |
+| AID_PROVIDER | VARCHAR2(20) | Sim |
+| AID_ISSUER | VARCHAR2(500) | Sim |
+| AID_SUBJECT | VARCHAR2(255) | Sim |
+| AID_EMAIL | VARCHAR2(255) | Não |
+| AID_EMAIL_VERIFIED | CHAR(1) | Sim |
+| AID_STATUS | VARCHAR2(20) | Sim |
+| AID_LINKED_AT | TIMESTAMP(6) | Sim |
+| AID_LAST_LOGIN_AT | TIMESTAMP(6) | Não |
+| AID_UNLINKED_AT | TIMESTAMP(6) | Não |
+| AID_CREATED_AT | TIMESTAMP(6) | Sim |
+| AID_UPDATED_AT | TIMESTAMP(6) | Sim |
+| AID_CREATED_BY | NUMBER | Não |
+| AID_UPDATED_BY | NUMBER | Não |
+
+## Domínios
+
+- AID_PROVIDER: GOOGLE, APPLE ou FACEBOOK.
+- AID_EMAIL_VERIFIED: Y ou N.
+- AID_STATUS: ACTIVE ou INACTIVE.
+
+## Constraints
+
+- PK_AID para AID_ID.
+- UK_AID_PUBLIC_ID para AID_PUBLIC_ID.
+- UK_AID_PROVIDER_SUBJECT para provedor, emissor e subject.
+- UK_AID_ACCOUNT_PROVIDER para ACCOUNT e provedor.
+- FK_AID_ACCOUNT para BEX_ACCOUNT.
+- checks para provedor, e-mail verificado e status.
+
+## Observações
+
+`ADR-025_SOCIAL_AUTHENTICATION.md` governa criação, vinculação, desvinculação,
+conflitos de e-mail, validação no backend e emissão da sessão própria.
 
 # ADDRESS
 
@@ -588,7 +676,9 @@ Usuário
 | ADR_CREATED_BY | NUMBER | Não |
 | ADR_UPDATED_BY | NUMBER | Não |
 
-ADR_CREATED_BY e ADR_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+ADR_CREATED_BY e ADR_UPDATED_BY seguem `ADR-021_AUDIT_ACTOR_IDENTITY.md` e
+representam ACCOUNT. A estrutura física será migrada sem reinterpretar valores
+legados de PROFILE.
 
 ## Índices
 
@@ -1126,7 +1216,9 @@ Brechós
 | STP_CREATED_BY | NUMBER | Não |
 | STP_UPDATED_BY | NUMBER | Não |
 
-STP_CREATED_BY e STP_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+STP_CREATED_BY e STP_UPDATED_BY seguem `ADR-021_AUDIT_ACTOR_IDENTITY.md` e
+representam ACCOUNT. A estrutura física deverá ser alinhada antes de nova
+escrita administrativa.
 
 ## Índices
 
@@ -1343,7 +1435,9 @@ Social
 | STF_CREATED_BY | NUMBER | Não |
 | STF_UPDATED_BY | NUMBER | Não |
 
-STF_CREATED_BY e STF_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+STF_CREATED_BY e STF_UPDATED_BY seguem `ADR-021_AUDIT_ACTOR_IDENTITY.md`.
+PROFILE permanece participante funcional do vínculo social; ACCOUNT é o ator
+de auditoria. A FK física legada requer migração.
 
 ## Índices
 
@@ -1458,7 +1552,9 @@ Identidade
 | SES_CREATED_BY | NUMBER | Não |
 | SES_UPDATED_BY | NUMBER | Não |
 
-SES_CREATED_BY e SES_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+SES_CREATED_BY e SES_UPDATED_BY representam a ACCOUNT operacional quando
+aplicável, conforme `ADR-021_AUDIT_ACTOR_IDENTITY.md`. Sessões criadas por
+autenticação não presumem PROFILE técnico SYSTEM.
 
 ## Índices
 
@@ -1708,17 +1804,89 @@ Ela organiza os Achados por marcas oficiais, com foco em navegação e filtragem
 
 # PRODUCT_STATUS
 
-PRODUCT_STATUS permanece como conceito evolutivo e não será materializado no
-MVP. O ciclo de vida inicial possui fonte única em `BEX_PRODUCT.PRD_STATUS`,
-validada por constraint física e por `PRD_RULE_PKG`.
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | PRODUCT_STATUS |
+| Prefixo | PST |
+| Tipo | CONFIGURATION candidata |
+| Responsável | Catálogo |
+| Soft Delete | Não aplicável no MVP |
+| Auditoria | Não aplicável no MVP |
+| Exposto pela API | Não |
+| Cache | Não |
+| Implementação | Não materializado |
+
+## Objetivo
+
+Registrar que um catálogo configurável de estados de PRODUCT é apenas uma
+possibilidade evolutiva. No MVP, o ciclo de vida possui fonte única em
+`BEX_PRODUCT.PRD_STATUS`, validada por constraint e por `PRD_RULE_PKG`.
+
+## Classificação
+
+CONFIGURATION candidata, sem autorização de implementação.
+
+## Responsabilidades
+
+- preservar a intenção de uma possível evolução configurável;
+- impedir criação prematura de segunda fonte de verdade;
+- documentar a necessidade de ADR e migração.
+
+## Não é responsabilidade
+
+- controlar o ciclo de vida atual;
+- coexistir com `PRD_STATUS`;
+- representar reserva;
+- autorizar DDL, package ou endpoint.
+
+## Dono da Informação
+
+Catálogo
+
+## Regras de Negócio
 
 Os estados aprovados são DRAFT, ACTIVE, INACTIVE, SOLD e ARCHIVED. RESERVED não
 é estado de PRODUCT: carrinho não reserva, e qualquer reserva futura pertence
 ao fluxo transacional de Purchase Request.
 
-Uma futura entidade configurável de status exigirá ADR e migração próprios,
-substituindo `PRD_STATUS`; nunca coexistirá com ele como segunda fonte de
-verdade. Não existem DDL, packages ou API de PRODUCT_STATUS previstos no MVP.
+- RN-001 — `PRD_STATUS` é a única fonte vigente do estado.
+- RN-002 — RESERVED não é estado de PRODUCT.
+- RN-003 — Materialização exige ADR e plano de migração.
+- RN-004 — PST_ID e PRD_STATUS nunca coexistem como fontes concorrentes.
+
+## Relacionamentos
+
+Nenhum relacionamento físico vigente. Uma evolução aprovada substituiria a
+coluna textual de PRODUCT por referência controlada.
+
+## Atributos
+
+Nenhum atributo físico aprovado.
+
+## Índices
+
+Nenhum índice aprovado.
+
+## Packages Oracle
+
+Nenhum package aprovado.
+
+## APIs
+
+Nenhum endpoint aprovado.
+
+## Flutter
+
+Flutter usa os códigos de estado fornecidos por PRODUCT e traduz apresentação
+na camada de interface.
+
+## Observações
+
+Uma futura entidade configurável exigirá ADR e migração próprios, substituindo
+`PRD_STATUS`. Não existem DDL, packages ou API de PRODUCT_STATUS previstos no
+MVP.
 
 # PRODUCT
 
@@ -2187,7 +2355,9 @@ Financeiro
 | SBT_CREATED_BY | NUMBER | Não |
 | SBT_UPDATED_BY | NUMBER | Não |
 
-SBT_CREATED_BY e SBT_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+SBT_CREATED_BY e SBT_UPDATED_BY representam ACCOUNT operacional ou ACCOUNT
+técnica SYSTEM conforme `ADR-021_AUDIT_ACTOR_IDENTITY.md`. Não representam a
+STORE beneficiária da movimentação.
 
 ## Índices
 
@@ -2291,7 +2461,9 @@ Financeiro
 | SBL_CREATED_BY | NUMBER | Não |
 | SBL_UPDATED_BY | NUMBER | Não |
 
-SBL_CREATED_BY e SBL_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+STORE_BALANCE é uma projeção derivada e não possui autoria persistida própria.
+Qualquer autoria exibida deve vir das movimentações de origem e seguir
+`ADR-021_AUDIT_ACTOR_IDENTITY.md`.
 
 ## Índices
 
@@ -2402,7 +2574,8 @@ Financeiro
 | COM_CREATED_BY | NUMBER | Não |
 | COM_UPDATED_BY | NUMBER | Não |
 
-COM_CREATED_BY e COM_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+COM_CREATED_BY e COM_UPDATED_BY representam ACCOUNT operacional ou ACCOUNT
+técnica SYSTEM conforme `ADR-021_AUDIT_ACTOR_IDENTITY.md`.
 
 ## Índices
 
@@ -2508,7 +2681,8 @@ Financeiro
 | POT_CREATED_BY | NUMBER | Não |
 | POT_UPDATED_BY | NUMBER | Não |
 
-POT_CREATED_BY e POT_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+POT_CREATED_BY e POT_UPDATED_BY representam ACCOUNT operacional ou ACCOUNT
+técnica SYSTEM conforme `ADR-021_AUDIT_ACTOR_IDENTITY.md`.
 
 ## Índices
 
@@ -2803,13 +2977,15 @@ TRANSACTION
 - Registrar uma solicitação de compra derivada do carrinho.
 - Verificar disponibilidade com o Brechó antes do pagamento.
 - Apoiar a confirmação parcial ou total dos itens.
+- Registrar o aceite explícito do cliente quando a composição for parcial.
+- Preservar o instante limite de pagamento calculado pela configuração vigente.
 - Servir de base para o nascimento de um Pedido.
 - Registrar a resposta do Brechó, independentemente do resultado.
 
 ## Não é responsabilidade
 
 - Confirmar pagamento.
-- Reservar estoque de forma definitiva.
+- Manter reserva definitiva de estoque.
 - Substituir a entidade ORDER.
 - Substituir a entidade CART.
 
@@ -2830,11 +3006,18 @@ Compra
 - RN-009 — PUR_PUBLIC_ID deve ser CHAR(32).
 - RN-010 — APIs externas usam PUR_PUBLIC_ID, nunca PUR_ID.
 - RN-011 — A exclusão deve ser lógica via PUR_STATUS.
+- RN-012 — PURCHASE_REQUEST pendente não reserva quantidade.
+- RN-013 — Confirmação positiva cria reserva temporária da quantidade confirmada.
+- RN-014 — Aprovação parcial exige aceite explícito antes da criação de PAYMENT.
+- RN-015 — O prazo de pagamento é derivado de PURCHASE_PAYMENT_TIMEOUT.
+- RN-016 — O instante limite aplicado não muda retroativamente com a configuração.
+- RN-017 — Recusa, cancelamento ou expiração libera reservas de forma idempotente.
 
 ## Relacionamentos
 
 - PROFILE (N:1)
 - PURCHASE_REQUEST_ITEM (1:N)
+- PURCHASE_RESERVATION (1:N)
 - ORDER (1:1 futuro)
 
 ## Atributos
@@ -2849,6 +3032,9 @@ Compra
 | PUR_CONFIRMED_AT | TIMESTAMP | Não |
 | PUR_RESPONSE_AT | TIMESTAMP | Não |
 | PUR_EXPIRES_AT | TIMESTAMP | Não |
+| PUR_PARTIAL_ACCEPTED_AT | TIMESTAMP | Não |
+| PUR_PAYMENT_EXPIRES_AT | TIMESTAMP | Não |
+| PUR_ACCEPTED_VERSION | NUMBER | Não |
 | PUR_CREATED_AT | TIMESTAMP | Sim |
 | PUR_UPDATED_AT | TIMESTAMP | Sim |
 | PUR_CREATED_BY | NUMBER | Não |
@@ -2892,6 +3078,10 @@ PURCHASE_REQUEST é uma entidade transacional do módulo Compra.
 
 Ela representa a etapa de confirmação comercial e disponibilidade antes da criação do pedido definitivo.
 
+`PUR_PARTIAL_ACCEPTED_AT`, `PUR_PAYMENT_EXPIRES_AT` e
+`PUR_ACCEPTED_VERSION` pertencem ao contrato-alvo da ADR-020 e ainda não
+existem na tabela física em 2026-07-26.
+
 # PURCHASE_REQUEST_ITEM
 
 ## Ficha Técnica
@@ -2920,6 +3110,7 @@ TRANSACTION
 - Registrar um PRODUCT solicitado pelo cliente.
 - Preservar a quantidade solicitada e a quantidade confirmada.
 - Apoiar a confirmação parcial ou recusa de itens.
+- Originar reserva temporária somente depois de confirmação positiva.
 - Servir como base para a criação de ORDER_ITEM.
 - Registrar recusas individuais de itens quando houver motivo específico.
 
@@ -2949,6 +3140,7 @@ Compra
 - PURCHASE_REQUEST (N:1)
 - PRODUCT (N:1)
 - STORE (N:1)
+- PURCHASE_RESERVATION (1:N)
 
 ## Atributos
 
@@ -3008,6 +3200,141 @@ composta.
 PURCHASE_REQUEST_ITEM é uma entidade transacional do módulo Compra.
 
 Ela representa cada item solicitado dentro da confirmação comercial anterior ao pedido final.
+
+# PURCHASE_RESERVATION
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | PURCHASE_RESERVATION |
+| Prefixo | RSV |
+| Tipo | TRANSACTION |
+| Responsável | Compra |
+| Soft Delete | Não se aplica; ciclo por status |
+| Auditoria | Sim |
+| Exposto pela API | Indiretamente |
+| Cache | Não |
+| Implementação | Não implementado |
+
+## Objetivo
+
+Representar a retenção temporária de quantidade confirmada para um item de
+PURCHASE_REQUEST durante o prazo de aceite e pagamento.
+
+## Classificação
+
+TRANSACTION
+
+## Responsabilidades
+
+- reservar somente quantidade comercialmente confirmada;
+- impedir reservas ativas acima da disponibilidade do PRODUCT;
+- preservar início e expiração;
+- registrar consumo ou liberação;
+- sustentar idempotência e concorrência;
+- fornecer elegibilidade ao PAYMENT.
+
+## Não é responsabilidade
+
+- representar item em carrinho;
+- alterar PRODUCT para status RESERVED;
+- confirmar pagamento;
+- criar ORDER;
+- substituir PURCHASE_REQUEST_ITEM;
+- apagar histórico de reserva.
+
+## Dono da Informação
+
+Compra
+
+## Regras de Negócio
+
+- RN-001 — CART e PURCHASE_REQUEST PENDING não criam reserva.
+- RN-002 — Confirmação positiva cria reserva da quantidade confirmada.
+- RN-003 — Quantidade reservada é inteira, positiva e não excede a confirmada.
+- RN-004 — Reservas ACTIVE do mesmo PRODUCT não podem exceder a disponibilidade.
+- RN-005 — Reserva possui instante de expiração obrigatório.
+- RN-006 — PAYMENT_APPROVED consome a reserva de forma idempotente.
+- RN-007 — Expiração, cancelamento, recusa ou falha definitiva libera a reserva.
+- RN-008 — CONSUMED, RELEASED e EXPIRED são estados terminais.
+- RN-009 — Histórico nunca é excluído fisicamente.
+- RN-010 — RSV_PUBLIC_ID é o único identificador externo.
+
+## Relacionamentos
+
+- PURCHASE_REQUEST_ITEM (N:1)
+- PRODUCT (N:1)
+- PAYMENT (N:1 opcional após vinculação)
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| RSV_ID | NUMBER Identity | Sim |
+| RSV_PUBLIC_ID | CHAR(32) | Sim |
+| PRI_ID | NUMBER | Sim |
+| PRD_ID | NUMBER | Sim |
+| PAY_ID | NUMBER | Não |
+| RSV_QUANTITY | NUMBER(12,0) | Sim |
+| RSV_STATUS | VARCHAR2(20) | Sim |
+| RSV_RESERVED_AT | TIMESTAMP(6) | Sim |
+| RSV_EXPIRES_AT | TIMESTAMP(6) | Sim |
+| RSV_FINALIZED_AT | TIMESTAMP(6) | Não |
+| RSV_FINAL_REASON | VARCHAR2(100) | Não |
+| RSV_CREATED_AT | TIMESTAMP(6) | Sim |
+| RSV_UPDATED_AT | TIMESTAMP(6) | Sim |
+| RSV_CREATED_BY | NUMBER | Não |
+| RSV_UPDATED_BY | NUMBER | Não |
+
+Estados iniciais:
+
+- `ACTIVE`;
+- `CONSUMED`;
+- `RELEASED`;
+- `EXPIRED`.
+
+Os detalhes físicos, incluindo estratégia de unicidade, locking e proteção da
+soma reservada, devem ser aprovados antes do DDL. Os campos de auditoria seguem
+`ADR-021_AUDIT_ACTOR_IDENTITY.md`.
+
+## Índices
+
+Candidatos, sujeitos ao contrato físico:
+
+- PK_PURCHASE_RESERVATION;
+- UK_PURCHASE_RESERVATION_PUBLIC_ID;
+- IDX_PURCHASE_RESERVATION_ITEM;
+- IDX_PURCHASE_RESERVATION_PRODUCT_STATUS;
+- IDX_PURCHASE_RESERVATION_EXPIRES_AT;
+- IDX_PURCHASE_RESERVATION_PAYMENT.
+
+## Packages Oracle
+
+Contratos candidatos:
+
+- RSV_RULE_PKG;
+- RSV_REPOSITORY_PKG;
+- RSV_SERVICE_PKG.
+
+Não haverá API pública independente no primeiro ciclo. PURCHASE e PAYMENT
+orquestram a reserva por contratos internos.
+
+## APIs
+
+Reserva não é recurso mutável diretamente pelo cliente. Seu estado pode ser
+projetado nos contratos de PURCHASE_REQUEST e PAYMENT sem expor IDs internos.
+
+## Flutter
+
+- ReservationStatus como projeção de Purchase Request;
+- contador de expiração baseado no instante fornecido pelo servidor;
+- nenhuma autoridade local para criar, consumir ou liberar reserva.
+
+## Observações
+
+Esta entidade materializa `ADR-019_PURCHASE_RESERVATION.md`. Em 2026-07-26 ela
+é contrato aprovado ainda não implementado.
 
 # ORDER
 
@@ -3089,7 +3416,9 @@ Compra
 | ORD_CREATED_BY | NUMBER | Não |
 | ORD_UPDATED_BY | NUMBER | Não |
 
-ORD_CREATED_BY e ORD_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+ORD_CREATED_BY e ORD_UPDATED_BY representam ACCOUNT operacional ou ACCOUNT
+técnica SYSTEM conforme `ADR-021_AUDIT_ACTOR_IDENTITY.md`. PFL_ID continua
+identificando o comprador e não se confunde com autoria.
 
 ## Índices
 
@@ -3203,7 +3532,8 @@ Compra
 | ORI_CREATED_BY | NUMBER | Não |
 | ORI_UPDATED_BY | NUMBER | Não |
 
-ORI_CREATED_BY e ORI_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+ORI_CREATED_BY e ORI_UPDATED_BY representam ACCOUNT operacional ou ACCOUNT
+técnica SYSTEM conforme `ADR-021_AUDIT_ACTOR_IDENTITY.md`.
 
 ## Índices
 
@@ -3325,7 +3655,8 @@ Logística
 | SHP_CREATED_BY | NUMBER | Não |
 | SHP_UPDATED_BY | NUMBER | Não |
 
-SHP_CREATED_BY e SHP_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+SHP_CREATED_BY e SHP_UPDATED_BY representam ACCOUNT operacional ou ACCOUNT
+técnica SYSTEM conforme `ADR-021_AUDIT_ACTOR_IDENTITY.md`.
 
 ## Índices
 
@@ -3442,7 +3773,8 @@ Logística
 | SHI_CREATED_BY | NUMBER | Não |
 | SHI_UPDATED_BY | NUMBER | Não |
 
-SHI_CREATED_BY e SHI_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+SHI_CREATED_BY e SHI_UPDATED_BY representam ACCOUNT operacional ou ACCOUNT
+técnica SYSTEM conforme `ADR-021_AUDIT_ACTOR_IDENTITY.md`.
 
 ## Índices
 
@@ -3558,7 +3890,8 @@ Logística
 | DLP_CREATED_BY | NUMBER | Não |
 | DLP_UPDATED_BY | NUMBER | Não |
 
-DLP_CREATED_BY e DLP_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+DLP_CREATED_BY e DLP_UPDATED_BY representam ACCOUNT administrativa ou ACCOUNT
+técnica SYSTEM conforme `ADR-021_AUDIT_ACTOR_IDENTITY.md`.
 
 ## Índices
 
@@ -3668,7 +4001,8 @@ Financeiro
 | PPR_CREATED_BY | NUMBER | Não |
 | PPR_UPDATED_BY | NUMBER | Não |
 
-PPR_CREATED_BY e PPR_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+PPR_CREATED_BY e PPR_UPDATED_BY representam ACCOUNT administrativa ou ACCOUNT
+técnica SYSTEM conforme `ADR-021_AUDIT_ACTOR_IDENTITY.md`.
 
 ## Índices
 
@@ -3782,7 +4116,8 @@ Financeiro
 | PAY_CREATED_BY | NUMBER | Não |
 | PAY_UPDATED_BY | NUMBER | Não |
 
-PAY_CREATED_BY e PAY_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+PAY_CREATED_BY e PAY_UPDATED_BY representam ACCOUNT operacional ou ACCOUNT
+técnica SYSTEM conforme `ADR-021_AUDIT_ACTOR_IDENTITY.md`.
 
 ## Índices
 
@@ -3894,7 +4229,9 @@ Financeiro
 | PEV_CREATED_BY | NUMBER | Não |
 | PEV_UPDATED_BY | NUMBER | Não |
 
-PEV_CREATED_BY e PEV_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+PEV_CREATED_BY e PEV_UPDATED_BY representam ACCOUNT técnica ou operacional
+confiável conforme `ADR-021_AUDIT_ACTOR_IDENTITY.md`; o provedor externo não é
+persistido como ator interno.
 
 ## Índices
 
@@ -3999,7 +4336,7 @@ Pós-venda / Operação
 - RN-019 — RRQ_PUBLIC_ID deve ser CHAR(32).
 - RN-020 — APIs utilizam RRQ_PUBLIC_ID.
 - RN-021 — Toda ocorrência deve possuir histórico auditável.
-- RN-022 — Toda resolução deverá respeitar a ADR_POST_SALES_POLICY.
+- RN-022 — Toda resolução deverá respeitar `ADR-023_POST_SALES_POLICY.md`.
 - RN-023 — Regras operacionais específicas deverão ser controladas por BUSINESS_CONFIGURATION.
 
 ## Relacionamentos
@@ -4038,7 +4375,9 @@ Pós-venda / Operação
 | RRQ_CREATED_BY | NUMBER | Não |
 | RRQ_UPDATED_BY | NUMBER | Não |
 
-RRQ_CREATED_BY e RRQ_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+RRQ_CREATED_BY e RRQ_UPDATED_BY seguem `ADR-021_AUDIT_ACTOR_IDENTITY.md`.
+PROFILE permanece participante funcional do pós-venda; ACCOUNT é o ator de
+auditoria. A FK física legada requer migração.
 
 ## Índices
 
@@ -4124,7 +4463,9 @@ Cliente / Experiência do Cliente
 
 ## Regras de Negócio
 
-- RN-001 — Cada par ORDER e STORE pode possuir no máximo uma STORE_REVIEW, permitindo uma avaliação por loja em pedidos multiloja, conforme ADR_POST_SALES_POLICY.
+- RN-001 — Cada par ORDER e STORE pode possuir no máximo uma STORE_REVIEW,
+  permitindo uma avaliação por loja em pedidos multiloja, conforme
+  `ADR-023_POST_SALES_POLICY.md`.
 - RN-002 — Apenas pedidos concluídos podem ser avaliados.
 - RN-003 — O cliente pode editar sua avaliação dentro do período definido em BUSINESS_CONFIGURATION.
 - RN-004 — O Brechó pode responder publicamente à avaliação.
@@ -4166,7 +4507,9 @@ Cliente / Experiência do Cliente
 | SRV_CREATED_BY | NUMBER | Não |
 | SRV_UPDATED_BY | NUMBER | Não |
 
-SRV_CREATED_BY e SRV_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+SRV_CREATED_BY e SRV_UPDATED_BY seguem `ADR-021_AUDIT_ACTOR_IDENTITY.md`.
+PROFILE identifica o autor funcional da avaliação; ACCOUNT registra a autoria
+técnica da operação. A FK física legada requer migração.
 
 ## Índices
 
@@ -4283,7 +4626,8 @@ Pós-venda / Operação
 | RAT_CREATED_BY | NUMBER | Não |
 | RAT_UPDATED_BY | NUMBER | Não |
 
-RAT_CREATED_BY e RAT_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+RAT_CREATED_BY e RAT_UPDATED_BY seguem `ADR-021_AUDIT_ACTOR_IDENTITY.md`.
+A FK física legada para PROFILE requer migração explícita para ACCOUNT.
 
 ## Índices
 
@@ -4425,7 +4769,9 @@ Experiência do Cliente / Operação
 | SRP_CREATED_BY | NUMBER | Não |
 | SRP_UPDATED_BY | NUMBER | Não |
 
-SRP_CREATED_BY e SRP_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+STORE_REPUTATION é uma projeção derivada e não possui autoria persistida
+própria. Eventos e registros de origem seguem
+`ADR-021_AUDIT_ACTOR_IDENTITY.md`.
 
 ## Índices
 
@@ -4542,8 +4888,9 @@ Plataforma
 | BCF_CREATED_BY | NUMBER | Não |
 | BCF_UPDATED_BY | NUMBER | Não |
 
-BCF_CREATED_BY e BCF_UPDATED_BY referenciam BEX_PROFILE.PFL_ID. Para operações
-automáticas, será utilizado um Profile técnico do tipo SYSTEM.
+BCF_CREATED_BY e BCF_UPDATED_BY seguem `ADR-021_AUDIT_ACTOR_IDENTITY.md`.
+A estrutura física vigente ainda referencia PROFILE e requer migração explícita
+para ACCOUNT; processos automáticos usarão ACCOUNT técnica SYSTEM.
 
 ## Índices
 
@@ -4571,3 +4918,292 @@ Uso interno para administração futura.
 
 BUSINESS_CONFIGURATION representa a base comum de políticas do Brechó Express.
 Ela deve crescer com cuidado, evitando virar depósito genérico sem governança.
+
+# NOTIFICATION_TEMPLATE
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | NOTIFICATION_TEMPLATE |
+| Prefixo | NTP |
+| Tipo | CONFIGURATION |
+| Responsável | Notificação |
+| Soft Delete | Sim, por status |
+| Auditoria | Pendente de evolução |
+| Exposto pela API | Não no MVP |
+| Cache | Candidato |
+| Implementação | Estrutura física implementada |
+
+## Objetivo
+
+Definir o conteúdo reutilizável de uma notificação por código funcional e
+canal.
+
+## Classificação
+
+CONFIGURATION
+
+## Responsabilidades
+
+- preservar código, canal, título e corpo do template;
+- permitir ativação e inativação;
+- impedir duplicidade do mesmo código no mesmo canal.
+
+## Não é responsabilidade
+
+- representar notificação individual;
+- registrar tentativa de entrega;
+- armazenar segredo de provedor;
+- decidir destinatário.
+
+## Dono da Informação
+
+Notificação
+
+## Regras de Negócio
+
+- RN-001 — A combinação NTP_CODE e NTP_CHANNEL é única.
+- RN-002 — Canais iniciais são IN_APP, EMAIL e PUSH.
+- RN-003 — Estados são ACTIVE e INACTIVE.
+- RN-004 — Template INACTIVE não origina nova entrega.
+- RN-005 — Alteração administrativa futura exige auditoria por ACCOUNT.
+
+## Relacionamentos
+
+Não existe FK física de NOTIFICATION para template na versão atual. O vínculo
+funcional futuro deverá preservar código e versão aplicados sem alterar
+notificações históricas.
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| NTP_ID | NUMBER Identity | Sim |
+| NTP_CODE | VARCHAR2(100) | Sim |
+| NTP_CHANNEL | VARCHAR2(20) | Sim |
+| NTP_TITLE | VARCHAR2(200) | Sim |
+| NTP_BODY | VARCHAR2(4000) | Sim |
+| NTP_STATUS | VARCHAR2(20) | Sim |
+
+## Índices
+
+- PK_NOTIFICATION_TEMPLATE;
+- UK_NTP_CODE_CHANNEL.
+
+## Packages Oracle
+
+Não existem packages próprios na implementação atual. A administração e o uso
+de templates exigem contrato antes de exposição.
+
+## APIs
+
+Sem API pública aprovada.
+
+## Flutter
+
+Flutter recebe conteúdo renderizado; não interpreta template interno.
+
+## Observações
+
+A tabela existe, mas PUBLIC_ID, versionamento e auditoria ainda não estão
+implementados. Qualquer evolução deve preservar notificações já produzidas.
+
+# NOTIFICATION
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | NOTIFICATION |
+| Prefixo | NTF |
+| Tipo | TRANSACTION |
+| Responsável | Notificação |
+| Soft Delete | Sim, por status |
+| Auditoria | Parcial |
+| Exposto pela API | Candidato; ainda sem API package |
+| Cache | Não |
+| Implementação | Parcialmente implementado |
+
+## Objetivo
+
+Representar uma mensagem persistida para um PROFILE destinatário.
+
+## Classificação
+
+TRANSACTION
+
+## Responsabilidades
+
+- preservar destinatário, tipo, título e corpo;
+- controlar leitura e arquivamento;
+- servir de origem para entregas por canal;
+- manter identidade pública.
+
+## Não é responsabilidade
+
+- autenticar destinatário;
+- definir template;
+- executar entrega externa;
+- substituir evento de domínio;
+- armazenar ID interno em contrato externo.
+
+## Dono da Informação
+
+Notificação
+
+## Regras de Negócio
+
+- RN-001 — Toda NOTIFICATION pertence a um PROFILE destinatário.
+- RN-002 — Estados são UNREAD, READ e ARCHIVED.
+- RN-003 — Marcação de leitura é idempotente.
+- RN-004 — NTF_PUBLIC_ID é o identificador externo.
+- RN-005 — Consulta exige resolução e autorização da ACCOUNT autenticada.
+- RN-006 — O chamador externo nunca fornece PFL_ID.
+
+## Relacionamentos
+
+- PROFILE (N:1);
+- NOTIFICATION_DELIVERY (1:N).
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| NTF_ID | NUMBER Identity | Sim |
+| NTF_PUBLIC_ID | CHAR(32) | Sim |
+| PFL_ID | NUMBER | Sim |
+| NTF_TYPE | VARCHAR2(80) | Sim |
+| NTF_TITLE | VARCHAR2(200) | Sim |
+| NTF_BODY | VARCHAR2(2000) | Sim |
+| NTF_STATUS | VARCHAR2(20) | Sim |
+| NTF_CREATED_AT | TIMESTAMP(6) | Sim |
+| NTF_READ_AT | TIMESTAMP(6) | Não |
+
+## Índices
+
+- PK_NOTIFICATION;
+- UK_NOTIFICATION_PUBLIC_ID;
+- IDX_NOTIFICATION_PROFILE.
+
+## Packages Oracle
+
+- NTF_RULE_PKG;
+- NTF_REPOSITORY_PKG;
+- NTF_SERVICE_PKG.
+
+`NTF_API_PKG` ainda não existe.
+
+## APIs
+
+Contrato público ainda não aprovado. Operações candidatas:
+
+- listar notificações do ator autenticado;
+- consultar por Public ID;
+- marcar como lida;
+- arquivar.
+
+## Flutter
+
+- NotificationModel;
+- NotificationRepository;
+- NotificationController;
+- NotificationCenterPage.
+
+## Observações
+
+A implementação atual recebe PFL_ID diretamente em contratos internos e não
+possui API package, ator de auditoria ou integração com template. Essas
+limitações devem ser resolvidas antes da exposição via ORDS.
+
+# NOTIFICATION_DELIVERY
+
+## Ficha Técnica
+
+| Campo | Valor |
+|--------|--------|
+| Entidade | NOTIFICATION_DELIVERY |
+| Prefixo | NDL |
+| Tipo | TRANSACTION |
+| Responsável | Notificação |
+| Soft Delete | Não se aplica |
+| Auditoria | Pendente de evolução |
+| Exposto pela API | Não |
+| Cache | Não |
+| Implementação | Somente estrutura física |
+
+## Objetivo
+
+Registrar o estado de entrega de uma NOTIFICATION em cada canal.
+
+## Classificação
+
+TRANSACTION
+
+## Responsabilidades
+
+- impedir duplicidade de canal por notificação;
+- registrar tentativas;
+- registrar envio bem-sucedido ou falha;
+- apoiar retentativa idempotente.
+
+## Não é responsabilidade
+
+- armazenar credenciais;
+- definir conteúdo;
+- representar leitura pelo cliente;
+- executar transporte sem integração aprovada.
+
+## Dono da Informação
+
+Notificação
+
+## Regras de Negócio
+
+- RN-001 — Uma NOTIFICATION possui no máximo uma entrega por canal.
+- RN-002 — Canais iniciais são IN_APP, EMAIL e PUSH.
+- RN-003 — Estados são PENDING, SENT e FAILED.
+- RN-004 — NDL_ATTEMPTS nunca é negativo.
+- RN-005 — SENT exige instante de envio.
+- RN-006 — Retentativas futuras devem possuir limite parametrizado.
+
+## Relacionamentos
+
+- NOTIFICATION (N:1).
+
+## Atributos
+
+| Campo | Tipo | Obrigatório |
+|--------|------|-------------|
+| NDL_ID | NUMBER Identity | Sim |
+| NTF_ID | NUMBER | Sim |
+| NDL_CHANNEL | VARCHAR2(20) | Sim |
+| NDL_STATUS | VARCHAR2(20) | Sim |
+| NDL_ATTEMPTS | NUMBER(5) | Sim |
+| NDL_SENT_AT | TIMESTAMP(6) | Não |
+
+## Índices
+
+- PK_NOTIFICATION_DELIVERY;
+- UK_NDL_CHANNEL;
+- IDX_NDL_NOTIFICATION.
+
+## Packages Oracle
+
+Não existem packages específicos implementados.
+
+## APIs
+
+Sem API pública. Estado de entrega pode ser projetado administrativamente sem
+expor identificadores internos.
+
+## Flutter
+
+Sem responsabilidade direta pelo transporte. Flutter apenas recebe estado
+funcional autorizado.
+
+## Observações
+
+A tabela física existe, mas ainda faltam constraints temporais mais fortes,
+erros, política de retentativa, auditoria, integração e testes comportamentais
+de entrega.

@@ -1,5 +1,9 @@
 # Contexto de IA para o Brechó Express
 
+> **Status:** contexto introdutório. Toda IA deve iniciar por `README.md` e
+> aplicar a hierarquia documental vigente. Este arquivo não substitui ADRs,
+> Data Dictionary, arquiteturas modulares ou contratos implementados.
+
 ## Objetivo
 Fornecer contexto para assistentes de IA auxiliarem no desenvolvimento e documentação do projeto, com foco na arquitetura nacional e na linguagem ubíqua oficial.
 
@@ -23,7 +27,9 @@ Brechó Express é uma plataforma nacional de economia circular especializada em
 
 ## Restrições Arquiteturais Obrigatórias para IA
 - Nunca criar tabela sem existir no Data Dictionary.
-- Nunca criar Oracle SQL antes do DBML.
+- Nunca criar Oracle SQL antes do contrato de domínio e físico aprovado. DBML
+  deve permanecer sincronizado, mas não prevalece sobre ADRs, Data Dictionary
+  e comportamento Oracle validado.
 - Nunca expor ID interno nas APIs.
 - Sempre utilizar PUBLIC_ID para comunicação externa.
 - PUBLIC_ID deve ser CHAR(32).

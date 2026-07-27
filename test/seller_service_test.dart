@@ -1,0 +1,106 @@
+import 'dart:convert';
+
+import 'package:brecho_express_app/src/auth/brecho_session.dart';
+import 'package:brecho_express_app/src/seller/seller_service.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+
+void main() {
+  final session = BrechoSession(
+    accessToken: 'secret-token',
+    sessionPublicId: 'session',
+    expiresAt: DateTime.utc(2030),
+    accountPublicId: 'account-1',
+  );
+
+  test('lista lojas usando a sessão autenticada', () async {
+    final service = SellerService(
+      client: MockClient((request) async {
+        expect(request.headers['authorization'], 'Bearer secret-token');
+        expect(request.url.path, endsWith('/accounts/account-1/stores'));
+        return http.Response(
+          '{"success":true,"data":[{"storePublicId":"store-1",'
+          '"storeName":"Meu Brechó","storeSlug":"meu-brecho",'
+          '"status":"ACTIVE"}]}',
+          200,
+        );
+      }),
+    );
+
+    final stores = await service.listStores(session);
+
+    expect(stores.single.name, 'Meu Brechó');
+    expect(stores.single.status, 'ACTIVE');
+    service.close();
+  });
+
+  test('cria uma peça e em seguida ativa a publicação', () async {
+    var calls = 0;
+    final service = SellerService(
+      client: MockClient((request) async {
+        calls++;
+        expect(request.headers['authorization'], 'Bearer secret-token');
+        if (calls == 1) {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          expect(body['title'], 'Vestido azul');
+          expect(body['condition'], 'GOOD');
+          return http.Response(
+            '{"success":true,"data":{"productPublicId":"product-1",'
+            '"title":"Vestido azul","status":"DRAFT"}}',
+            201,
+          );
+        }
+        expect(
+          request.url.path,
+          endsWith('/products/product-1/actions/activate'),
+        );
+        return http.Response(
+          '{"success":true,"data":{"productPublicId":"product-1",'
+          '"title":"Vestido azul","status":"ACTIVE"}}',
+          200,
+        );
+      }),
+    );
+
+    final product = await service.publishProduct(
+      session: session,
+      storePublicId: 'store-1',
+      categoryPublicId: 'category-1',
+      title: 'Vestido azul',
+      slug: 'vestido-azul',
+      description: 'Como novo',
+      price: 59.9,
+      quantity: 1,
+      condition: 'GOOD',
+    );
+
+    expect(calls, 2);
+    expect(product.status, 'ACTIVE');
+    service.close();
+  });
+
+  test('preserva a mensagem pública de erro da API', () async {
+    final service = SellerService(
+      client: MockClient(
+        (_) async => http.Response(
+          '{"success":false,"error":{"code":"BEX-STORE-018",'
+          '"message":"O endereço já está em uso."}}',
+          409,
+        ),
+      ),
+    );
+
+    expect(
+      service.listStores(session),
+      throwsA(
+        isA<SellerException>().having(
+          (error) => error.message,
+          'message',
+          'O endereço já está em uso.',
+        ),
+      ),
+    );
+    service.close();
+  });
+}

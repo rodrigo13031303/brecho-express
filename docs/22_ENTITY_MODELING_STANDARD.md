@@ -111,9 +111,13 @@ Toda entidade deve possuir:
 - <SIGLA>_CREATED_BY
 - <SIGLA>_UPDATED_BY
 
-CREATED_BY e UPDATED_BY sempre referenciam PROFILE.
+CREATED_BY e UPDATED_BY representam o ator operacional confiável conforme
+`ADR-021_AUDIT_ACTOR_IDENTITY.md`. Para novas entidades de autoria humana, o
+ator é uma ACCOUNT e os campos usam tipo compatível com `ACC_ID`.
 
-Operações automáticas utilizam o PROFILE técnico SYSTEM.
+PROFILE não é identidade de auditoria. Operações automáticas utilizam uma
+ACCOUNT técnica SYSTEM formal. Exceções e migrações de estruturas legadas
+exigem contrato explícito.
 
 ## 5. Convenção de Relacionamentos
 

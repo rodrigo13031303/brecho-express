@@ -5,12 +5,23 @@ CREATE OR REPLACE PACKAGE acc_service_pkg AS
 
   e_account_not_found EXCEPTION;
   PRAGMA EXCEPTION_INIT(e_account_not_found, -20840);
+  e_invalid_credentials EXCEPTION;
 
   FUNCTION create_account(
     p_email      IN VARCHAR2,
     p_password   IN VARCHAR2,
     p_created_by IN NUMBER DEFAULT NULL
   ) RETURN BEX_ACCOUNT%ROWTYPE;
+
+  FUNCTION create_social_account(
+    p_email      IN VARCHAR2,
+    p_created_by IN NUMBER DEFAULT NULL
+  ) RETURN BEX_ACCOUNT%ROWTYPE;
+
+  PROCEDURE register_login(
+    p_account_id IN NUMBER,
+    p_updated_by IN NUMBER DEFAULT NULL
+  );
 
   PROCEDURE change_password(
     p_account_id IN NUMBER,
@@ -32,5 +43,10 @@ CREATE OR REPLACE PACKAGE acc_service_pkg AS
   FUNCTION email_available(
     p_email IN VARCHAR2
   ) RETURN BOOLEAN;
+
+  FUNCTION authenticate(
+    p_email    IN VARCHAR2,
+    p_password IN VARCHAR2
+  ) RETURN BEX_ACCOUNT%ROWTYPE;
 END acc_service_pkg;
 /

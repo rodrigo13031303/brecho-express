@@ -10,14 +10,14 @@ CREATE OR REPLACE PACKAGE BODY dlp_api_pkg AS
     core_json_pkg.put_string(j,'status',p.dlp_status);RETURN j;END;
   PROCEDURE get_profile(p_public VARCHAR2,o_status OUT PLS_INTEGER,o_body OUT NOCOPY CLOB) IS r dlp_service_pkg.t_record;
   BEGIN r:=dlp_service_pkg.get_profile(p_public);o_body:=core_response_pkg.build_success(js(r));o_status:=200;
-  EXCEPTION WHEN dlp_service_pkg.e_not_found THEN o_status:=404;o_body:=NULL;
-    WHEN OTHERS THEN o_status:=500;o_body:=NULL;END;
+  EXCEPTION WHEN dlp_service_pkg.e_not_found THEN o_status:=404;o_body:=core_response_pkg.build_known_error('BEX-DLP-001',core_error_pkg.c_category_not_found,'O perfil de entrega informado nao foi encontrado.');
+    WHEN OTHERS THEN o_status:=500;o_body:=core_response_pkg.build_technical_error;END;
   PROCEDURE list_profiles(p_status VARCHAR2,o_status OUT PLS_INTEGER,o_body OUT NOCOPY CLOB) IS
     r dlp_service_pkg.t_table;a JSON_ARRAY_T:=JSON_ARRAY_T();i PLS_INTEGER;
   BEGIN r:=dlp_service_pkg.list_profiles(NVL(p_status,'ACTIVE'));i:=r.FIRST;WHILE i IS NOT NULL LOOP
     core_json_pkg.append_element(a,js(r(i)));i:=r.NEXT(i);END LOOP;
     o_body:=core_response_pkg.build_success(a);o_status:=200;
-  EXCEPTION WHEN dlp_service_pkg.e_invalid THEN o_status:=422;o_body:=NULL;
-    WHEN OTHERS THEN o_status:=500;o_body:=NULL;END;
+  EXCEPTION WHEN dlp_service_pkg.e_invalid THEN o_status:=422;o_body:=core_response_pkg.build_known_error('BEX-DLP-002',core_error_pkg.c_category_validation,'O perfil de entrega e invalido.');
+    WHEN OTHERS THEN o_status:=500;o_body:=core_response_pkg.build_technical_error;END;
 END dlp_api_pkg;
 /

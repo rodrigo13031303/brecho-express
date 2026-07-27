@@ -1,5 +1,10 @@
 # Modelo de Domínio - Brechó Express
 
+> **Status:** visão consolidada até a Sprint 5A. O modelo conceitual permanece
+> útil, mas a seção de evolução por sprint é histórica e não representa o
+> estado atual do banco. Para entidades e implementação vigentes, consultar
+> `20_DATA_DICTIONARY.md`, arquiteturas modulares e `database/`.
+
 ## 1. Objetivo
 
 Este documento apresenta a visão arquitetural oficial do domínio modelado até a Sprint 5A do Brechó Express.

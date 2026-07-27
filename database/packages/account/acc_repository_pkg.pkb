@@ -74,6 +74,18 @@ CREATE OR REPLACE PACKAGE BODY acc_repository_pkg AS
      WHERE ACC_ID = p_account_id;
   END update_password;
 
+  PROCEDURE touch_last_login(
+    p_account_id IN NUMBER,
+    p_updated_by IN NUMBER
+  ) IS
+  BEGIN
+    UPDATE BEX_ACCOUNT
+       SET ACC_LAST_LOGIN_AT = SYSTIMESTAMP,
+           ACC_UPDATED_AT = SYSTIMESTAMP,
+           ACC_UPDATED_BY = p_updated_by
+     WHERE ACC_ID = p_account_id;
+  END touch_last_login;
+
   ------------------------------------------------------------------------------
   -- Consultas
   ------------------------------------------------------------------------------

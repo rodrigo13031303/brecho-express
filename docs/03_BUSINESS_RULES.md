@@ -23,7 +23,7 @@ RN-013 O carrinho nunca reserva estoque.
 
 ## Checkout
 RN-014 O checkout inicia a Purchase Request para verificar disponibilidade e quantidade.
-RN-015 A Purchase Request reserva quantidade para análise e confirmação do brechó.
+RN-015 A Purchase Request pendente não reserva quantidade.
 RN-016 A quantidade pode ser confirmada parcialmente pelo brechó.
 RN-017 Pagamento ocorre somente após confirmação do brechó.
 RN-018 Pedido nasce apenas após pagamento aprovado.
@@ -49,3 +49,11 @@ RN-028 O fluxo de desapego deve ser transparente para cliente e brechó.
 ## Eventos
 RN-029 Eventos Temporários podem ser criados por brechós para promover campanhas, bazares ou feiras.
 RN-030 Eventos podem influenciar disponibilidade, promoções e logística.
+
+## Confirmação, Reserva e Prazo
+
+RN-031 A confirmação positiva do Brechó cria reserva temporária somente da quantidade confirmada.
+RN-032 A reserva é consumida pelo pagamento aprovado ou liberada por expiração, cancelamento, recusa ou falha definitiva.
+RN-033 Aprovação parcial exige aceite explícito do cliente antes da criação do pagamento.
+RN-034 O prazo de pagamento é obtido de Business Configuration e nunca é constante oculta no código.
+RN-035 O instante limite aplicado ao fluxo deve ser preservado mesmo que a configuração seja alterada posteriormente.

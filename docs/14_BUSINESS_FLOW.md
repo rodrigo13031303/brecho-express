@@ -8,8 +8,11 @@ O Brechó Express é uma plataforma nacional de economia circular com foco em br
 
 ## 3. Regras gerais de negócio
 - Carrinho não reserva produto.
-- Reserva só acontece ao iniciar checkout.
+- Purchase Request pendente não reserva produto.
 - Brechó confirma disponibilidade e quantidade.
+- A confirmação positiva cria reserva temporária da quantidade confirmada.
+- Aprovação parcial exige aceite explícito do cliente.
+- O prazo de pagamento é parametrizado por Business Configuration.
 - Pagamento só ocorre após confirmação.
 - Pedido nasce somente após pagamento aprovado.
 - Um checkout pode gerar um `ORDER` com vários `SHIPMENT`s.
@@ -48,28 +51,35 @@ O Brechó Express é uma plataforma nacional de economia circular com foco em br
 2. Cliente inicia checkout, gerando um `PURCHASE_REQUEST`.
 3. O sistema envia solicitação aos brechós envolvidos para confirmar disponibilidade e quantidade.
 4. Cada brechó confirma ou ajusta a quantidade disponível.
-5. Após todas confirmações, o sistema autoriza pagamento.
-6. Cliente realiza pagamento.
-7. Com pagamento aprovado, o sistema cria `ORDER` e `ORDER_ITEM`s.
-8. Caso haja mais de um brechó, o `ORDER` pode gerar vários `SHIPMENT`s.
-9. O cliente recebe confirmação de compra e previsão de entrega.
+5. Cada confirmação positiva cria uma reserva temporária da quantidade confirmada.
+6. Após todas as respostas, o sistema apresenta a composição final ao cliente.
+7. Se houver aprovação parcial, o cliente aceita explicitamente a quantidade e o total recalculados.
+8. O sistema disponibiliza o pagamento pelo prazo parametrizado.
+9. Cliente realiza o pagamento.
+10. Com pagamento aprovado, o sistema consome as reservas e cria `ORDER` e `ORDER_ITEM`s na mesma unidade transacional.
+11. Caso haja mais de um brechó, o `ORDER` pode gerar vários `SHIPMENT`s.
+12. O cliente recebe confirmação de compra e previsão de entrega.
 
 ### 4.5 Compra com quantidade parcial confirmada
 1. Cliente adiciona quantidade de um produto ao carrinho.
 2. No checkout, o `PURCHASE_REQUEST` é enviado ao brechó.
 3. O brechó confirma parte da quantidade solicitada ou propõe ajuste.
-4. O cliente recebe a atualização de quantidade disponível.
-5. Cliente decide aceitar quantidade parcial.
-6. O sistema continua o fluxo de pagamento com a quantidade ajustada.
-7. Pedido é gerado apenas após pagamento aprovado para a quantidade confirmada.
+4. O sistema reserva temporariamente somente a quantidade confirmada.
+5. O cliente recebe a composição atualizada, incluindo quantidade, itens, subtotal, frete, descontos e total.
+6. Cliente aceita ou recusa explicitamente a composição parcial.
+7. Se aceitar, o sistema disponibiliza pagamento até o instante limite parametrizado.
+8. Se recusar ou o prazo expirar, o sistema libera a reserva.
+9. Pedido é gerado apenas após pagamento aprovado para a composição aceita.
 
 ### 4.6 Compra com vários brechós no mesmo checkout
 1. Cliente adiciona itens de diferentes brechós ao carrinho.
 2. No checkout, o `PURCHASE_REQUEST` engloba todos os itens de todos os brechós.
 3. Cada brechó confirma disponibilidade de seus itens.
-4. O pagamento é realizado em uma única transação para todos os itens.
-5. Um único `ORDER` é criado após aprovação do pagamento.
-6. O `ORDER` pode gerar múltiplos `SHIPMENT`s, um por brechó ou rota logística.
+4. As quantidades confirmadas são reservadas temporariamente por item e Brechó.
+5. O cliente aceita a composição final quando houver resposta parcial.
+6. O pagamento é realizado em uma única transação para todos os itens aceitos.
+7. Um único `ORDER` é criado após aprovação do pagamento.
+8. O `ORDER` pode gerar múltiplos `SHIPMENT`s, um por brechó ou rota logística.
 
 ### 4.7 Reserva presencial para Brechó Plus
 1. Cliente visualiza achado de um Brechó Plus.

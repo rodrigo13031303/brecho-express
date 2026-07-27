@@ -34,7 +34,7 @@ CREATE OR REPLACE PACKAGE BODY brd_api_pkg AS
   EXCEPTION
     WHEN e_required THEN error_response(400,'BEX-REQ-004','Um identificador publico obrigatorio nao foi informado.',o_status_code,o_response_body);
     WHEN brd_service_pkg.e_brand_not_found THEN error_response(404,'BEX-BRD-001','A marca informada nao foi encontrada.',o_status_code,o_response_body);
-    WHEN OTHERS THEN o_status_code:=500; o_response_body:=NULL;
+    WHEN OTHERS THEN o_status_code:=500; o_response_body:=core_response_pkg.build_technical_error;
   END;
   PROCEDURE get_brand_by_slug(p_slug VARCHAR2,o_status_code OUT PLS_INTEGER,o_response_body OUT NOCOPY CLOB) IS r brd_service_pkg.t_brand_record;
   BEGIN
@@ -45,10 +45,10 @@ CREATE OR REPLACE PACKAGE BODY brd_api_pkg AS
   EXCEPTION
     WHEN e_required THEN error_response(400,'BEX-REQ-004','Um slug obrigatorio nao foi informado.',o_status_code,o_response_body);
     WHEN brd_service_pkg.e_brand_not_found THEN error_response(404,'BEX-BRD-001','A marca informada nao foi encontrada.',o_status_code,o_response_body);
-    WHEN OTHERS THEN o_status_code:=500; o_response_body:=NULL;
+    WHEN OTHERS THEN o_status_code:=500; o_response_body:=core_response_pkg.build_technical_error;
   END;
   PROCEDURE list_brands(o_status_code OUT PLS_INTEGER,o_response_body OUT NOCOPY CLOB) IS r brd_service_pkg.t_brand_table;
   BEGIN r:=brd_service_pkg.list_brands('ACTIVE'); o_response_body:=core_response_pkg.build_success(to_array(r)); o_status_code:=200;
-  EXCEPTION WHEN OTHERS THEN o_status_code:=500; o_response_body:=NULL; END;
+  EXCEPTION WHEN OTHERS THEN o_status_code:=500; o_response_body:=core_response_pkg.build_technical_error; END;
 END brd_api_pkg;
 /

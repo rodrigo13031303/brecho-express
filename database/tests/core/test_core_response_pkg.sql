@@ -356,6 +356,29 @@ DECLARE
   BEGIN start_test('serializacao final produz CLOB valido'); initialize_context; l_body := core_response_pkg.build_error(valid_error); l_element := JSON_ELEMENT_T.parse(l_body);
     assert_true(l_element.is_object, 'CLOB final deve conter objeto JSON.'); assert_true(DBMS_LOB.GETLENGTH(l_body) > 0, 'CLOB final deve ter conteudo.'); free_temporary_clob(l_body); pass;
   EXCEPTION WHEN OTHERS THEN free_temporary_clob(l_body); RAISE; END test_55_final_clob_valid;
+  PROCEDURE test_56_known_error_shortcut IS l_body CLOB; l_result JSON_OBJECT_T;
+  BEGIN start_test('atalho de erro conhecido'); initialize_context;
+    l_body := core_response_pkg.build_known_error(
+      'BEX-REQ-004',
+      core_error_pkg.c_category_validation,
+      'Valor obrigatorio.'
+    );
+    l_result := JSON_OBJECT_T.parse(l_body);
+    assert_false(l_result.get_boolean('success'), 'success deve ser FALSE.');
+    assert_equals(l_result.get_object('error').get_string('code'), 'BEX-REQ-004', 'Code incorreto.');
+    assert_equals(l_result.get_object('error').get_string('category'), core_error_pkg.c_category_validation, 'Category incorreta.');
+    assert_false(l_result.get_object('error').get_boolean('retryable'), 'Retryable padrao deve ser FALSE.');
+    free_temporary_clob(l_body); pass;
+  EXCEPTION WHEN OTHERS THEN free_temporary_clob(l_body); RAISE; END test_56_known_error_shortcut;
+  PROCEDURE test_57_technical_error_shortcut IS l_body CLOB; l_result JSON_OBJECT_T;
+  BEGIN start_test('atalho de erro tecnico'); initialize_context;
+    l_body := core_response_pkg.build_technical_error;
+    l_result := JSON_OBJECT_T.parse(l_body);
+    assert_equals(l_result.get_object('error').get_string('code'), 'BEX-SYS-001', 'Code tecnico incorreto.');
+    assert_equals(l_result.get_object('error').get_string('category'), core_error_pkg.c_category_technical, 'Category tecnica incorreta.');
+    assert_equals(l_result.get_object('error').get_string('message'), 'Nao foi possivel concluir a requisicao.', 'Mensagem tecnica incorreta.');
+    free_temporary_clob(l_body); pass;
+  EXCEPTION WHEN OTHERS THEN free_temporary_clob(l_body); RAISE; END test_57_technical_error_shortcut;
 BEGIN
   test_01_no_initial_context;
   test_02_build_success_requires_context;
@@ -412,9 +435,11 @@ BEGIN
   test_53_array_cloned;
   test_54_scalar_works;
   test_55_final_clob_valid;
+  test_56_known_error_shortcut;
+  test_57_technical_error_shortcut;
 
   clear_state;
-  DBMS_OUTPUT.PUT_LINE('SUCCESS - CORE_RESPONSE_PKG (55 testes)');
+  DBMS_OUTPUT.PUT_LINE('SUCCESS - CORE_RESPONSE_PKG (57 testes)');
 EXCEPTION
   WHEN OTHERS THEN
     clear_state;
