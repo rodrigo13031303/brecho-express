@@ -7,6 +7,9 @@ void main() {
   test('consulta CEP V2 com bairro e coordenadas', () async {
     final service = StoreLocationService(
       client: MockClient((request) async {
+        if (request.url.host == 'viacep.com.br') {
+          return http.Response('{}', 200);
+        }
         expect(request.url.path, endsWith('/cep/v2/01310930'));
         return http.Response(
           '{"cep":"01310930","state":"SP","city":"São Paulo",'
@@ -42,12 +45,14 @@ void main() {
   test('aceita endereço de CEP mesmo sem coordenadas', () async {
     final service = StoreLocationService(
       client: MockClient(
-        (_) async => http.Response(
-          '{"cep":"13000000","state":"SP","city":"Campinas",'
-          '"neighborhood":"Centro","street":"Rua Exemplo",'
-          '"location":{"type":"Point","coordinates":{}}}',
-          200,
-        ),
+        (request) async => request.url.host == 'viacep.com.br'
+            ? http.Response('{}', 200)
+            : http.Response(
+                '{"cep":"13000000","state":"SP","city":"Campinas",'
+                '"neighborhood":"Centro","street":"Rua Exemplo",'
+                '"location":{"type":"Point","coordinates":{}}}',
+                200,
+              ),
       ),
     );
 
@@ -57,6 +62,33 @@ void main() {
     expect(location.district, 'Centro');
     expect(location.latitude, isNull);
     expect(location.longitude, isNull);
+    service.close();
+  });
+
+  test('completa cidade ausente usando ViaCEP', () async {
+    final service = StoreLocationService(
+      client: MockClient((request) async {
+        if (request.url.host == 'viacep.com.br') {
+          return http.Response(
+            '{"cep":"13010-111","logradouro":"Rua Barão de Jaguara",'
+            '"bairro":"Centro","localidade":"Campinas","uf":"SP"}',
+            200,
+          );
+        }
+        return http.Response(
+          '{"cep":"13010111","state":"SP","city":"",'
+          '"neighborhood":"","street":"","location":{"coordinates":{}}}',
+          200,
+        );
+      }),
+    );
+
+    final location = await service.lookupPostalCode('13010-111');
+
+    expect(location.street, 'Rua Barão de Jaguara');
+    expect(location.district, 'Centro');
+    expect(location.city, 'Campinas');
+    expect(location.state, 'SP');
     service.close();
   });
 }

@@ -17,21 +17,21 @@ class StoreLocationService {
     final response = await _client
         .get(Uri.parse('https://brasilapi.com.br/api/cep/v2/$postalCode'))
         .timeout(const Duration(seconds: 15));
-    if (response.statusCode != 200) {
-      throw const StoreLocationException('CEP não encontrado.');
-    }
     try {
-      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      final json = response.statusCode == 200
+          ? jsonDecode(response.body) as Map<String, dynamic>
+          : <String, dynamic>{};
       final location = json['location'] as Map<String, dynamic>?;
       final coordinates = location?['coordinates'] as Map<String, dynamic>?;
+      final fallback = await _lookupViaCep(postalCode);
       final draft = StoreLocationDraft(
         postalCode: postalCode,
-        street: (json['street'] as String?)?.trim() ?? '',
+        street: _firstText(json['street'], fallback['logradouro']),
         number: '',
         complement: '',
-        district: (json['neighborhood'] as String?)?.trim() ?? '',
-        city: (json['city'] as String?)?.trim() ?? '',
-        state: _stateCode((json['state'] as String?) ?? ''),
+        district: _firstText(json['neighborhood'], fallback['bairro']),
+        city: _firstText(json['city'], fallback['localidade']),
+        state: _stateCode(_firstText(json['state'], fallback['uf'])),
         latitude: _number(coordinates?['latitude']),
         longitude: _number(coordinates?['longitude']),
       );
@@ -46,6 +46,23 @@ class StoreLocationService {
     }
   }
 
+  Future<Map<String, dynamic>> _lookupViaCep(String postalCode) async {
+    try {
+      final response = await _client
+          .get(Uri.parse('https://viacep.com.br/ws/$postalCode/json/'))
+          .timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200) return const {};
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      return json['erro'] == true ? const {} : json;
+    } catch (_) {
+      return const {};
+    }
+  }
+
+  static String _firstText(dynamic preferred, dynamic fallback) {
+    final first = preferred?.toString().trim() ?? '';
+    return first.isNotEmpty ? first : fallback?.toString().trim() ?? '';
+  }
   Future<GeoPoint> currentCoordinates() async {
     if (!await Geolocator.isLocationServiceEnabled()) {
       throw const StoreLocationException(

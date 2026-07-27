@@ -439,7 +439,7 @@ class _SellerPageState extends State<SellerPage> {
           ),
           textCapitalization: TextCapitalization.words,
           onChanged: (_) {
-            _syncSlug(_storeName, _storeSlug);
+            _storeSlug.text = _slugify(_storeName.text);
             setState(() {});
           },
           validator: (value) => (value?.trim().length ?? 0) < 3
@@ -447,18 +447,27 @@ class _SellerPageState extends State<SellerPage> {
               : null,
         ),
         const SizedBox(height: 14),
-        TextFormField(
-          controller: _storeSlug,
-          decoration: const InputDecoration(
-            labelText: 'Link do brechó',
-            prefixText: 'brechoexpress.com.br/ ',
+        Semantics(
+          label: 'Endereço público do brechó',
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.link, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'brechoexpress.com.br/${_storeSlug.text.isEmpty ? 'seu-brecho' : _storeSlug.text}',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+              ],
+            ),
           ),
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[a-z0-9-]')),
-          ],
-          validator: (value) => (value?.trim().length ?? 0) < 3
-              ? 'Escolha um endereço válido.'
-              : null,
         ),
         const SizedBox(height: 14),
         TextFormField(
@@ -481,7 +490,7 @@ class _SellerPageState extends State<SellerPage> {
           busy: _locating,
           onLookup: () => _resolveLocation(current: false),
           onCurrent: () => _resolveLocation(current: true),
-          onSave: _saveLocation,
+          onSave: null,
           message: _locationMessage,
           messageIsError: _locationMessageIsError,
         ),
@@ -747,7 +756,7 @@ class _LocationEditor extends StatelessWidget {
   final bool busy;
   final VoidCallback onLookup;
   final VoidCallback onCurrent;
-  final VoidCallback onSave;
+  final VoidCallback? onSave;
   final String? message;
   final bool messageIsError;
 
@@ -854,16 +863,17 @@ class _LocationEditor extends StatelessWidget {
             icon: const Icon(Icons.my_location),
             label: const Text('Usar minha localização atual'),
           ),
-          FilledButton.icon(
-            onPressed: busy ? null : onSave,
-            icon: busy
-                ? const SizedBox.square(
-                    dimension: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.check_circle_outline),
-            label: const Text('Confirmar localização'),
-          ),
+          if (onSave != null)
+            FilledButton.icon(
+              onPressed: busy ? null : onSave,
+              icon: busy
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save_outlined),
+              label: const Text('Salvar endereço'),
+            ),
           if (message != null) ...[
             const SizedBox(height: 10),
             Container(
