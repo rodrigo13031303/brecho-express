@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -60,6 +61,32 @@ class SellerService {
       session,
     );
     return SellerStore.fromJson(_decodeObject(response));
+  }
+
+  Future<String> uploadLogo({
+    required BrechoSession session,
+    required String storePublicId,
+    required Uint8List bytes,
+    required String mimeType,
+  }) async {
+    final store = Uri.encodeComponent(storePublicId);
+    final response = await _client
+        .post(
+          _baseUri.resolve('stores/$store/logo'),
+          headers: {
+            'Authorization': 'Bearer ${session.accessToken}',
+            'Accept': 'application/json',
+            'Content-Type': mimeType,
+          },
+          body: bytes,
+        )
+        .timeout(const Duration(seconds: 30));
+    final data = _decodeObject(response);
+    final logoUrl = data['logoUrl'] as String?;
+    if (logoUrl == null || logoUrl.isEmpty) {
+      throw const SellerException('O endereço do logo veio inválido.');
+    }
+    return '$logoUrl?v=${DateTime.now().millisecondsSinceEpoch}';
   }
 
   Future<SellerProduct> publishProduct({
@@ -158,6 +185,7 @@ class SellerStore {
     required this.name,
     required this.slug,
     required this.status,
+    this.logoUrl,
   });
 
   factory SellerStore.fromJson(Map<String, dynamic> json) => SellerStore(
@@ -165,12 +193,22 @@ class SellerStore {
     name: json['storeName'] as String,
     slug: json['storeSlug'] as String,
     status: json['status'] as String,
+    logoUrl: json['logoUrl'] as String?,
   );
 
   final String publicId;
   final String name;
   final String slug;
   final String status;
+  final String? logoUrl;
+
+  SellerStore withLogo(String value) => SellerStore(
+    publicId: publicId,
+    name: name,
+    slug: slug,
+    status: status,
+    logoUrl: value,
+  );
 }
 
 class SellerProduct {

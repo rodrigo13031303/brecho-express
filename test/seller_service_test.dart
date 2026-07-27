@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:brecho_express_app/src/auth/brecho_session.dart';
 import 'package:brecho_express_app/src/seller/seller_service.dart';
@@ -80,6 +81,30 @@ void main() {
     service.close();
   });
 
+  test('envia o logo como mídia autenticada', () async {
+    final service = SellerService(
+      client: MockClient((request) async {
+        expect(request.url.path, endsWith('/stores/store-1/logo'));
+        expect(request.headers['authorization'], 'Bearer secret-token');
+        expect(request.headers['content-type'], 'image/jpeg');
+        expect(request.bodyBytes, [1, 2, 3]);
+        return http.Response(
+          '{"success":true,"data":{"logoUrl":"https://example/logo"}}',
+          200,
+        );
+      }),
+    );
+
+    final url = await service.uploadLogo(
+      session: session,
+      storePublicId: 'store-1',
+      bytes: Uint8List.fromList([1, 2, 3]),
+      mimeType: 'image/jpeg',
+    );
+
+    expect(url, startsWith('https://example/logo?v='));
+    service.close();
+  });
   test('preserva a mensagem pública de erro da API', () async {
     final service = SellerService(
       client: MockClient(

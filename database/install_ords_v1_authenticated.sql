@@ -15,6 +15,7 @@ PROMPT BRECHO EXPRESS - INSTALL ORDS V1 AUTHENTICATED FOUNDATION
 PROMPT ============================================================
 
 @@ords/install_brecho_express_v1_authenticated.sql
+@@install_store_logo_media.sql
 @@ords/install_brecho_express_v1_seller_authenticated.sql
 @@tests/ords/test_ord_runtime_pkg.sql
 

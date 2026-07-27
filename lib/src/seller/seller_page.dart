@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../auth/brecho_session.dart';
 import '../branding/brecho_mark.dart';
@@ -24,6 +25,7 @@ class SellerPage extends StatefulWidget {
 
 class _SellerPageState extends State<SellerPage> {
   final _service = SellerService();
+  final _imagePicker = ImagePicker();
   final _storeForm = GlobalKey<FormState>();
   final _productForm = GlobalKey<FormState>();
   final _storeName = TextEditingController();
@@ -39,6 +41,8 @@ class _SellerPageState extends State<SellerPage> {
   SellerStore? _store;
   String? _categoryPublicId;
   String _condition = 'GOOD';
+  Uint8List? _selectedLogo;
+  String? _selectedLogoMime;
   bool _saving = false;
   String? _error;
   String? _success;
@@ -83,6 +87,44 @@ class _SellerPageState extends State<SellerPage> {
     if (target.text.isEmpty) target.text = _slugify(source.text);
   }
 
+  Future<void> _chooseLogo() async {
+    final image = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 640,
+      maxHeight: 640,
+      imageQuality: 82,
+    );
+    if (image == null) return;
+    final bytes = await image.readAsBytes();
+    if (!mounted) return;
+    if (bytes.length > 1048576) {
+      setState(() => _error = 'Escolha uma imagem de até 1 MB.');
+      return;
+    }
+    final extension = image.name.toLowerCase();
+    final mime = extension.endsWith('.png')
+        ? 'image/png'
+        : extension.endsWith('.webp')
+        ? 'image/webp'
+        : 'image/jpeg';
+    setState(() {
+      _selectedLogo = bytes;
+      _selectedLogoMime = mime;
+      _error = null;
+    });
+  }
+
+  Future<SellerStore> _uploadSelectedLogo(SellerStore store) async {
+    if (_selectedLogo == null || _selectedLogoMime == null) return store;
+    final url = await _service.uploadLogo(
+      session: widget.session,
+      storePublicId: store.publicId,
+      bytes: _selectedLogo!,
+      mimeType: _selectedLogoMime!,
+    );
+    return store.withLogo(url);
+  }
+
   Future<void> _createStore() async {
     if (!_storeForm.currentState!.validate()) return;
     setState(() {
@@ -99,6 +141,7 @@ class _SellerPageState extends State<SellerPage> {
       if (store.status == 'DRAFT') {
         store = await _service.activateStore(widget.session, store.publicId);
       }
+      store = await _uploadSelectedLogo(store);
       if (!mounted) return;
       setState(() {
         _store = store;
@@ -110,6 +153,28 @@ class _SellerPageState extends State<SellerPage> {
       if (mounted) {
         setState(() => _error = 'Não foi possível criar o brechó agora.');
       }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _replaceLogo() async {
+    await _chooseLogo();
+    if (_selectedLogo == null || _store == null) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      final store = await _uploadSelectedLogo(_store!);
+      if (mounted) {
+        setState(() {
+          _store = store;
+          _success = 'Logo atualizado com sucesso!';
+        });
+      }
+    } on SellerException catch (error) {
+      if (mounted) setState(() => _error = error.message);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -223,6 +288,12 @@ class _SellerPageState extends State<SellerPage> {
         const SizedBox(height: 8),
         const Text('Você só precisa escolher um nome. Não há mensalidade.'),
         const SizedBox(height: 22),
+        _StoreLogoEditor(
+          name: _storeName.text,
+          bytes: _selectedLogo,
+          onTap: _saving ? null : _chooseLogo,
+        ),
+        const SizedBox(height: 22),
         TextFormField(
           controller: _storeName,
           decoration: const InputDecoration(
@@ -230,7 +301,10 @@ class _SellerPageState extends State<SellerPage> {
             prefixIcon: Icon(Icons.storefront_outlined),
           ),
           textCapitalization: TextCapitalization.words,
-          onChanged: (_) => _syncSlug(_storeName, _storeSlug),
+          onChanged: (_) {
+            _syncSlug(_storeName, _storeSlug);
+            setState(() {});
+          },
           validator: (value) => (value?.trim().length ?? 0) < 3
               ? 'Digite pelo menos 3 caracteres.'
               : null,
@@ -302,13 +376,34 @@ class _SellerPageState extends State<SellerPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                store.name,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              Row(
+                children: [
+                  _StoreLogoAvatar(
+                    name: store.name,
+                    logoUrl: store.logoUrl,
+                    radius: 34,
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          store.name,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        const Text('Brechó ativo • plano gratuito'),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _saving ? null : _replaceLogo,
+                    tooltip: 'Trocar logo',
+                    icon: const Icon(Icons.edit_outlined),
+                  ),
+                ],
               ),
-              const Text('Brechó ativo • plano gratuito'),
               const SizedBox(height: 24),
               Text(
                 'Nova peça',
@@ -449,6 +544,83 @@ class _SellerPageState extends State<SellerPage> {
           ),
         );
       },
+    );
+  }
+}
+
+class _StoreLogoEditor extends StatelessWidget {
+  const _StoreLogoEditor({
+    required this.name,
+    required this.bytes,
+    required this.onTap,
+  });
+
+  final String name;
+  final Uint8List? bytes;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      _StoreLogoAvatar(name: name, bytes: bytes, radius: 52),
+      const SizedBox(height: 10),
+      OutlinedButton.icon(
+        onPressed: onTap,
+        icon: const Icon(Icons.add_photo_alternate_outlined),
+        label: Text(bytes == null ? 'Adicionar logo' : 'Trocar logo'),
+      ),
+      const SizedBox(height: 4),
+      Text(
+        'Opcional • imagem quadrada de até 1 MB',
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+    ],
+  );
+}
+
+class _StoreLogoAvatar extends StatelessWidget {
+  const _StoreLogoAvatar({
+    required this.name,
+    required this.radius,
+    this.bytes,
+    this.logoUrl,
+  });
+
+  final String name;
+  final double radius;
+  final Uint8List? bytes;
+  final String? logoUrl;
+
+  String get _initials {
+    final words = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty);
+    final value = words.take(2).map((word) => word[0].toUpperCase()).join();
+    return value.isEmpty ? 'BE' : value;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ImageProvider<Object>? image = bytes != null
+        ? MemoryImage(bytes!)
+        : logoUrl?.isNotEmpty == true
+        ? NetworkImage(logoUrl!)
+        : null;
+    return CircleAvatar(
+      radius: radius,
+      foregroundImage: image,
+      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+      child: image == null
+          ? Text(
+              _initials,
+              style: TextStyle(
+                fontSize: radius * .62,
+                fontWeight: FontWeight.w800,
+                color: Theme.of(context).colorScheme.onPrimaryContainer,
+              ),
+            )
+          : null,
     );
   }
 }
