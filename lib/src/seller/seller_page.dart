@@ -441,6 +441,16 @@ class _SellerPageState extends State<SellerPage> {
         const Text(
           'Preencha os dados abaixo. O cadastro só será concluído quando tudo estiver válido.',
         ),
+        const SizedBox(height: 16),
+        const Card(
+          child: ListTile(
+            leading: Icon(Icons.add_photo_alternate_outlined),
+            title: Text('Logo do brechó'),
+            subtitle: Text(
+              'Depois de criar, abra “Meu brechó” para adicionar ou trocar o logo.',
+            ),
+          ),
+        ),
         const SizedBox(height: 22),
         TextFormField(
           controller: _storeName,
