@@ -17,7 +17,9 @@ PROMPT ============================================================
 @@ords/install_brecho_express_v1_authenticated.sql
 @@install_store_logo_media.sql
 @@install_store_location.sql
+@@packages/store/install_store_onboarding_api_pkg.sql
 @@ords/install_brecho_express_v1_seller_authenticated.sql
+@@ords/install_brecho_express_v1_store_onboarding.sql
 @@tests/ords/test_ord_runtime_pkg.sql
 
 DECLARE
@@ -42,6 +44,7 @@ BEGIN
   );
   DBMS_OUTPUT.PUT_LINE('POST auth/logout');
   DBMS_OUTPUT.PUT_LINE('GET/POST accounts/:accountPublicId/stores');
+  DBMS_OUTPUT.PUT_LINE('POST accounts/:accountPublicId/stores/onboarding');
   DBMS_OUTPUT.PUT_LINE('POST stores/:storePublicId/actions/activate');
   DBMS_OUTPUT.PUT_LINE('POST stores/:storePublicId/products');
 END;

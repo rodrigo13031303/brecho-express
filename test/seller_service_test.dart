@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:brecho_express_app/src/auth/brecho_session.dart';
+import 'package:brecho_express_app/src/location/store_location_service.dart';
 import 'package:brecho_express_app/src/seller/seller_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -148,6 +149,74 @@ void main() {
     final store = await service.activateStore(session, 'store-1');
 
     expect(store.status, 'ACTIVE');
+    service.close();
+  });
+
+  test('cria brechó completo em uma única chamada de onboarding', () async {
+    final service = SellerService(
+      client: MockClient((request) async {
+        expect(
+          request.url.path,
+          endsWith('/accounts/account-1/stores/onboarding'),
+        );
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        final location = body['location'] as Map<String, dynamic>;
+        expect(body['storeSlug'], 'meu-brecho');
+        expect(location['city'], 'Campinas');
+        expect(location['number'], '100');
+        return http.Response(
+          '{"success":true,"data":{"storePublicId":"store-1",'
+          '"storeName":"Meu Brechó","storeSlug":"meu-brecho",'
+          '"status":"ACTIVE","logoUrl":null}}',
+          201,
+        );
+      }),
+    );
+    const location = StoreLocationDraft(
+      postalCode: '13010111',
+      street: 'Rua Barão de Jaguara',
+      number: '100',
+      complement: '',
+      district: 'Centro',
+      city: 'Campinas',
+      state: 'SP',
+      latitude: -22.905,
+      longitude: -47.06,
+    );
+
+    final store = await service.createCompleteStore(
+      session: session,
+      name: 'Meu Brechó',
+      slug: 'meu-brecho',
+      location: location,
+    );
+
+    expect(store.status, 'ACTIVE');
+    service.close();
+  });
+
+  test('carrega endereço privado para edição do brechó', () async {
+    final service = SellerService(
+      client: MockClient((request) async {
+        expect(request.url.path, endsWith('/stores/store-1/location/owner'));
+        expect(request.headers['authorization'], 'Bearer secret-token');
+        return http.Response(
+          '{"success":true,"data":{"postalCode":"13010111",'
+          '"street":"Rua Barão de Jaguara","number":"100",'
+          '"complement":null,"district":"Centro","city":"Campinas",'
+          '"state":"SP","latitude":-22.905,"longitude":-47.06}}',
+          200,
+        );
+      }),
+    );
+
+    final location = await service.loadLocation(
+      session: session,
+      storePublicId: 'store-1',
+    );
+
+    expect(location.city, 'Campinas');
+    expect(location.number, '100');
     service.close();
   });
 }

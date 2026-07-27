@@ -52,6 +52,39 @@ class SellerService {
     return SellerStore.fromJson(_decodeObject(response));
   }
 
+  Future<SellerStore> createCompleteStore({
+    required BrechoSession session,
+    required String name,
+    required String slug,
+    required StoreLocationDraft location,
+    String? description,
+  }) async {
+    final account = Uri.encodeComponent(session.accountPublicId);
+    final response = await _post(
+      _baseUri.resolve('accounts/$account/stores/onboarding'),
+      session,
+      body: {
+        'storeName': name,
+        'storeSlug': slug,
+        if (description?.trim().isNotEmpty ?? false)
+          'description': description!.trim(),
+        'location': {
+          'postalCode': location.postalCode,
+          'street': location.street,
+          'number': location.number,
+          if (location.complement.trim().isNotEmpty)
+            'complement': location.complement,
+          'district': location.district,
+          'city': location.city,
+          'state': location.state,
+          'latitude': location.latitude!,
+          'longitude': location.longitude!,
+        },
+      },
+    );
+    return SellerStore.fromJson(_decodeObject(response));
+  }
+
   Future<SellerStore> activateStore(
     BrechoSession session,
     String storePublicId,
@@ -89,6 +122,29 @@ class SellerService {
       throw const SellerException('O endereço do logo veio inválido.');
     }
     return '$logoUrl?v=${DateTime.now().millisecondsSinceEpoch}';
+  }
+
+  Future<StoreLocationDraft> loadLocation({
+    required BrechoSession session,
+    required String storePublicId,
+  }) async {
+    final store = Uri.encodeComponent(storePublicId);
+    final response = await _get(
+      _baseUri.resolve('stores/$store/location/owner'),
+      session,
+    );
+    final data = _decodeObject(response);
+    return StoreLocationDraft(
+      postalCode: data['postalCode'] as String,
+      street: data['street'] as String,
+      number: data['number'] as String,
+      complement: data['complement'] as String? ?? '',
+      district: data['district'] as String,
+      city: data['city'] as String,
+      state: data['state'] as String,
+      latitude: (data['latitude'] as num).toDouble(),
+      longitude: (data['longitude'] as num).toDouble(),
+    );
   }
 
   Future<void> saveLocation({

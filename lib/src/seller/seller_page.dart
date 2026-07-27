@@ -8,6 +8,8 @@ import '../catalog/catalog_service.dart';
 import '../location/store_location_service.dart';
 import 'seller_service.dart';
 
+enum _SellerSection { hub, store, products }
+
 class SellerPage extends StatefulWidget {
   const SellerPage({
     required this.session,
@@ -54,9 +56,11 @@ class _SellerPageState extends State<SellerPage> {
   String? _selectedLogoMime;
   StoreLocationDraft? _location;
   bool _locating = false;
+  bool _locationLoaded = false;
   String? _locationMessage;
   bool _locationMessageIsError = false;
   bool _saving = false;
+  _SellerSection _section = _SellerSection.hub;
   String? _error;
   String? _success;
 
@@ -222,6 +226,20 @@ class _SellerPageState extends State<SellerPage> {
     return location;
   }
 
+  Future<void> _loadStoreLocation(SellerStore store) async {
+    if (_locationLoaded) return;
+    _locationLoaded = true;
+    try {
+      final location = await _service.loadLocation(
+        session: widget.session,
+        storePublicId: store.publicId,
+      );
+      if (mounted) setState(() => _fillLocation(location));
+    } on SellerException {
+      // A tela continua editável caso uma loja antiga ainda não tenha endereço.
+    }
+  }
+
   Future<void> _saveLocation() async {
     setState(() => _locating = true);
     try {
@@ -257,36 +275,19 @@ class _SellerPageState extends State<SellerPage> {
       _error = null;
     });
     try {
-      final preparedLocation = _postalCode.text.trim().isEmpty
-          ? null
-          : await _prepareLocation();
-      var store = await _service.createStore(
+      final preparedLocation = await _prepareLocation();
+      final store = await _service.createCompleteStore(
         session: widget.session,
         name: _storeName.text.trim(),
         slug: _storeSlug.text.trim(),
         description: _storeDescription.text,
+        location: preparedLocation,
       );
-      if (!mounted) return;
-      setState(() => _store = store);
-      if (store.status == 'DRAFT') {
-        store = await _service.activateStore(widget.session, store.publicId);
-        if (!mounted) return;
-        setState(() => _store = store);
-      }
-      store = await _uploadSelectedLogo(store);
-      if (!mounted) return;
-      setState(() => _store = store);
-      if (preparedLocation != null) {
-        await _service.saveLocation(
-          session: widget.session,
-          storePublicId: store.publicId,
-          location: preparedLocation,
-        );
-      }
       if (!mounted) return;
       setState(() {
         _store = store;
-        _success = 'Seu brechó gratuito está pronto!';
+        _success =
+            'Seu brechó está pronto! Agora você pode configurar o logo ou cadastrar produtos.';
       });
     } on StoreLocationException catch (error) {
       if (mounted) _showLocationMessage(error.message, error: true);
@@ -294,7 +295,10 @@ class _SellerPageState extends State<SellerPage> {
       if (mounted) setState(() => _error = error.message);
     } catch (_) {
       if (mounted) {
-        setState(() => _error = 'Não foi possível criar o brechó agora.');
+        setState(
+          () => _error =
+              'Não foi possível criar o brechó agora. Nenhum dado foi gravado.',
+        );
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -399,7 +403,12 @@ class _SellerPageState extends State<SellerPage> {
             },
           );
         }
-        _store ??= snapshot.data?.firstOrNull;
+        if (_store == null && snapshot.data?.firstOrNull != null) {
+          _store = snapshot.data!.first;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _loadStoreLocation(_store!);
+          });
+        }
         return ListView(
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 36),
           children: [
@@ -429,12 +438,8 @@ class _SellerPageState extends State<SellerPage> {
           ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 8),
-        const Text('Você só precisa escolher um nome. Não há mensalidade.'),
-        const SizedBox(height: 22),
-        _StoreLogoEditor(
-          name: _storeName.text,
-          bytes: _selectedLogo,
-          onTap: _saving ? null : _chooseLogo,
+        const Text(
+          'Preencha os dados abaixo. O cadastro só será concluído quando tudo estiver válido.',
         ),
         const SizedBox(height: 22),
         TextFormField(
@@ -515,6 +520,105 @@ class _SellerPageState extends State<SellerPage> {
     ),
   );
 
+  Widget _buildStoreHeader(SellerStore store) => Row(
+    children: [
+      _StoreLogoAvatar(name: store.name, logoUrl: store.logoUrl, radius: 34),
+      const SizedBox(width: 14),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              store.name,
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const Text('Brechó ativo • plano gratuito'),
+          ],
+        ),
+      ),
+    ],
+  );
+
+  Widget _buildSellerHub(SellerStore store) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      _buildStoreHeader(store),
+      const SizedBox(height: 24),
+      Text(
+        'O que você quer fazer?',
+        style: Theme.of(
+          context,
+        ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+      ),
+      const SizedBox(height: 14),
+      Card(
+        child: ListTile(
+          leading: const Icon(Icons.storefront_outlined),
+          title: const Text('Meu brechó'),
+          subtitle: const Text('Logo, endereço e configurações da loja'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => setState(() => _section = _SellerSection.store),
+        ),
+      ),
+      Card(
+        child: ListTile(
+          leading: const Icon(Icons.checkroom_outlined),
+          title: const Text('Produtos'),
+          subtitle: const Text('Cadastre e gerencie suas peças'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => setState(() => _section = _SellerSection.products),
+        ),
+      ),
+    ],
+  );
+
+  Widget _buildStoreSettings(SellerStore store) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Row(
+        children: [
+          IconButton(
+            onPressed: () => setState(() => _section = _SellerSection.hub),
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Voltar',
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Meu brechó',
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+          ),
+        ],
+      ),
+      const SizedBox(height: 18),
+      _buildStoreHeader(store),
+      const SizedBox(height: 12),
+      OutlinedButton.icon(
+        onPressed: _saving ? null : _replaceLogo,
+        icon: const Icon(Icons.add_photo_alternate_outlined),
+        label: Text(store.logoUrl == null ? 'Adicionar logo' : 'Trocar logo'),
+      ),
+      _LocationEditor(
+        postalCode: _postalCode,
+        street: _street,
+        number: _number,
+        complement: _complement,
+        district: _district,
+        city: _city,
+        state: _state,
+        location: _location,
+        busy: _locating,
+        onLookup: () => _resolveLocation(current: false),
+        onCurrent: () => _resolveLocation(current: true),
+        onSave: _saveLocation,
+        message: _locationMessage,
+        messageIsError: _locationMessageIsError,
+      ),
+    ],
+  );
   Widget _buildSeller(BuildContext context) {
     final store = _store!;
     if (store.status != 'ACTIVE') {
@@ -534,6 +638,9 @@ class _SellerPageState extends State<SellerPage> {
         ],
       );
     }
+    if (_section == _SellerSection.hub) return _buildSellerHub(store);
+    if (_section == _SellerSection.store) return _buildStoreSettings(store);
+
     return FutureBuilder<CatalogSnapshot>(
       future: widget.catalog,
       builder: (context, snapshot) {
@@ -546,50 +653,22 @@ class _SellerPageState extends State<SellerPage> {
             children: [
               Row(
                 children: [
-                  _StoreLogoAvatar(
-                    name: store.name,
-                    logoUrl: store.logoUrl,
-                    radius: 34,
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          store.name,
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w700),
-                        ),
-                        const Text('Brechó ativo • plano gratuito'),
-                      ],
-                    ),
-                  ),
                   IconButton(
-                    onPressed: _saving ? null : _replaceLogo,
-                    tooltip: 'Trocar logo',
-                    icon: const Icon(Icons.edit_outlined),
+                    onPressed: () =>
+                        setState(() => _section = _SellerSection.hub),
+                    icon: const Icon(Icons.arrow_back),
+                    tooltip: 'Voltar',
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Produtos',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 18),
-              _LocationEditor(
-                postalCode: _postalCode,
-                street: _street,
-                number: _number,
-                complement: _complement,
-                district: _district,
-                city: _city,
-                state: _state,
-                location: _location,
-                busy: _locating,
-                onLookup: () => _resolveLocation(current: false),
-                onCurrent: () => _resolveLocation(current: true),
-                onSave: _saveLocation,
-                message: _locationMessage,
-                messageIsError: _locationMessageIsError,
-              ),
-              const SizedBox(height: 24),
               Text(
                 'Nova peça',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -914,47 +993,15 @@ class _LocationEditor extends StatelessWidget {
   );
 }
 
-class _StoreLogoEditor extends StatelessWidget {
-  const _StoreLogoEditor({
-    required this.name,
-    required this.bytes,
-    required this.onTap,
-  });
-
-  final String name;
-  final Uint8List? bytes;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      _StoreLogoAvatar(name: name, bytes: bytes, radius: 52),
-      const SizedBox(height: 10),
-      OutlinedButton.icon(
-        onPressed: onTap,
-        icon: const Icon(Icons.add_photo_alternate_outlined),
-        label: Text(bytes == null ? 'Adicionar logo' : 'Trocar logo'),
-      ),
-      const SizedBox(height: 4),
-      Text(
-        'Opcional • imagem quadrada de até 1 MB',
-        style: Theme.of(context).textTheme.bodySmall,
-      ),
-    ],
-  );
-}
-
 class _StoreLogoAvatar extends StatelessWidget {
   const _StoreLogoAvatar({
     required this.name,
     required this.radius,
-    this.bytes,
     this.logoUrl,
   });
 
   final String name;
   final double radius;
-  final Uint8List? bytes;
   final String? logoUrl;
 
   String get _initials {
@@ -968,9 +1015,7 @@ class _StoreLogoAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ImageProvider<Object>? image = bytes != null
-        ? MemoryImage(bytes!)
-        : logoUrl?.isNotEmpty == true
+    final ImageProvider<Object>? image = logoUrl?.isNotEmpty == true
         ? NetworkImage(logoUrl!)
         : null;
     return CircleAvatar(

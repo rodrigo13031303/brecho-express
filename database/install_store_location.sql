@@ -323,6 +323,118 @@ END;
     p_param_type => 'STRING',
     p_access_method => 'OUT'
   );
+  ORDS.DEFINE_TEMPLATE(
+    p_module_name => 'brecho-express-v1',
+    p_pattern => 'stores/:storePublicId/location/owner',
+    p_etag_type => 'NONE',
+    p_comments => 'Private owner view of store location'
+  );
+  ORDS.DEFINE_HANDLER(
+    p_module_name => 'brecho-express-v1',
+    p_pattern => 'stores/:storePublicId/location/owner',
+    p_method => 'GET',
+    p_source_type => ORDS.SOURCE_TYPE_PLSQL,
+    p_mimes_allowed => 'application/json',
+    p_comments => 'Return the complete location to its authenticated owner',
+    p_source => q'~
+DECLARE
+  l_authenticated BOOLEAN;
+  l_account_id NUMBER;
+  l_session_public_id VARCHAR2(32);
+  l_status PLS_INTEGER;
+  l_body CLOB;
+  l_data JSON_OBJECT_T := JSON_OBJECT_T();
+  l_postal VARCHAR2(8);
+  l_street VARCHAR2(300);
+  l_number VARCHAR2(30);
+  l_complement VARCHAR2(200);
+  l_district VARCHAR2(200);
+  l_city VARCHAR2(200);
+  l_state VARCHAR2(2);
+  l_latitude NUMBER;
+  l_longitude NUMBER;
+BEGIN
+  ord_runtime_pkg.begin_authenticated_request(
+    :authorization, l_authenticated, l_account_id, l_session_public_id,
+    l_status, l_body
+  );
+  :trace_id := core_context_pkg.trace_id();
+  IF l_authenticated THEN
+    BEGIN
+      SELECT location_data.STL_POSTAL_CODE, location_data.STL_STREET,
+             location_data.STL_NUMBER, location_data.STL_COMPLEMENT,
+             location_data.STL_DISTRICT, location_data.STL_CITY,
+             location_data.STL_STATE, location_data.STL_LATITUDE,
+             location_data.STL_LONGITUDE
+        INTO l_postal, l_street, l_number, l_complement, l_district,
+             l_city, l_state, l_latitude, l_longitude
+        FROM BEX_STORE_LOCATION location_data
+        JOIN BEX_STORE store_data ON store_data.STR_ID = location_data.STR_ID
+       WHERE store_data.STR_PUBLIC_ID = LOWER(TRIM(:storePublicId))
+         AND store_data.ACC_ID = l_account_id
+         AND store_data.STR_STATUS IN ('DRAFT', 'ACTIVE');
+      core_json_pkg.put_string(l_data, 'postalCode', l_postal);
+      core_json_pkg.put_string(l_data, 'street', l_street);
+      core_json_pkg.put_string(l_data, 'number', l_number);
+      IF l_complement IS NULL THEN
+        core_json_pkg.put_null(l_data, 'complement');
+      ELSE
+        core_json_pkg.put_string(l_data, 'complement', l_complement);
+      END IF;
+      core_json_pkg.put_string(l_data, 'district', l_district);
+      core_json_pkg.put_string(l_data, 'city', l_city);
+      core_json_pkg.put_string(l_data, 'state', l_state);
+      core_json_pkg.put_number(l_data, 'latitude', l_latitude);
+      core_json_pkg.put_number(l_data, 'longitude', l_longitude);
+      l_body := core_response_pkg.build_success(l_data);
+      l_status := 200;
+    EXCEPTION
+      WHEN NO_DATA_FOUND THEN
+        l_status := 404;
+        l_body := '{"success":false,"error":{"code":"BEX-LOCATION-002","message":"O endereco do brecho nao foi encontrado."}}';
+    END;
+  END IF;
+  :status_code := l_status;
+  ord_runtime_pkg.write_json_response(l_body);
+  ord_runtime_pkg.clear_request_context;
+EXCEPTION
+  WHEN OTHERS THEN
+    ord_runtime_pkg.clear_request_context;
+    RAISE;
+END;
+~'
+  );
+  ORDS.DEFINE_PARAMETER(
+    p_module_name => 'brecho-express-v1',
+    p_pattern => 'stores/:storePublicId/location/owner',
+    p_method => 'GET',
+    p_name => 'Authorization',
+    p_bind_variable_name => 'authorization',
+    p_source_type => 'HEADER',
+    p_param_type => 'STRING',
+    p_access_method => 'IN'
+  );
+  ORDS.DEFINE_PARAMETER(
+    p_module_name => 'brecho-express-v1',
+    p_pattern => 'stores/:storePublicId/location/owner',
+    p_method => 'GET',
+    p_name => 'X-Trace-Id',
+    p_bind_variable_name => 'trace_id',
+    p_source_type => 'RESPONSE',
+    p_param_type => 'STRING',
+    p_access_method => 'OUT'
+  );
+  ORDS.DEFINE_PARAMETER(
+    p_module_name => 'brecho-express-v1',
+    p_pattern => 'stores/:storePublicId/location/owner',
+    p_method => 'GET',
+    p_name => 'X-ORDS-STATUS-CODE',
+    p_bind_variable_name => 'status_code',
+    p_source_type => 'HEADER',
+    p_param_type => 'INT',
+    p_access_method => 'OUT'
+  );
+
   COMMIT;
 END;
 /
