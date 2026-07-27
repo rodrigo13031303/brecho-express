@@ -57,4 +57,35 @@ void main() {
     expect(service.load(), throwsA(isA<CatalogException>()));
     service.close();
   });
+
+  test('anexa bairro e distância aproximada aos produtos', () async {
+    final client = MockClient((request) async {
+      if (request.url.path.endsWith('/categories')) {
+        return http.Response('{"success":true,"data":[]}', 200);
+      }
+      if (request.url.path.endsWith('/products')) {
+        return http.Response(
+          '{"success":true,"data":[{"productPublicId":"prd",'
+          '"storePublicId":"store","title":"Bolsa","price":80,'
+          '"condition":"GOOD","description":null}]}',
+          200,
+        );
+      }
+      expect(request.url.queryParameters['requesterLatitude'], '-23.5');
+      return http.Response(
+        '{"success":true,"data":{"district":"Mooca","city":"São Paulo",'
+        '"state":"SP","distanceKm":2.4}}',
+        200,
+      );
+    });
+    final service = CatalogService(client: client);
+
+    final catalog = await service.load(
+      requesterLatitude: -23.5,
+      requesterLongitude: -46.6,
+    );
+
+    expect(catalog.products.single.location?.label, 'Mooca • a 2,4 km');
+    service.close();
+  });
 }

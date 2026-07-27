@@ -10,15 +10,78 @@ class CatalogService {
   );
   final http.Client _client;
 
-  Future<CatalogSnapshot> load() async {
+  Future<CatalogSnapshot> load({
+    double? requesterLatitude,
+    double? requesterLongitude,
+  }) async {
     final responses = await Future.wait([
       _client.get(_baseUri.resolve('categories')),
       _client.get(_baseUri.resolve('products')),
     ]).timeout(const Duration(seconds: 20));
+    final categories = _decodeList(responses[0], CatalogCategory.fromJson);
+    final products = _decodeList(responses[1], CatalogProduct.fromJson);
+    final storeIds = products
+        .map((product) => product.storePublicId)
+        .whereType<String>()
+        .toSet();
+    final locations = <String, CatalogPublicLocation>{};
+    await Future.wait(
+      storeIds.map((storeId) async {
+        final location = await _loadStoreLocation(
+          storeId,
+          requesterLatitude: requesterLatitude,
+          requesterLongitude: requesterLongitude,
+        );
+        if (location != null) locations[storeId] = location;
+      }),
+    ).timeout(const Duration(seconds: 20));
     return CatalogSnapshot(
-      categories: _decodeList(responses[0], CatalogCategory.fromJson),
-      products: _decodeList(responses[1], CatalogProduct.fromJson),
+      categories: categories,
+      products: products
+          .map(
+            (product) => product.withLocation(
+              product.storePublicId == null
+                  ? null
+                  : locations[product.storePublicId],
+            ),
+          )
+          .toList(growable: false),
     );
+  }
+
+  Future<CatalogPublicLocation?> _loadStoreLocation(
+    String storePublicId, {
+    double? requesterLatitude,
+    double? requesterLongitude,
+  }) async {
+    var uri = _baseUri.resolve(
+      'stores/${Uri.encodeComponent(storePublicId)}/location',
+    );
+    if (requesterLatitude != null && requesterLongitude != null) {
+      uri = uri.replace(
+        queryParameters: {
+          'requesterLatitude': requesterLatitude.toString(),
+          'requesterLongitude': requesterLongitude.toString(),
+        },
+      );
+    }
+    late final http.Response response;
+    try {
+      response = await _client.get(uri).timeout(const Duration(seconds: 10));
+    } catch (_) {
+      return null;
+    }
+    if (response.statusCode == 404) return null;
+    if (response.statusCode != 200) return null;
+    try {
+      final envelope = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = envelope['data'];
+      return data is Map<String, dynamic>
+          ? CatalogPublicLocation.fromJson(data)
+          : null;
+    } on FormatException {
+      return null;
+    }
   }
 
   Future<CatalogProductDetail> loadProductDetail(String publicId) async {
@@ -111,6 +174,8 @@ class CatalogProduct {
     required this.price,
     required this.condition,
     this.description,
+    this.storePublicId,
+    this.location,
   });
   factory CatalogProduct.fromJson(Map<String, dynamic> json) => CatalogProduct(
     publicId: json['productPublicId'] as String,
@@ -118,18 +183,63 @@ class CatalogProduct {
     price: (json['price'] as num).toDouble(),
     condition: json['condition'] as String,
     description: json['description'] as String?,
+    storePublicId: json['storePublicId'] as String?,
   );
   final String publicId;
   final String title;
   final double price;
   final String condition;
   final String? description;
+  final String? storePublicId;
+  final CatalogPublicLocation? location;
+
+  CatalogProduct withLocation(CatalogPublicLocation? value) => CatalogProduct(
+    publicId: publicId,
+    title: title,
+    price: price,
+    condition: condition,
+    description: description,
+    storePublicId: storePublicId,
+    location: value,
+  );
 
   bool matches(String query) {
     final normalized = query.trim().toLowerCase();
     return normalized.isEmpty ||
         title.toLowerCase().contains(normalized) ||
         (description?.toLowerCase().contains(normalized) ?? false);
+  }
+}
+
+class CatalogPublicLocation {
+  const CatalogPublicLocation({
+    required this.district,
+    required this.city,
+    required this.state,
+    this.distanceKm,
+  });
+
+  factory CatalogPublicLocation.fromJson(Map<String, dynamic> json) =>
+      CatalogPublicLocation(
+        district: json['district'] as String,
+        city: json['city'] as String,
+        state: json['state'] as String,
+        distanceKm: (json['distanceKm'] as num?)?.toDouble(),
+      );
+
+  final String district;
+  final String city;
+  final String state;
+  final double? distanceKm;
+
+  String get label {
+    final distance = distanceKm;
+    if (distance == null) return '$district • $city/$state';
+    if (distance < 1) return '$district • a menos de 1 km';
+    final formatted = distance < 10
+        ? distance.toStringAsFixed(1).replaceAll('.', ',')
+        : distance.round().toString();
+    return '$district • a $formatted km';
   }
 }
 

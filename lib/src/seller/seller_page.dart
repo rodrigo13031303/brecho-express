@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../auth/brecho_session.dart';
 import '../branding/brecho_mark.dart';
 import '../catalog/catalog_service.dart';
+import '../location/store_location_service.dart';
 import 'seller_service.dart';
 
 class SellerPage extends StatefulWidget {
@@ -26,11 +27,13 @@ class SellerPage extends StatefulWidget {
 class _SellerPageState extends State<SellerPage> {
   final _service = SellerService();
   final _imagePicker = ImagePicker();
+  final _locationService = StoreLocationService();
   final _storeForm = GlobalKey<FormState>();
   final _productForm = GlobalKey<FormState>();
   final _storeName = TextEditingController();
   final _storeSlug = TextEditingController();
   final _storeDescription = TextEditingController();
+  final _postalCode = TextEditingController();
   final _title = TextEditingController();
   final _slug = TextEditingController();
   final _description = TextEditingController();
@@ -43,6 +46,8 @@ class _SellerPageState extends State<SellerPage> {
   String _condition = 'GOOD';
   Uint8List? _selectedLogo;
   String? _selectedLogoMime;
+  StoreLocationDraft? _location;
+  bool _locating = false;
   bool _saving = false;
   String? _error;
   String? _success;
@@ -56,10 +61,12 @@ class _SellerPageState extends State<SellerPage> {
   @override
   void dispose() {
     _service.close();
+    _locationService.close();
     for (final controller in [
       _storeName,
       _storeSlug,
       _storeDescription,
+      _postalCode,
       _title,
       _slug,
       _description,
@@ -125,6 +132,41 @@ class _SellerPageState extends State<SellerPage> {
     return store.withLogo(url);
   }
 
+  Future<void> _resolveLocation({required bool current}) async {
+    setState(() {
+      _locating = true;
+      _error = null;
+    });
+    try {
+      final location = current
+          ? await _locationService.useCurrentLocation()
+          : await _locationService.lookupPostalCode(_postalCode.text);
+      if (_store != null) {
+        await _service.saveLocation(
+          session: widget.session,
+          storePublicId: _store!.publicId,
+          location: location,
+        );
+      }
+      if (!mounted) return;
+      setState(() {
+        _location = location;
+        _postalCode.text = location.postalCode;
+        if (_store != null) _success = 'Localização atualizada!';
+      });
+    } on StoreLocationException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } on SellerException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'Não foi possível obter a localização.');
+      }
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
+  }
+
   Future<void> _createStore() async {
     if (!_storeForm.currentState!.validate()) return;
     setState(() {
@@ -142,6 +184,13 @@ class _SellerPageState extends State<SellerPage> {
         store = await _service.activateStore(widget.session, store.publicId);
       }
       store = await _uploadSelectedLogo(store);
+      if (_location != null) {
+        await _service.saveLocation(
+          session: widget.session,
+          storePublicId: store.publicId,
+          location: _location!,
+        );
+      }
       if (!mounted) return;
       setState(() {
         _store = store;
@@ -313,8 +362,8 @@ class _SellerPageState extends State<SellerPage> {
         TextFormField(
           controller: _storeSlug,
           decoration: const InputDecoration(
-            labelText: 'Endereço do brechó',
-            prefixText: 'brechoexpress/ ',
+            labelText: 'Link do brechó',
+            prefixText: 'brechoexpress.com.br/ ',
           ),
           inputFormatters: [
             FilteringTextInputFormatter.allow(RegExp(r'[a-z0-9-]')),
@@ -331,6 +380,13 @@ class _SellerPageState extends State<SellerPage> {
             alignLabelWithHint: true,
           ),
           maxLines: 3,
+        ),
+        _LocationEditor(
+          controller: _postalCode,
+          location: _location,
+          busy: _locating,
+          onLookup: () => _resolveLocation(current: false),
+          onCurrent: () => _resolveLocation(current: true),
         ),
         const SizedBox(height: 20),
         FilledButton.icon(
@@ -403,6 +459,14 @@ class _SellerPageState extends State<SellerPage> {
                     icon: const Icon(Icons.edit_outlined),
                   ),
                 ],
+              ),
+              const SizedBox(height: 18),
+              _LocationEditor(
+                controller: _postalCode,
+                location: _location,
+                busy: _locating,
+                onLookup: () => _resolveLocation(current: false),
+                onCurrent: () => _resolveLocation(current: true),
               ),
               const SizedBox(height: 24),
               Text(
@@ -546,6 +610,95 @@ class _SellerPageState extends State<SellerPage> {
       },
     );
   }
+}
+
+class _LocationEditor extends StatelessWidget {
+  const _LocationEditor({
+    required this.controller,
+    required this.location,
+    required this.busy,
+    required this.onLookup,
+    required this.onCurrent,
+  });
+
+  final TextEditingController controller;
+  final StoreLocationDraft? location;
+  final bool busy;
+  final VoidCallback onLookup;
+  final VoidCallback onCurrent;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    margin: const EdgeInsets.only(top: 18),
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Localização do brechó',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Clientes verão somente bairro, cidade e distância aproximada.',
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(8),
+            ],
+            decoration: InputDecoration(
+              labelText: 'CEP',
+              hintText: '00000000',
+              suffixIcon: IconButton(
+                onPressed: busy ? null : onLookup,
+                tooltip: 'Buscar CEP',
+                icon: const Icon(Icons.search),
+              ),
+            ),
+            onSubmitted: (_) {
+              if (!busy) onLookup();
+            },
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: busy ? null : onCurrent,
+            icon: busy
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.my_location),
+            label: const Text('Usar minha localização atual'),
+          ),
+          if (location != null) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Icon(
+                  Icons.check_circle,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    location!.publicLabel,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    ),
+  );
 }
 
 class _StoreLogoEditor extends StatelessWidget {

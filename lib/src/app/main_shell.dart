@@ -5,6 +5,7 @@ import '../auth/brecho_session.dart';
 import '../branding/brecho_mark.dart';
 import '../catalog/catalog_service.dart';
 import '../catalog/product_detail_page.dart';
+import '../location/store_location_service.dart';
 import '../seller/seller_page.dart';
 
 class MainShell extends StatefulWidget {
@@ -32,23 +33,60 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
   late final CatalogService _catalogService;
+  late final StoreLocationService _locationService;
   late Future<CatalogSnapshot> _catalog;
+  bool _distanceEnabled = false;
+  bool _enablingDistance = false;
+  GeoPoint? _viewerLocation;
 
   @override
   void initState() {
     super.initState();
     _catalogService = CatalogService();
+    _locationService = StoreLocationService();
     _catalog = widget.initialCatalog ?? _catalogService.load();
   }
 
   @override
   void dispose() {
     _catalogService.close();
+    _locationService.close();
     super.dispose();
   }
 
   void _retryCatalog() {
-    setState(() => _catalog = _catalogService.load());
+    final point = _viewerLocation;
+    setState(
+      () => _catalog = _catalogService.load(
+        requesterLatitude: point?.latitude,
+        requesterLongitude: point?.longitude,
+      ),
+    );
+  }
+
+  Future<void> _enableDistance() async {
+    if (_enablingDistance) return;
+    setState(() => _enablingDistance = true);
+    try {
+      final point = await _locationService.currentCoordinates();
+      if (!mounted) return;
+      setState(() {
+        _distanceEnabled = true;
+        _viewerLocation = point;
+        _catalog = _catalogService.load(
+          requesterLatitude: point.latitude,
+          requesterLongitude: point.longitude,
+        );
+      });
+    } on StoreLocationException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _enablingDistance = false);
+    }
   }
 
   void _selectTab(int index) => setState(() => _currentIndex = index);
@@ -62,7 +100,13 @@ class _MainShellState extends State<MainShell> {
         onExplore: () => _selectTab(1),
         onSell: () => _selectTab(2),
       ),
-      ExplorePage(catalog: _catalog, onRetry: _retryCatalog),
+      ExplorePage(
+        catalog: _catalog,
+        onRetry: _retryCatalog,
+        distanceEnabled: _distanceEnabled,
+        enablingDistance: _enablingDistance,
+        onEnableDistance: _enableDistance,
+      ),
       SellerPage(
         session: widget.session,
         catalog: _catalog,
@@ -251,9 +295,19 @@ class HomePage extends StatelessWidget {
 }
 
 class ExplorePage extends StatefulWidget {
-  const ExplorePage({required this.catalog, required this.onRetry, super.key});
+  const ExplorePage({
+    required this.catalog,
+    required this.onRetry,
+    required this.distanceEnabled,
+    required this.enablingDistance,
+    required this.onEnableDistance,
+    super.key,
+  });
   final Future<CatalogSnapshot> catalog;
   final VoidCallback onRetry;
+  final bool distanceEnabled;
+  final bool enablingDistance;
+  final VoidCallback onEnableDistance;
   @override
   State<ExplorePage> createState() => _ExplorePageState();
 }
@@ -291,12 +345,27 @@ class _ExplorePageState extends State<ExplorePage> {
             ],
           ),
           const SizedBox(height: 16),
-          const Wrap(
+          Wrap(
             spacing: 8,
             children: [
-              FilterChip(label: Text('Categoria'), onSelected: null),
-              FilterChip(label: Text('Tamanho'), onSelected: null),
-              FilterChip(label: Text('Preço'), onSelected: null),
+              const FilterChip(label: Text('Categoria'), onSelected: null),
+              const FilterChip(label: Text('Tamanho'), onSelected: null),
+              const FilterChip(label: Text('Preço'), onSelected: null),
+              FilterChip(
+                selected: widget.distanceEnabled,
+                avatar: widget.enablingDistance
+                    ? const SizedBox.square(
+                        dimension: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.near_me_outlined, size: 18),
+                label: Text(
+                  widget.distanceEnabled ? 'Distância ativa' : 'Ver distância',
+                ),
+                onSelected: widget.enablingDistance
+                    ? null
+                    : (_) => widget.onEnableDistance(),
+              ),
             ],
           ),
           const SizedBox(height: 32),
@@ -598,7 +667,13 @@ class _ProductCard extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
-        subtitle: Text('${_conditionLabel(product.condition)}\nR\$ $price'),
+        subtitle: Text(
+          [
+            _conditionLabel(product.condition),
+            'R\$ $price',
+            if (product.location != null) product.location!.label,
+          ].join(' • '),
+        ),
         isThreeLine: true,
         trailing: const Icon(Icons.chevron_right),
         onTap: () => Navigator.of(context).push(

@@ -10,6 +10,8 @@
 	<string>Brecho Express App</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>O Brecho Express usa sua galeria para escolher o logo do seu brecho.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Sua localizacao permite mostrar brechos proximos e calcular distancias aproximadas.</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

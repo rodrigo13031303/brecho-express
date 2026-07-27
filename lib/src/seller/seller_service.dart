@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 import '../auth/brecho_session.dart';
+import '../location/store_location_service.dart';
 
 class SellerService {
   SellerService({http.Client? client}) : _client = client ?? http.Client();
@@ -87,6 +88,29 @@ class SellerService {
       throw const SellerException('O endereço do logo veio inválido.');
     }
     return '$logoUrl?v=${DateTime.now().millisecondsSinceEpoch}';
+  }
+
+  Future<void> saveLocation({
+    required BrechoSession session,
+    required String storePublicId,
+    required StoreLocationDraft location,
+  }) async {
+    final store = Uri.encodeComponent(storePublicId);
+    final response = await _client
+        .put(
+          _baseUri.resolve('stores/$store/location'),
+          headers: _headers(session),
+          body: jsonEncode({
+            'postalCode': location.postalCode,
+            'district': location.district,
+            'city': location.city,
+            'state': location.state,
+            'latitude': location.latitude,
+            'longitude': location.longitude,
+          }),
+        )
+        .timeout(const Duration(seconds: 20));
+    _decodeObject(response);
   }
 
   Future<SellerProduct> publishProduct({
