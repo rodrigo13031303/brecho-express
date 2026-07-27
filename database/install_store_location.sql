@@ -18,6 +18,9 @@ BEGIN
       CREATE TABLE BEX_STORE_LOCATION (
         STR_ID           NUMBER NOT NULL,
         STL_POSTAL_CODE  VARCHAR2(8 CHAR) NOT NULL,
+        STL_STREET       VARCHAR2(300 CHAR),
+        STL_NUMBER       VARCHAR2(30 CHAR),
+        STL_COMPLEMENT   VARCHAR2(200 CHAR),
         STL_DISTRICT     VARCHAR2(200 CHAR) NOT NULL,
         STL_CITY         VARCHAR2(200 CHAR) NOT NULL,
         STL_STATE        CHAR(2 CHAR) NOT NULL,
@@ -44,6 +47,22 @@ BEGIN
       CREATE INDEX IDX_STL_PUBLIC_AREA
         ON BEX_STORE_LOCATION (STL_STATE, STL_CITY, STL_DISTRICT)
     ~';
+  END IF;
+
+  SELECT COUNT(*) INTO l_count FROM USER_TAB_COLUMNS
+   WHERE TABLE_NAME = 'BEX_STORE_LOCATION' AND COLUMN_NAME = 'STL_STREET';
+  IF l_count = 0 THEN
+    EXECUTE IMMEDIATE 'ALTER TABLE BEX_STORE_LOCATION ADD STL_STREET VARCHAR2(300 CHAR)';
+  END IF;
+  SELECT COUNT(*) INTO l_count FROM USER_TAB_COLUMNS
+   WHERE TABLE_NAME = 'BEX_STORE_LOCATION' AND COLUMN_NAME = 'STL_NUMBER';
+  IF l_count = 0 THEN
+    EXECUTE IMMEDIATE 'ALTER TABLE BEX_STORE_LOCATION ADD STL_NUMBER VARCHAR2(30 CHAR)';
+  END IF;
+  SELECT COUNT(*) INTO l_count FROM USER_TAB_COLUMNS
+   WHERE TABLE_NAME = 'BEX_STORE_LOCATION' AND COLUMN_NAME = 'STL_COMPLEMENT';
+  IF l_count = 0 THEN
+    EXECUTE IMMEDIATE 'ALTER TABLE BEX_STORE_LOCATION ADD STL_COMPLEMENT VARCHAR2(200 CHAR)';
   END IF;
 END;
 /
@@ -74,6 +93,9 @@ DECLARE
   l_request CLOB := :body_text;
   l_json JSON_OBJECT_T;
   l_postal VARCHAR2(8);
+  l_street VARCHAR2(300);
+  l_number VARCHAR2(30);
+  l_complement VARCHAR2(200);
   l_district VARCHAR2(200);
   l_city VARCHAR2(200);
   l_state VARCHAR2(2);
@@ -91,6 +113,11 @@ BEGIN
     BEGIN
       l_json := JSON_OBJECT_T.parse(l_request);
       l_postal := REGEXP_REPLACE(l_json.get_string('postalCode'), '[^0-9]', '');
+      l_street := TRIM(l_json.get_string('street'));
+      l_number := TRIM(l_json.get_string('number'));
+      IF l_json.has('complement') THEN
+        l_complement := TRIM(l_json.get_string('complement'));
+      END IF;
       l_district := TRIM(l_json.get_string('district'));
       l_city := TRIM(l_json.get_string('city'));
       l_state := UPPER(TRIM(l_json.get_string('state')));
@@ -98,6 +125,9 @@ BEGIN
       l_longitude := l_json.get_number('longitude');
 
       IF LENGTH(l_postal) <> 8
+         OR l_street IS NULL OR LENGTH(l_street) > 300
+         OR l_number IS NULL OR LENGTH(l_number) > 30
+         OR LENGTH(l_complement) > 200
          OR l_district IS NULL OR LENGTH(l_district) > 200
          OR l_city IS NULL OR LENGTH(l_city) > 200
          OR NOT REGEXP_LIKE(l_state, '^[A-Z]{2}$')
@@ -115,6 +145,9 @@ BEGIN
 
       UPDATE BEX_STORE_LOCATION
          SET STL_POSTAL_CODE = l_postal,
+             STL_STREET = l_street,
+             STL_NUMBER = l_number,
+             STL_COMPLEMENT = l_complement,
              STL_DISTRICT = l_district,
              STL_CITY = l_city,
              STL_STATE = l_state,
@@ -126,10 +159,12 @@ BEGIN
 
       IF SQL%ROWCOUNT = 0 THEN
         INSERT INTO BEX_STORE_LOCATION (
-          STR_ID, STL_POSTAL_CODE, STL_DISTRICT, STL_CITY, STL_STATE,
+          STR_ID, STL_POSTAL_CODE, STL_STREET, STL_NUMBER, STL_COMPLEMENT,
+          STL_DISTRICT, STL_CITY, STL_STATE,
           STL_LATITUDE, STL_LONGITUDE, STL_UPDATED_BY
         ) VALUES (
-          l_store_id, l_postal, l_district, l_city, l_state,
+          l_store_id, l_postal, l_street, l_number, l_complement,
+          l_district, l_city, l_state,
           l_latitude, l_longitude, l_account_id
         );
       END IF;

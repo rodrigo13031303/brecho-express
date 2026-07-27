@@ -34,6 +34,12 @@ class _SellerPageState extends State<SellerPage> {
   final _storeSlug = TextEditingController();
   final _storeDescription = TextEditingController();
   final _postalCode = TextEditingController();
+  final _street = TextEditingController();
+  final _number = TextEditingController();
+  final _complement = TextEditingController();
+  final _district = TextEditingController();
+  final _city = TextEditingController();
+  final _state = TextEditingController();
   final _title = TextEditingController();
   final _slug = TextEditingController();
   final _description = TextEditingController();
@@ -48,6 +54,8 @@ class _SellerPageState extends State<SellerPage> {
   String? _selectedLogoMime;
   StoreLocationDraft? _location;
   bool _locating = false;
+  String? _locationMessage;
+  bool _locationMessageIsError = false;
   bool _saving = false;
   String? _error;
   String? _success;
@@ -67,6 +75,12 @@ class _SellerPageState extends State<SellerPage> {
       _storeSlug,
       _storeDescription,
       _postalCode,
+      _street,
+      _number,
+      _complement,
+      _district,
+      _city,
+      _state,
       _title,
       _slug,
       _description,
@@ -132,15 +146,86 @@ class _SellerPageState extends State<SellerPage> {
     return store.withLogo(url);
   }
 
+  void _fillLocation(StoreLocationDraft location) {
+    _postalCode.text = location.postalCode;
+    _street.text = location.street;
+    _number.text = location.number;
+    _complement.text = location.complement;
+    _district.text = location.district;
+    _city.text = location.city;
+    _state.text = location.state;
+    _location = location;
+  }
+
+  StoreLocationDraft _draftFromFields() => StoreLocationDraft(
+    postalCode: _postalCode.text.trim(),
+    street: _street.text.trim(),
+    number: _number.text.trim(),
+    complement: _complement.text.trim(),
+    district: _district.text.trim(),
+    city: _city.text.trim(),
+    state: _state.text.trim().toUpperCase(),
+    latitude: _location?.latitude,
+    longitude: _location?.longitude,
+  );
+
+  void _showLocationMessage(String message, {required bool error}) {
+    setState(() {
+      _locationMessage = message;
+      _locationMessageIsError = error;
+    });
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          showCloseIcon: true,
+        ),
+      );
+  }
+
   Future<void> _resolveLocation({required bool current}) async {
     setState(() {
       _locating = true;
-      _error = null;
+      _locationMessage = null;
     });
     try {
       final location = current
           ? await _locationService.useCurrentLocation()
           : await _locationService.lookupPostalCode(_postalCode.text);
+      if (!mounted) return;
+      setState(() => _fillLocation(location));
+      _showLocationMessage(
+        'Confira os campos e informe o número antes de salvar.',
+        error: false,
+      );
+    } on StoreLocationException catch (error) {
+      if (mounted) _showLocationMessage(error.message, error: true);
+    } catch (_) {
+      if (mounted) {
+        _showLocationMessage(
+          'Não foi possível obter a localização agora.',
+          error: true,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
+  }
+
+  Future<StoreLocationDraft> _prepareLocation() async {
+    final location = await _locationService.ensureCoordinates(
+      _draftFromFields(),
+    );
+    if (mounted) setState(() => _location = location);
+    return location;
+  }
+
+  Future<void> _saveLocation() async {
+    setState(() => _locating = true);
+    try {
+      final location = await _prepareLocation();
       if (_store != null) {
         await _service.saveLocation(
           session: widget.session,
@@ -148,20 +233,18 @@ class _SellerPageState extends State<SellerPage> {
           location: location,
         );
       }
-      if (!mounted) return;
-      setState(() {
-        _location = location;
-        _postalCode.text = location.postalCode;
-        if (_store != null) _success = 'Localização atualizada!';
-      });
-    } on StoreLocationException catch (error) {
-      if (mounted) setState(() => _error = error.message);
-    } on SellerException catch (error) {
-      if (mounted) setState(() => _error = error.message);
-    } catch (_) {
       if (mounted) {
-        setState(() => _error = 'Não foi possível obter a localização.');
+        _showLocationMessage(
+          _store == null
+              ? 'Endereço pronto para criar o brechó.'
+              : 'Localização atualizada com sucesso!',
+          error: false,
+        );
       }
+    } on StoreLocationException catch (error) {
+      if (mounted) _showLocationMessage(error.message, error: true);
+    } on SellerException catch (error) {
+      if (mounted) _showLocationMessage(error.message, error: true);
     } finally {
       if (mounted) setState(() => _locating = false);
     }
@@ -174,6 +257,9 @@ class _SellerPageState extends State<SellerPage> {
       _error = null;
     });
     try {
+      final preparedLocation = _postalCode.text.trim().isEmpty
+          ? null
+          : await _prepareLocation();
       var store = await _service.createStore(
         session: widget.session,
         name: _storeName.text.trim(),
@@ -184,11 +270,11 @@ class _SellerPageState extends State<SellerPage> {
         store = await _service.activateStore(widget.session, store.publicId);
       }
       store = await _uploadSelectedLogo(store);
-      if (_location != null) {
+      if (preparedLocation != null) {
         await _service.saveLocation(
           session: widget.session,
           storePublicId: store.publicId,
-          location: _location!,
+          location: preparedLocation,
         );
       }
       if (!mounted) return;
@@ -196,6 +282,8 @@ class _SellerPageState extends State<SellerPage> {
         _store = store;
         _success = 'Seu brechó gratuito está pronto!';
       });
+    } on StoreLocationException catch (error) {
+      if (mounted) _showLocationMessage(error.message, error: true);
     } on SellerException catch (error) {
       if (mounted) setState(() => _error = error.message);
     } catch (_) {
@@ -382,11 +470,20 @@ class _SellerPageState extends State<SellerPage> {
           maxLines: 3,
         ),
         _LocationEditor(
-          controller: _postalCode,
+          postalCode: _postalCode,
+          street: _street,
+          number: _number,
+          complement: _complement,
+          district: _district,
+          city: _city,
+          state: _state,
           location: _location,
           busy: _locating,
           onLookup: () => _resolveLocation(current: false),
           onCurrent: () => _resolveLocation(current: true),
+          onSave: _saveLocation,
+          message: _locationMessage,
+          messageIsError: _locationMessageIsError,
         ),
         const SizedBox(height: 20),
         FilledButton.icon(
@@ -462,11 +559,20 @@ class _SellerPageState extends State<SellerPage> {
               ),
               const SizedBox(height: 18),
               _LocationEditor(
-                controller: _postalCode,
+                postalCode: _postalCode,
+                street: _street,
+                number: _number,
+                complement: _complement,
+                district: _district,
+                city: _city,
+                state: _state,
                 location: _location,
                 busy: _locating,
                 onLookup: () => _resolveLocation(current: false),
                 onCurrent: () => _resolveLocation(current: true),
+                onSave: _saveLocation,
+                message: _locationMessage,
+                messageIsError: _locationMessageIsError,
               ),
               const SizedBox(height: 24),
               Text(
@@ -614,18 +720,36 @@ class _SellerPageState extends State<SellerPage> {
 
 class _LocationEditor extends StatelessWidget {
   const _LocationEditor({
-    required this.controller,
+    required this.postalCode,
+    required this.street,
+    required this.number,
+    required this.complement,
+    required this.district,
+    required this.city,
+    required this.state,
     required this.location,
     required this.busy,
     required this.onLookup,
     required this.onCurrent,
+    required this.onSave,
+    required this.message,
+    required this.messageIsError,
   });
 
-  final TextEditingController controller;
+  final TextEditingController postalCode;
+  final TextEditingController street;
+  final TextEditingController number;
+  final TextEditingController complement;
+  final TextEditingController district;
+  final TextEditingController city;
+  final TextEditingController state;
   final StoreLocationDraft? location;
   final bool busy;
   final VoidCallback onLookup;
   final VoidCallback onCurrent;
+  final VoidCallback onSave;
+  final String? message;
+  final bool messageIsError;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -643,11 +767,11 @@ class _LocationEditor extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           const Text(
-            'Clientes verão somente bairro, cidade e distância aproximada.',
+            'Rua e número ficam privados. Clientes verão somente bairro, cidade e distância aproximada.',
           ),
           const SizedBox(height: 14),
           TextField(
-            controller: controller,
+            controller: postalCode,
             keyboardType: TextInputType.number,
             inputFormatters: [
               FilteringTextInputFormatter.digitsOnly,
@@ -666,33 +790,106 @@ class _LocationEditor extends StatelessWidget {
               if (!busy) onLookup();
             },
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
+          TextField(
+            controller: street,
+            textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(labelText: 'Rua'),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: number,
+                  decoration: const InputDecoration(labelText: 'Número'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: TextField(
+                  controller: complement,
+                  decoration: const InputDecoration(
+                    labelText: 'Complemento (opcional)',
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: district,
+            textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(labelText: 'Bairro'),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: city,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(labelText: 'Cidade'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 82,
+                child: TextField(
+                  controller: state,
+                  textCapitalization: TextCapitalization.characters,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z]')),
+                    LengthLimitingTextInputFormatter(2),
+                  ],
+                  decoration: const InputDecoration(labelText: 'UF'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: busy ? null : onCurrent,
+            icon: const Icon(Icons.my_location),
+            label: const Text('Usar minha localização atual'),
+          ),
+          FilledButton.icon(
+            onPressed: busy ? null : onSave,
             icon: busy
                 ? const SizedBox.square(
                     dimension: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.my_location),
-            label: const Text('Usar minha localização atual'),
+                : const Icon(Icons.check_circle_outline),
+            label: const Text('Confirmar localização'),
           ),
-          if (location != null) ...[
+          if (message != null) ...[
             const SizedBox(height: 10),
-            Row(
-              children: [
-                Icon(
-                  Icons.check_circle,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    location!.publicLabel,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: messageIsError
+                    ? Theme.of(context).colorScheme.errorContainer
+                    : Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    messageIsError ? Icons.error_outline : Icons.info_outline,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(message!)),
+                ],
+              ),
+            ),
+          ] else if (location != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              location!.publicLabel,
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ],
         ],

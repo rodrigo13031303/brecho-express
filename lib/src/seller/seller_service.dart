@@ -102,11 +102,15 @@ class SellerService {
           headers: _headers(session),
           body: jsonEncode({
             'postalCode': location.postalCode,
+            'street': location.street,
+            'number': location.number,
+            if (location.complement.trim().isNotEmpty)
+              'complement': location.complement,
             'district': location.district,
             'city': location.city,
             'state': location.state,
-            'latitude': location.latitude,
-            'longitude': location.longitude,
+            'latitude': location.latitude!,
+            'longitude': location.longitude!,
           }),
         )
         .timeout(const Duration(seconds: 20));

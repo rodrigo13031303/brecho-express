@@ -38,4 +38,25 @@ void main() {
     );
     service.close();
   });
+
+  test('aceita endereço de CEP mesmo sem coordenadas', () async {
+    final service = StoreLocationService(
+      client: MockClient(
+        (_) async => http.Response(
+          '{"cep":"13000000","state":"SP","city":"Campinas",'
+          '"neighborhood":"Centro","street":"Rua Exemplo",'
+          '"location":{"type":"Point","coordinates":{}}}',
+          200,
+        ),
+      ),
+    );
+
+    final location = await service.lookupPostalCode('13000000');
+
+    expect(location.street, 'Rua Exemplo');
+    expect(location.district, 'Centro');
+    expect(location.latitude, isNull);
+    expect(location.longitude, isNull);
+    service.close();
+  });
 }

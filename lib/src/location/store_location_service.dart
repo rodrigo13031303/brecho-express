@@ -7,7 +7,6 @@ import 'package:http/http.dart' as http;
 class StoreLocationService {
   StoreLocationService({http.Client? client})
     : _client = client ?? http.Client();
-
   final http.Client _client;
 
   Future<StoreLocationDraft> lookupPostalCode(String value) async {
@@ -25,28 +24,23 @@ class StoreLocationService {
       final json = jsonDecode(response.body) as Map<String, dynamic>;
       final location = json['location'] as Map<String, dynamic>?;
       final coordinates = location?['coordinates'] as Map<String, dynamic>?;
-      final latitude = _number(coordinates?['latitude']);
-      final longitude = _number(coordinates?['longitude']);
-      final district = (json['neighborhood'] as String?)?.trim() ?? '';
-      final city = (json['city'] as String?)?.trim() ?? '';
-      final state = (json['state'] as String?)?.trim().toUpperCase() ?? '';
-      if (district.isEmpty ||
-          city.isEmpty ||
-          state.length != 2 ||
-          latitude == null ||
-          longitude == null) {
+      final draft = StoreLocationDraft(
+        postalCode: postalCode,
+        street: (json['street'] as String?)?.trim() ?? '',
+        number: '',
+        complement: '',
+        district: (json['neighborhood'] as String?)?.trim() ?? '',
+        city: (json['city'] as String?)?.trim() ?? '',
+        state: _stateCode((json['state'] as String?) ?? ''),
+        latitude: _number(coordinates?['latitude']),
+        longitude: _number(coordinates?['longitude']),
+      );
+      if (draft.city.isEmpty || draft.state.length != 2) {
         throw const StoreLocationException(
-          'O CEP não possui localização completa. Use sua localização atual.',
+          'O CEP retornou poucos dados. Complete o endereço manualmente.',
         );
       }
-      return StoreLocationDraft(
-        postalCode: postalCode,
-        district: district,
-        city: city,
-        state: state,
-        latitude: latitude,
-        longitude: longitude,
-      );
+      return draft;
     } on FormatException {
       throw const StoreLocationException('A consulta do CEP veio inválida.');
     }
@@ -83,43 +77,96 @@ class StoreLocationService {
       position.latitude,
       position.longitude,
     );
-    if (placemarks.isEmpty) {
-      throw const StoreLocationException(
-        'Não foi possível identificar o bairro atual.',
-      );
-    }
-    final place = placemarks.first;
-    final postalCode = (place.postalCode ?? '').replaceAll(
-      RegExp(r'[^0-9]'),
-      '',
-    );
-    final district = [place.subLocality, place.subAdministrativeArea]
+    final place = placemarks.isEmpty ? null : placemarks.first;
+    final district = [place?.subLocality, place?.subAdministrativeArea]
         .whereType<String>()
         .map((item) => item.trim())
         .firstWhere((item) => item.isNotEmpty, orElse: () => '');
-    final city = (place.locality ?? place.administrativeArea ?? '').trim();
-    final state = (place.administrativeArea ?? '').trim().toUpperCase();
-    if (postalCode.length != 8 ||
-        district.isEmpty ||
-        city.isEmpty ||
-        state.length != 2) {
-      throw const StoreLocationException(
-        'Não encontramos o endereço completo. Tente informar o CEP.',
-      );
-    }
     return StoreLocationDraft(
-      postalCode: postalCode,
+      postalCode: (place?.postalCode ?? '').replaceAll(RegExp(r'[^0-9]'), ''),
+      street: (place?.street ?? place?.thoroughfare ?? '').trim(),
+      number: (place?.subThoroughfare ?? '').trim(),
+      complement: '',
       district: district,
-      city: city,
-      state: state,
+      city: (place?.locality ?? place?.subAdministrativeArea ?? '').trim(),
+      state: _stateCode(place?.administrativeArea ?? ''),
       latitude: position.latitude,
       longitude: position.longitude,
+    );
+  }
+
+  Future<StoreLocationDraft> ensureCoordinates(StoreLocationDraft draft) async {
+    draft.validate();
+    final query = [
+      draft.street,
+      draft.number,
+      draft.district,
+      draft.city,
+      draft.state,
+      draft.postalCode,
+      'Brasil',
+    ].where((part) => part.trim().isNotEmpty).join(', ');
+    try {
+      final matches = await locationFromAddress(query);
+      if (matches.isNotEmpty) {
+        return draft.withCoordinates(
+          matches.first.latitude,
+          matches.first.longitude,
+        );
+      }
+    } catch (_) {
+      // Coordinates already obtained from CEP/GPS remain the fallback.
+    }
+    if (draft.latitude != null && draft.longitude != null) return draft;
+    throw const StoreLocationException(
+      'Não conseguimos localizar esse endereço. Confira os campos.',
     );
   }
 
   static double? _number(dynamic value) {
     if (value is num) return value.toDouble();
     return double.tryParse(value?.toString() ?? '');
+  }
+
+  static String _stateCode(String value) {
+    final normalized = value.trim().toUpperCase();
+    if (normalized.length == 2) return normalized;
+    const states = {
+      'ACRE': 'AC',
+      'ALAGOAS': 'AL',
+      'AMAPA': 'AP',
+      'AMAZONAS': 'AM',
+      'BAHIA': 'BA',
+      'CEARA': 'CE',
+      'DISTRITO FEDERAL': 'DF',
+      'ESPIRITO SANTO': 'ES',
+      'GOIAS': 'GO',
+      'MARANHAO': 'MA',
+      'MATO GROSSO': 'MT',
+      'MATO GROSSO DO SUL': 'MS',
+      'MINAS GERAIS': 'MG',
+      'PARA': 'PA',
+      'PARAIBA': 'PB',
+      'PARANA': 'PR',
+      'PERNAMBUCO': 'PE',
+      'PIAUI': 'PI',
+      'RIO DE JANEIRO': 'RJ',
+      'RIO GRANDE DO NORTE': 'RN',
+      'RIO GRANDE DO SUL': 'RS',
+      'RONDONIA': 'RO',
+      'RORAIMA': 'RR',
+      'SANTA CATARINA': 'SC',
+      'SAO PAULO': 'SP',
+      'SERGIPE': 'SE',
+      'TOCANTINS': 'TO',
+    };
+    const accents = 'ÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ';
+    const plain = 'AAAAEEEIIIOOOOUUUC';
+    var key = normalized;
+    for (var index = 0; index < accents.length; index++) {
+      key = key.replaceAll(accents[index], plain[index]);
+    }
+    return states[key] ?? '';
   }
 
   void close() => _client.close();
@@ -134,21 +181,53 @@ class GeoPoint {
 class StoreLocationDraft {
   const StoreLocationDraft({
     required this.postalCode,
+    required this.street,
+    required this.number,
+    required this.complement,
     required this.district,
     required this.city,
     required this.state,
-    required this.latitude,
-    required this.longitude,
+    this.latitude,
+    this.longitude,
   });
 
   final String postalCode;
+  final String street;
+  final String number;
+  final String complement;
   final String district;
   final String city;
   final String state;
-  final double latitude;
-  final double longitude;
+  final double? latitude;
+  final double? longitude;
 
   String get publicLabel => '$district • $city/$state';
+
+  StoreLocationDraft withCoordinates(double latitude, double longitude) =>
+      StoreLocationDraft(
+        postalCode: postalCode,
+        street: street,
+        number: number,
+        complement: complement,
+        district: district,
+        city: city,
+        state: state,
+        latitude: latitude,
+        longitude: longitude,
+      );
+
+  void validate() {
+    if (postalCode.replaceAll(RegExp(r'[^0-9]'), '').length != 8 ||
+        street.trim().isEmpty ||
+        number.trim().isEmpty ||
+        district.trim().isEmpty ||
+        city.trim().isEmpty ||
+        state.trim().length != 2) {
+      throw const StoreLocationException(
+        'Complete CEP, rua, número, bairro, cidade e UF.',
+      );
+    }
+  }
 }
 
 class StoreLocationException implements Exception {
