@@ -56,6 +56,7 @@ void main() {
           request.url.path,
           endsWith('/products/product-1/actions/activate'),
         );
+        expect(request.body, '{}');
         return http.Response(
           '{"success":true,"data":{"productPublicId":"product-1",'
           '"title":"Vestido azul","status":"ACTIVE"}}',
@@ -126,6 +127,27 @@ void main() {
         ),
       ),
     );
+    service.close();
+  });
+
+  test('ativa brechó enviando um objeto JSON vazio', () async {
+    final service = SellerService(
+      client: MockClient((request) async {
+        expect(request.url.path, endsWith('/stores/store-1/actions/activate'));
+        expect(request.headers['content-type'], 'application/json');
+        expect(request.body, '{}');
+        return http.Response(
+          '{"success":true,"data":{"storePublicId":"store-1",'
+          '"storeName":"Meu Brechó","storeSlug":"meu-brecho",'
+          '"status":"ACTIVE"}}',
+          200,
+        );
+      }),
+    );
+
+    final store = await service.activateStore(session, 'store-1');
+
+    expect(store.status, 'ACTIVE');
     service.close();
   });
 }

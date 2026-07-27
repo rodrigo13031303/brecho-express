@@ -60,6 +60,7 @@ class SellerService {
     final response = await _post(
       _baseUri.resolve('stores/$store/actions/activate'),
       session,
+      body: const {},
     );
     return SellerStore.fromJson(_decodeObject(response));
   }
@@ -147,6 +148,7 @@ class SellerService {
     final activated = await _post(
       _baseUri.resolve('stores/$store/products/$product/actions/activate'),
       session,
+      body: const {},
     );
     return SellerProduct.fromJson(_decodeObject(activated));
   }
