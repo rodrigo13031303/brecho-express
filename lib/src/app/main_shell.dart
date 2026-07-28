@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../appearance/app_palette.dart';
 import '../auth/brecho_session.dart';
 import '../branding/brecho_mark.dart';
+import '../cart/cart_page.dart';
+import '../cart/cart_service.dart';
 import '../catalog/catalog_service.dart';
 import '../catalog/product_detail_page.dart';
 import '../location/store_location_service.dart';
@@ -33,8 +35,12 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
   late final CatalogService _catalogService;
+  late final CartService _cartService;
   late final StoreLocationService _locationService;
   late Future<CatalogSnapshot> _catalog;
+  late Future<CartSnapshot> _cart;
+  CartSnapshot? _cartValue;
+  String? _busyCartItemId;
   bool _distanceEnabled = false;
   bool _enablingDistance = false;
   GeoPoint? _viewerLocation;
@@ -43,17 +49,100 @@ class _MainShellState extends State<MainShell> {
   void initState() {
     super.initState();
     _catalogService = CatalogService();
+    _cartService = CartService();
     _locationService = StoreLocationService();
     _catalog = widget.initialCatalog ?? _catalogService.load();
+    _cart = _loadCart();
   }
 
   @override
   void dispose() {
     _catalogService.close();
+    _cartService.close();
     _locationService.close();
     super.dispose();
   }
 
+  Future<CartSnapshot> _loadCart() async {
+    final value = await _cartService.load(widget.session);
+    if (mounted) setState(() => _cartValue = value);
+    return value;
+  }
+
+  void _retryCart() => setState(() => _cart = _loadCart());
+
+  Future<void> _addToCart(CatalogProduct product) async {
+    final current = await _cart;
+    final existing = current.items
+        .where((item) => item.productPublicId == product.publicId)
+        .firstOrNull;
+    final updated = existing == null
+        ? await _cartService.add(
+            session: widget.session,
+            cartPublicId: current.publicId,
+            productPublicId: product.publicId,
+          )
+        : await _cartService.update(
+            session: widget.session,
+            cartPublicId: current.publicId,
+            itemPublicId: existing.publicId,
+            quantity: existing.quantity + 1,
+          );
+    if (!mounted) return;
+    setState(() {
+      _cartValue = updated;
+      _cart = Future.value(updated);
+    });
+  }
+
+  Future<void> _changeCartQuantity(CartItem item, int quantity) async {
+    final current = await _cart;
+    setState(() => _busyCartItemId = item.publicId);
+    try {
+      final updated = await _cartService.update(
+        session: widget.session,
+        cartPublicId: current.publicId,
+        itemPublicId: item.publicId,
+        quantity: quantity,
+      );
+      if (!mounted) return;
+      setState(() {
+        _cartValue = updated;
+        _cart = Future.value(updated);
+      });
+    } on CartException catch (error) {
+      if (mounted) _showCartError(error.message);
+    } finally {
+      if (mounted) setState(() => _busyCartItemId = null);
+    }
+  }
+
+  Future<void> _removeCartItem(CartItem item) async {
+    final current = await _cart;
+    setState(() => _busyCartItemId = item.publicId);
+    try {
+      final updated = await _cartService.remove(
+        session: widget.session,
+        cartPublicId: current.publicId,
+        itemPublicId: item.publicId,
+      );
+      if (!mounted) return;
+      setState(() {
+        _cartValue = updated;
+        _cart = Future.value(updated);
+      });
+    } on CartException catch (error) {
+      if (mounted) _showCartError(error.message);
+    } finally {
+      if (mounted) setState(() => _busyCartItemId = null);
+    }
+  }
+
+  void _showCartError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
+  }
   void _retryCatalog() {
     final point = _viewerLocation;
     setState(
@@ -99,6 +188,7 @@ class _MainShellState extends State<MainShell> {
         onRetry: _retryCatalog,
         onExplore: () => _selectTab(1),
         onSell: () => _selectTab(2),
+        onAddToCart: _addToCart,
       ),
       ExplorePage(
         catalog: _catalog,
@@ -106,13 +196,21 @@ class _MainShellState extends State<MainShell> {
         distanceEnabled: _distanceEnabled,
         enablingDistance: _enablingDistance,
         onEnableDistance: _enableDistance,
+        onAddToCart: _addToCart,
       ),
       SellerPage(
         session: widget.session,
         catalog: _catalog,
         onPublished: _retryCatalog,
       ),
-      const OrdersPage(),
+      CartPage(
+        cart: _cart,
+        catalog: _catalog,
+        busyItemId: _busyCartItemId,
+        onRetry: _retryCart,
+        onQuantityChanged: _changeCartQuantity,
+        onRemove: _removeCartItem,
+      ),
       ProfilePage(
         session: widget.session,
         palette: widget.palette,
@@ -127,7 +225,7 @@ class _MainShellState extends State<MainShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: _selectTab,
-        destinations: const [
+        destinations: [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home),
@@ -144,9 +242,12 @@ class _MainShellState extends State<MainShell> {
             label: 'Vender',
           ),
           NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long),
-            label: 'Pedidos',
+            icon: _CartNavigationIcon(count: _cartValue?.itemCount ?? 0),
+            selectedIcon: _CartNavigationIcon(
+              count: _cartValue?.itemCount ?? 0,
+              selected: true,
+            ),
+            label: 'Carrinho',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),
@@ -159,18 +260,33 @@ class _MainShellState extends State<MainShell> {
   }
 }
 
+class _CartNavigationIcon extends StatelessWidget {
+  const _CartNavigationIcon({required this.count, this.selected = false});
+
+  final int count;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) => Badge(
+    isLabelVisible: count > 0,
+    label: Text(count > 99 ? '99+' : '$count'),
+    child: Icon(selected ? Icons.shopping_cart : Icons.shopping_cart_outlined),
+  );
+}
 class HomePage extends StatelessWidget {
   const HomePage({
     required this.catalog,
     required this.onRetry,
     required this.onExplore,
     required this.onSell,
+    required this.onAddToCart,
     super.key,
   });
   final Future<CatalogSnapshot> catalog;
   final VoidCallback onRetry;
   final VoidCallback onExplore;
   final VoidCallback onSell;
+  final Future<void> Function(CatalogProduct product) onAddToCart;
 
   @override
   Widget build(BuildContext context) {
@@ -284,6 +400,7 @@ class HomePage extends StatelessWidget {
                   catalog: catalog,
                   onRetry: onRetry,
                   preview: true,
+                  onAddToCart: onAddToCart,
                 ),
               ],
             ),
@@ -301,6 +418,7 @@ class ExplorePage extends StatefulWidget {
     required this.distanceEnabled,
     required this.enablingDistance,
     required this.onEnableDistance,
+    required this.onAddToCart,
     super.key,
   });
   final Future<CatalogSnapshot> catalog;
@@ -308,6 +426,7 @@ class ExplorePage extends StatefulWidget {
   final bool distanceEnabled;
   final bool enablingDistance;
   final VoidCallback onEnableDistance;
+  final Future<void> Function(CatalogProduct product) onAddToCart;
   @override
   State<ExplorePage> createState() => _ExplorePageState();
 }
@@ -373,6 +492,7 @@ class _ExplorePageState extends State<ExplorePage> {
             catalog: widget.catalog,
             onRetry: widget.onRetry,
             query: _searchController.text,
+            onAddToCart: widget.onAddToCart,
           ),
         ],
       ),
@@ -585,11 +705,13 @@ class _CatalogContent extends StatelessWidget {
     required this.onRetry,
     this.query = '',
     this.preview = false,
+    required this.onAddToCart,
   });
   final Future<CatalogSnapshot> catalog;
   final VoidCallback onRetry;
   final String query;
   final bool preview;
+  final Future<void> Function(CatalogProduct product) onAddToCart;
 
   @override
   Widget build(BuildContext context) {
@@ -633,7 +755,7 @@ class _CatalogContent extends StatelessWidget {
         final visible = preview ? products.take(4) : products;
         return Column(
           children: visible
-              .map((product) => _ProductCard(product: product))
+              .map((product) => _ProductCard(product: product, onAddToCart: onAddToCart))
               .toList(),
         );
       },
@@ -642,8 +764,9 @@ class _CatalogContent extends StatelessWidget {
 }
 
 class _ProductCard extends StatelessWidget {
-  const _ProductCard({required this.product});
+  const _ProductCard({required this.product, required this.onAddToCart});
   final CatalogProduct product;
+  final Future<void> Function(CatalogProduct product) onAddToCart;
 
   @override
   Widget build(BuildContext context) {
@@ -687,7 +810,10 @@ class _ProductCard extends StatelessWidget {
         trailing: const Icon(Icons.chevron_right),
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute<void>(
-            builder: (context) => ProductDetailPage(product: product),
+            builder: (context) => ProductDetailPage(
+              product: product,
+              onAddToCart: onAddToCart,
+            ),
           ),
         ),
       ),

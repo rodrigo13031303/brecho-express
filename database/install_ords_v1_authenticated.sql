@@ -21,8 +21,11 @@ PROMPT ============================================================
 @@packages/catalog/install_prd_api_pkg.sql
 @@install_product_image_media.sql
 @@packages/store/install_store_onboarding_api_pkg.sql
+@@install_cart_runtime.sql
+@@packages/purchase/install_cart_module.sql
 @@ords/install_brecho_express_v1_seller_authenticated.sql
 @@ords/install_brecho_express_v1_store_onboarding.sql
+@@ords/install_brecho_express_v1_cart_authenticated.sql
 @@tests/ords/test_ord_runtime_pkg.sql
 
 DECLARE
@@ -50,6 +53,8 @@ BEGIN
   DBMS_OUTPUT.PUT_LINE('POST accounts/:accountPublicId/stores/onboarding');
   DBMS_OUTPUT.PUT_LINE('POST stores/:storePublicId/actions/activate');
   DBMS_OUTPUT.PUT_LINE('POST stores/:storePublicId/products');
+  DBMS_OUTPUT.PUT_LINE('GET cart');
+  DBMS_OUTPUT.PUT_LINE('POST/PUT/DELETE cart/:cartPublicId/items');
 END;
 /
 

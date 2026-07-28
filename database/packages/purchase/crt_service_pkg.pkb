@@ -1,7 +1,21 @@
 CREATE OR REPLACE PACKAGE BODY crt_service_pkg AS
-  FUNCTION profile(p_actor NUMBER) RETURN BEX_PROFILE%ROWTYPE IS r BEX_PROFILE%ROWTYPE;
-  BEGIN BEGIN r:=pfl_service_pkg.get_by_account_id(p_actor);
-    EXCEPTION WHEN pfl_service_pkg.e_profile_not_found THEN RAISE e_forbidden;END;RETURN r;END;
+  FUNCTION profile(p_actor NUMBER) RETURN BEX_PROFILE%ROWTYPE IS
+    r BEX_PROFILE%ROWTYPE;a BEX_ACCOUNT%ROWTYPE;n VARCHAR2(100);
+  BEGIN
+    BEGIN
+      r:=pfl_service_pkg.get_by_account_id(p_actor);
+    EXCEPTION WHEN pfl_service_pkg.e_profile_not_found THEN
+      BEGIN
+        a:=acc_service_pkg.get_account(p_actor);
+        n:=SUBSTR(a.ACC_EMAIL,1,INSTR(a.ACC_EMAIL,'@')-1);
+        IF LENGTH(TRIM(n))<2 THEN n:='Cliente';END IF;
+        r:=pfl_service_pkg.create_profile(
+          p_actor,n,NULL,NULL,NULL,NULL,'pt-BR','America/Sao_Paulo',p_actor
+        );
+      EXCEPTION WHEN OTHERS THEN RAISE e_forbidden;END;
+    END;
+    RETURN r;
+  END;
   PROCEDURE own(c crt_repository_pkg.t_cart,p BEX_PROFILE%ROWTYPE) IS BEGIN
     IF c.pfl_id<>p.pfl_id THEN RAISE e_forbidden;END IF;END;
   FUNCTION map_item(x crt_repository_pkg.t_item) RETURN t_item_record IS r t_item_record;

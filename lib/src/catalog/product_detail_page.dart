@@ -3,8 +3,13 @@ import 'package:flutter/material.dart';
 import 'catalog_service.dart';
 
 class ProductDetailPage extends StatefulWidget {
-  const ProductDetailPage({required this.product, super.key});
+  const ProductDetailPage({
+    required this.product,
+    required this.onAddToCart,
+    super.key,
+  });
   final CatalogProduct product;
+  final Future<void> Function(CatalogProduct product) onAddToCart;
 
   @override
   State<ProductDetailPage> createState() => _ProductDetailPageState();
@@ -13,6 +18,7 @@ class ProductDetailPage extends StatefulWidget {
 class _ProductDetailPageState extends State<ProductDetailPage> {
   late final CatalogService _service;
   late Future<CatalogProductDetail> _detail;
+  bool _addingToCart = false;
 
   @override
   void initState() {
@@ -37,6 +43,30 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     ),
   );
 
+  Future<void> _addToCart(CatalogProduct product) async {
+    if (_addingToCart) return;
+    setState(() => _addingToCart = true);
+    try {
+      await widget.onAddToCart(product);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${product.title} foi para o carrinho! 🛒'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString().replaceFirst('CartException: ', '')),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _addingToCart = false);
+    }
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -138,11 +168,21 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                         '${_number(product.length!)} cm',
                       ),
                     ],
-                    const SizedBox(height: 28),
-                    FilledButton.icon(
-                      onPressed: null,
-                      icon: const Icon(Icons.shopping_bag_outlined),
-                      label: const Text('Comprar — em breve'),
+                    const SizedBox(height: 28),                    FilledButton.icon(
+                      onPressed: _addingToCart
+                          ? null
+                          : () => _addToCart(product),
+                      icon: _addingToCart
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.add_shopping_cart),
+                      label: Text(
+                        _addingToCart
+                            ? 'Adicionando…'
+                            : 'Adicionar ao carrinho',
+                      ),
                     ),
                   ],
                 ),
