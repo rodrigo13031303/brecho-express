@@ -8,6 +8,7 @@ CREATE OR REPLACE PACKAGE BODY store_onboarding_api_pkg AS
   ) IS
     l_json JSON_OBJECT_T;
     l_location JSON_OBJECT_T;
+    l_logo JSON_OBJECT_T;
     l_store str_service_pkg.t_store_record;
     l_store_id NUMBER;
     l_name VARCHAR2(200);
@@ -22,14 +23,56 @@ CREATE OR REPLACE PACKAGE BODY store_onboarding_api_pkg AS
     l_state VARCHAR2(2);
     l_latitude NUMBER;
     l_longitude NUMBER;
+    l_logo_mime VARCHAR2(100);
+    l_logo_base64 CLOB;
+    l_logo_content BLOB;
+    l_logo_url VARCHAR2(1000);
     l_data JSON_OBJECT_T := JSON_OBJECT_T();
 
+    FUNCTION decode_base64_blob(p_content IN CLOB) RETURN BLOB IS
+      l_blob BLOB;
+      l_offset PLS_INTEGER := 1;
+      l_amount PLS_INTEGER;
+      l_chunk VARCHAR2(32764);
+      l_decoded RAW(32767);
+      l_length PLS_INTEGER;
+    BEGIN
+      l_length := DBMS_LOB.getlength(p_content);
+      DBMS_LOB.createtemporary(l_blob, TRUE, DBMS_LOB.call);
+      WHILE l_offset <= l_length LOOP
+        l_amount := LEAST(32764, l_length - l_offset + 1);
+        IF l_offset + l_amount - 1 < l_length THEN
+          l_amount := l_amount - MOD(l_amount, 4);
+        END IF;
+        l_chunk := DBMS_LOB.substr(p_content, l_amount, l_offset);
+        l_decoded := UTL_ENCODE.base64_decode(UTL_RAW.cast_to_raw(l_chunk));
+        DBMS_LOB.writeappend(l_blob, UTL_RAW.length(l_decoded), l_decoded);
+        l_offset := l_offset + l_amount;
+      END LOOP;
+      RETURN l_blob;
+    EXCEPTION
+      WHEN OTHERS THEN
+        IF DBMS_LOB.istemporary(l_blob) = 1 THEN
+          DBMS_LOB.freetemporary(l_blob);
+        END IF;
+        RAISE;
+    END decode_base64_blob;
+
+    PROCEDURE free_logo_content IS
+    BEGIN
+      IF DBMS_LOB.istemporary(l_logo_content) = 1 THEN
+        DBMS_LOB.freetemporary(l_logo_content);
+      END IF;
+    EXCEPTION
+      WHEN OTHERS THEN NULL;
+    END free_logo_content;
     PROCEDURE log_failure(
       p_code IN NUMBER,
       p_message IN VARCHAR2,
       p_backtrace IN VARCHAR2
     ) IS
     BEGIN
+      free_logo_content;
       api_error_log_pkg.capture(
         p_trace_id => core_context_pkg.trace_id(),
         p_component => 'STORE_ONBOARDING_API_PKG',
@@ -76,6 +119,22 @@ CREATE OR REPLACE PACKAGE BODY store_onboarding_api_pkg AS
     l_state := UPPER(TRIM(l_location.get_string('state')));
     l_latitude := l_location.get_number('latitude');
     l_longitude := l_location.get_number('longitude');
+    IF l_json.has('logo') THEN
+      l_logo := l_json.get_object('logo');
+      l_logo_mime := LOWER(TRIM(l_logo.get_string('mimeType')));
+      l_logo_base64 := l_logo.get_clob('contentBase64');
+      IF l_logo_mime NOT IN ('image/jpeg', 'image/png', 'image/webp')
+         OR l_logo_base64 IS NULL
+         OR DBMS_LOB.getlength(l_logo_base64) = 0
+         OR DBMS_LOB.getlength(l_logo_base64) > 1399000 THEN
+        RAISE VALUE_ERROR;
+      END IF;
+      l_logo_content := decode_base64_blob(l_logo_base64);
+      IF DBMS_LOB.getlength(l_logo_content) = 0
+         OR DBMS_LOB.getlength(l_logo_content) > 1048576 THEN
+        RAISE VALUE_ERROR;
+      END IF;
+    END IF;
 
     IF p_actor_id IS NULL
        OR TRIM(p_account_public_id) IS NULL
@@ -110,6 +169,23 @@ CREATE OR REPLACE PACKAGE BODY store_onboarding_api_pkg AS
       l_store_id, l_postal, l_street, l_number, l_complement,
       l_district, l_city, l_state, l_latitude, l_longitude, p_actor_id
     );
+
+    IF l_logo_content IS NOT NULL THEN
+      INSERT INTO BEX_STORE_LOGO (
+        STR_ID, SLM_MIME_TYPE, SLM_CONTENT, SLM_UPDATED_BY
+      ) VALUES (
+        l_store_id, l_logo_mime, l_logo_content, p_actor_id
+      );
+      l_logo_url :=
+        'https://app.rodrigosburguer.com.br/ords/brechoexpress/api/v1/stores/'
+        || LOWER(TRIM(l_store.store_public_id)) || '/logo';
+      UPDATE BEX_STORE
+         SET STR_LOGO_URL = l_logo_url,
+             STR_UPDATED_AT = SYSTIMESTAMP,
+             STR_UPDATED_BY = p_actor_id
+       WHERE STR_ID = l_store_id;
+      free_logo_content;
+    END IF;
 
     l_store := str_service_pkg.activate_by_public_id(
       l_store.store_public_id, p_actor_id

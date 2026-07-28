@@ -282,6 +282,8 @@ class _SellerPageState extends State<SellerPage> {
         slug: _storeSlug.text.trim(),
         description: _storeDescription.text,
         location: preparedLocation,
+        logoBytes: _selectedLogo,
+        logoMimeType: _selectedLogoMime,
       );
       if (!mounted) return;
       setState(() {
@@ -442,12 +444,20 @@ class _SellerPageState extends State<SellerPage> {
           'Preencha os dados abaixo. O cadastro só será concluído quando tudo estiver válido.',
         ),
         const SizedBox(height: 16),
-        const Card(
+        Card(
           child: ListTile(
-            leading: Icon(Icons.add_photo_alternate_outlined),
-            title: Text('Logo do brechó'),
-            subtitle: Text(
-              'Depois de criar, abra “Meu brechó” para adicionar ou trocar o logo.',
+            leading: _StoreLogoAvatar(
+              name: _storeName.text,
+              radius: 24,
+              bytes: _selectedLogo,
+            ),
+            title: Text(
+              _selectedLogo == null ? 'Logo do brechó' : 'Logo selecionado',
+            ),
+            subtitle: const Text('Opcional • imagem quadrada de até 1 MB'),
+            trailing: TextButton(
+              onPressed: _saving ? null : _chooseLogo,
+              child: Text(_selectedLogo == null ? 'Adicionar' : 'Trocar'),
             ),
           ),
         ),
@@ -1007,11 +1017,13 @@ class _StoreLogoAvatar extends StatelessWidget {
   const _StoreLogoAvatar({
     required this.name,
     required this.radius,
+    this.bytes,
     this.logoUrl,
   });
 
   final String name;
   final double radius;
+  final Uint8List? bytes;
   final String? logoUrl;
 
   String get _initials {
@@ -1025,7 +1037,9 @@ class _StoreLogoAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ImageProvider<Object>? image = logoUrl?.isNotEmpty == true
+    final ImageProvider<Object>? image = bytes != null
+        ? MemoryImage(bytes!)
+        : logoUrl?.isNotEmpty == true
         ? NetworkImage(logoUrl!)
         : null;
     return CircleAvatar(

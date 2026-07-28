@@ -57,6 +57,8 @@ class SellerService {
     required String name,
     required String slug,
     required StoreLocationDraft location,
+    Uint8List? logoBytes,
+    String? logoMimeType,
     String? description,
   }) async {
     final account = Uri.encodeComponent(session.accountPublicId);
@@ -68,6 +70,11 @@ class SellerService {
         'storeSlug': slug,
         if (description?.trim().isNotEmpty ?? false)
           'description': description!.trim(),
+        if (logoBytes != null && logoMimeType != null)
+          'logo': {
+            'mimeType': logoMimeType,
+            'contentBase64': base64Encode(logoBytes),
+          },
         'location': {
           'postalCode': location.postalCode,
           'street': location.street,
@@ -245,9 +252,14 @@ class SellerService {
       if (envelope is! Map<String, dynamic>) {
         throw const SellerException('A resposta do servidor veio inválida.');
       }
-      if (response.statusCode < 200 ||
-          response.statusCode >= 300 ||
-          envelope['success'] != true) {
+      final successfulStatus =
+          response.statusCode >= 200 && response.statusCode < 300;
+      final successfulEnvelope = envelope['success'] == true;
+      final hasSuccessfulData =
+          successfulStatus &&
+          envelope.containsKey('data') &&
+          envelope['success'] != false;
+      if (!successfulStatus || (!successfulEnvelope && !hasSuccessfulData)) {
         final error = envelope['error'];
         final message = error is Map<String, dynamic>
             ? error['message'] as String?

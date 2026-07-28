@@ -161,11 +161,14 @@ void main() {
         );
         final body = jsonDecode(request.body) as Map<String, dynamic>;
         final location = body['location'] as Map<String, dynamic>;
+        final logo = body['logo'] as Map<String, dynamic>;
         expect(body['storeSlug'], 'meu-brecho');
+        expect(logo['mimeType'], 'image/png');
+        expect(logo['contentBase64'], 'AQID');
         expect(location['city'], 'Campinas');
         expect(location['number'], '100');
         return http.Response(
-          '{"success":true,"data":{"storePublicId":"store-1",'
+          '{"data":{"storePublicId":"store-1",'
           '"storeName":"Meu Brechó","storeSlug":"meu-brecho",'
           '"status":"ACTIVE","logoUrl":null}}',
           201,
@@ -189,6 +192,8 @@ void main() {
       name: 'Meu Brechó',
       slug: 'meu-brecho',
       location: location,
+      logoBytes: Uint8List.fromList([1, 2, 3]),
+      logoMimeType: 'image/png',
     );
 
     expect(store.status, 'ACTIVE');
