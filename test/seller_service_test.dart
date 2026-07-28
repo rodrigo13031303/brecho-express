@@ -111,7 +111,7 @@ void main() {
     final service = SellerService(
       client: MockClient(
         (_) async => http.Response(
-          '{"success":false,"error":{"code":"BEX-STORE-018",'
+          '{"success":false,"traceId":"ABC123","error":{"code":"BEX-STORE-018",'
           '"message":"O endereço já está em uso."}}',
           409,
         ),
@@ -124,7 +124,7 @@ void main() {
         isA<SellerException>().having(
           (error) => error.message,
           'message',
-          'O endereço já está em uso.',
+          'O endereço já está em uso. Protocolo: ABC123.',
         ),
       ),
     );

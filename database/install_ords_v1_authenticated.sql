@@ -17,6 +17,7 @@ PROMPT ============================================================
 @@ords/install_brecho_express_v1_authenticated.sql
 @@install_store_logo_media.sql
 @@install_store_location.sql
+@@install_api_error_logging.sql
 @@packages/store/install_store_onboarding_api_pkg.sql
 @@ords/install_brecho_express_v1_seller_authenticated.sql
 @@ords/install_brecho_express_v1_store_onboarding.sql

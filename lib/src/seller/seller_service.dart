@@ -252,8 +252,16 @@ class SellerService {
         final message = error is Map<String, dynamic>
             ? error['message'] as String?
             : null;
+        final code = error is Map<String, dynamic>
+            ? error['code'] as String?
+            : null;
+        final traceId = envelope['traceId'] as String?;
+        final baseMessage =
+            message ?? 'Não foi possível concluir (${response.statusCode}).';
         throw SellerException(
-          message ?? 'Não foi possível concluir (${response.statusCode}).',
+          traceId == null ? baseMessage : '$baseMessage Protocolo: $traceId.',
+          code: code,
+          traceId: traceId,
         );
       }
       return envelope['data'];
@@ -316,6 +324,8 @@ class SellerProduct {
 }
 
 class SellerException implements Exception {
-  const SellerException(this.message);
+  const SellerException(this.message, {this.code, this.traceId});
   final String message;
+  final String? code;
+  final String? traceId;
 }

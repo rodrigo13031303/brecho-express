@@ -1,0 +1,73 @@
+SET DEFINE OFF
+WHENEVER SQLERROR EXIT SQL.SQLCODE ROLLBACK
+
+DECLARE
+  l_count PLS_INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO l_count
+    FROM USER_TABLES
+   WHERE TABLE_NAME = 'BEX_API_ERROR_LOG';
+  IF l_count = 0 THEN
+    EXECUTE IMMEDIATE q'~
+      CREATE TABLE BEX_API_ERROR_LOG (
+        AEL_ID NUMBER GENERATED ALWAYS AS IDENTITY,
+        AEL_OCCURRED_AT TIMESTAMP(6) DEFAULT SYSTIMESTAMP NOT NULL,
+        AEL_TRACE_ID VARCHAR2(32 CHAR),
+        AEL_COMPONENT VARCHAR2(100 CHAR) NOT NULL,
+        AEL_OPERATION VARCHAR2(100 CHAR) NOT NULL,
+        AEL_ACTOR_ID NUMBER,
+        AEL_SQL_CODE NUMBER NOT NULL,
+        AEL_SQL_MESSAGE VARCHAR2(4000 CHAR) NOT NULL,
+        AEL_BACKTRACE VARCHAR2(4000 CHAR),
+        CONSTRAINT PK_API_ERROR_LOG PRIMARY KEY (AEL_ID)
+      )
+    ~';
+    EXECUTE IMMEDIATE q'~
+      CREATE INDEX IX_AEL_TRACE ON BEX_API_ERROR_LOG (AEL_TRACE_ID)
+    ~';
+  END IF;
+END;
+/
+
+CREATE OR REPLACE PACKAGE api_error_log_pkg AUTHID DEFINER AS
+  PROCEDURE capture(
+    p_trace_id IN VARCHAR2,
+    p_component IN VARCHAR2,
+    p_operation IN VARCHAR2,
+    p_actor_id IN NUMBER,
+    p_sql_code IN NUMBER,
+    p_sql_message IN VARCHAR2,
+    p_backtrace IN VARCHAR2
+  );
+END api_error_log_pkg;
+/
+SHOW ERRORS PACKAGE api_error_log_pkg
+
+CREATE OR REPLACE PACKAGE BODY api_error_log_pkg AS
+  PROCEDURE capture(
+    p_trace_id IN VARCHAR2,
+    p_component IN VARCHAR2,
+    p_operation IN VARCHAR2,
+    p_actor_id IN NUMBER,
+    p_sql_code IN NUMBER,
+    p_sql_message IN VARCHAR2,
+    p_backtrace IN VARCHAR2
+  ) IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+  BEGIN
+    INSERT INTO BEX_API_ERROR_LOG (
+      AEL_TRACE_ID, AEL_COMPONENT, AEL_OPERATION, AEL_ACTOR_ID,
+      AEL_SQL_CODE, AEL_SQL_MESSAGE, AEL_BACKTRACE
+    ) VALUES (
+      SUBSTR(p_trace_id, 1, 32), SUBSTR(p_component, 1, 100),
+      SUBSTR(p_operation, 1, 100), p_actor_id, p_sql_code,
+      SUBSTR(p_sql_message, 1, 4000), SUBSTR(p_backtrace, 1, 4000)
+    );
+    COMMIT;
+  EXCEPTION
+    WHEN OTHERS THEN
+      ROLLBACK;
+  END capture;
+END api_error_log_pkg;
+/
+SHOW ERRORS PACKAGE BODY api_error_log_pkg

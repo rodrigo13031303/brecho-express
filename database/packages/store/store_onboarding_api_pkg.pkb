@@ -23,6 +23,34 @@ CREATE OR REPLACE PACKAGE BODY store_onboarding_api_pkg AS
     l_latitude NUMBER;
     l_longitude NUMBER;
     l_data JSON_OBJECT_T := JSON_OBJECT_T();
+
+    PROCEDURE log_failure(
+      p_code IN NUMBER,
+      p_message IN VARCHAR2,
+      p_backtrace IN VARCHAR2
+    ) IS
+    BEGIN
+      api_error_log_pkg.capture(
+        p_trace_id => core_context_pkg.trace_id(),
+        p_component => 'STORE_ONBOARDING_API_PKG',
+        p_operation => 'CREATE_COMPLETE_STORE',
+        p_actor_id => p_actor_id,
+        p_sql_code => p_code,
+        p_sql_message => p_message,
+        p_backtrace => p_backtrace
+      );
+    EXCEPTION
+      WHEN OTHERS THEN NULL;
+    END log_failure;
+
+    FUNCTION error_body(p_code IN VARCHAR2, p_message IN VARCHAR2)
+      RETURN CLOB IS
+    BEGIN
+      RETURN '{"success":false,"traceId":"'
+        || core_context_pkg.trace_id()
+        || '","error":{"code":"' || p_code
+        || '","message":"' || p_message || '"}}';
+    END error_body;
   BEGIN
     o_status_code := 500;
     o_response_body := NULL;
@@ -102,27 +130,31 @@ CREATE OR REPLACE PACKAGE BODY store_onboarding_api_pkg AS
     COMMIT;
   EXCEPTION
     WHEN str_service_pkg.e_slug_already_used THEN
+      log_failure(SQLCODE, SQLERRM, DBMS_UTILITY.format_error_backtrace);
       ROLLBACK;
       o_status_code := 409;
-      o_response_body := '{"success":false,"error":{"code":"BEX-STORE-018","message":"O link deste brecho ja esta em uso."}}';
+      o_response_body := error_body('BEX-STORE-018', 'O link deste brecho ja esta em uso.');
     WHEN str_service_pkg.e_account_not_found
        OR str_service_pkg.e_account_ineligible THEN
+      log_failure(SQLCODE, SQLERRM, DBMS_UTILITY.format_error_backtrace);
       ROLLBACK;
       o_status_code := 403;
-      o_response_body := '{"success":false,"error":{"code":"BEX-AUTH-004","message":"A conta nao pode criar este brecho."}}';
+      o_response_body := error_body('BEX-AUTH-004', 'A conta nao pode criar este brecho.');
     WHEN str_service_pkg.e_name_required
        OR str_service_pkg.e_invalid_name
        OR str_service_pkg.e_slug_required
        OR str_service_pkg.e_invalid_slug
        OR str_service_pkg.e_invalid_description
        OR VALUE_ERROR THEN
+      log_failure(SQLCODE, SQLERRM, DBMS_UTILITY.format_error_backtrace);
       ROLLBACK;
       o_status_code := 422;
-      o_response_body := '{"success":false,"error":{"code":"BEX-ONBOARDING-001","message":"Confira os dados e o endereco do brecho."}}';
+      o_response_body := error_body('BEX-ONBOARDING-001', 'Confira os dados e o endereco do brecho.');
     WHEN OTHERS THEN
+      log_failure(SQLCODE, SQLERRM, DBMS_UTILITY.format_error_backtrace);
       ROLLBACK;
       o_status_code := 500;
-      o_response_body := '{"success":false,"error":{"code":"BEX-TECHNICAL-001","message":"Nao foi possivel criar o brecho agora."}}';
+      o_response_body := error_body('BEX-TECHNICAL-001', 'Nao foi possivel criar o brecho agora.');
   END create_complete_store;
 END store_onboarding_api_pkg;
 /
