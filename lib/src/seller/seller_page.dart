@@ -47,13 +47,19 @@ class _SellerPageState extends State<SellerPage> {
   final _description = TextEditingController();
   final _price = TextEditingController();
   final _quantity = TextEditingController(text: '1');
+  final _weight = TextEditingController();
+  final _width = TextEditingController();
+  final _height = TextEditingController();
+  final _length = TextEditingController();
 
   late Future<List<SellerStore>> _stores;
+  Future<List<SellerProduct>>? _products;
   SellerStore? _store;
   String? _categoryPublicId;
   String _condition = 'GOOD';
   Uint8List? _selectedLogo;
   String? _selectedLogoMime;
+  final List<_SelectedProductImage> _productImages = [];
   StoreLocationDraft? _location;
   bool _locating = false;
   bool _locationLoaded = false;
@@ -90,6 +96,10 @@ class _SellerPageState extends State<SellerPage> {
       _description,
       _price,
       _quantity,
+      _weight,
+      _width,
+      _height,
+      _length,
     ]) {
       controller.dispose();
     }
@@ -106,10 +116,6 @@ class _SellerPageState extends State<SellerPage> {
     return normalized
         .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
         .replaceAll(RegExp(r'^-+|-+$'), '');
-  }
-
-  void _syncSlug(TextEditingController source, TextEditingController target) {
-    if (target.text.isEmpty) target.text = _slugify(source.text);
   }
 
   Future<void> _chooseLogo() async {
@@ -135,6 +141,50 @@ class _SellerPageState extends State<SellerPage> {
     setState(() {
       _selectedLogo = bytes;
       _selectedLogoMime = mime;
+      _error = null;
+    });
+  }
+
+  Future<void> _chooseProductImages() async {
+    final remaining = 8 - _productImages.length;
+    if (remaining <= 0) {
+      setState(() => _error = 'Você pode adicionar até 8 fotos por produto.');
+      return;
+    }
+    final images = await _imagePicker.pickMultiImage(
+      maxWidth: 1600,
+      maxHeight: 1600,
+      imageQuality: 84,
+      limit: remaining,
+    );
+    if (images.isEmpty || !mounted) return;
+
+    final selected = <_SelectedProductImage>[];
+    for (final image in images) {
+      final bytes = await image.readAsBytes();
+      if (bytes.length > 5 * 1024 * 1024) {
+        if (mounted) {
+          setState(() => _error = 'Cada foto deve ter no máximo 5 MB.');
+        }
+        return;
+      }
+      final name = image.name.toLowerCase();
+      final mimeType = name.endsWith('.png')
+          ? 'image/png'
+          : name.endsWith('.webp')
+          ? 'image/webp'
+          : 'image/jpeg';
+      selected.add(
+        _SelectedProductImage(
+          bytes: bytes,
+          mimeType: mimeType,
+          name: image.name,
+        ),
+      );
+    }
+    if (!mounted) return;
+    setState(() {
+      _productImages.addAll(selected);
       _error = null;
     });
   }
@@ -288,6 +338,10 @@ class _SellerPageState extends State<SellerPage> {
       if (!mounted) return;
       setState(() {
         _store = store;
+        _products = _service.listProducts(
+          session: widget.session,
+          storePublicId: store.publicId,
+        );
         _success =
             'Seu brechó está pronto! Agora você pode configurar o logo ou cadastrar produtos.';
       });
@@ -347,8 +401,17 @@ class _SellerPageState extends State<SellerPage> {
     }
   }
 
+  String? _positiveMeasurementValidator(String? value) {
+    final number = double.tryParse((value ?? '').replaceAll(',', '.'));
+    return number == null || number <= 0 ? 'Informe um valor válido.' : null;
+  }
+
   Future<void> _publish() async {
     if (!_productForm.currentState!.validate() || _store == null) return;
+    if (_productImages.isEmpty) {
+      setState(() => _error = 'Adicione pelo menos uma foto do produto.');
+      return;
+    }
     setState(() {
       _saving = true;
       _error = null;
@@ -365,6 +428,18 @@ class _SellerPageState extends State<SellerPage> {
         price: double.parse(_price.text.replaceAll(',', '.')),
         quantity: int.parse(_quantity.text),
         condition: _condition,
+        weight: double.parse(_weight.text.replaceAll(',', '.')),
+        width: double.parse(_width.text.replaceAll(',', '.')),
+        height: double.parse(_height.text.replaceAll(',', '.')),
+        length: double.parse(_length.text.replaceAll(',', '.')),
+        images: _productImages
+            .map(
+              (image) => SellerProductImageUpload(
+                bytes: image.bytes,
+                mimeType: image.mimeType,
+              ),
+            )
+            .toList(growable: false),
       );
       if (!mounted) return;
       _productForm.currentState!.reset();
@@ -373,9 +448,18 @@ class _SellerPageState extends State<SellerPage> {
       _description.clear();
       _price.clear();
       _quantity.text = '1';
+      _weight.clear();
+      _width.clear();
+      _height.clear();
+      _length.clear();
       setState(() {
         _categoryPublicId = null;
         _condition = 'GOOD';
+        _productImages.clear();
+        _products = _service.listProducts(
+          session: widget.session,
+          storePublicId: _store!.publicId,
+        );
         _success = '${product.title} foi publicada no catálogo!';
       });
       widget.onPublished();
@@ -407,6 +491,10 @@ class _SellerPageState extends State<SellerPage> {
         }
         if (_store == null && snapshot.data?.firstOrNull != null) {
           _store = snapshot.data!.first;
+          _products ??= _service.listProducts(
+            session: widget.session,
+            storePublicId: _store!.publicId,
+          );
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _loadStoreLocation(_store!);
           });
@@ -417,7 +505,11 @@ class _SellerPageState extends State<SellerPage> {
             const _Header(),
             const SizedBox(height: 24),
             if (_error != null) _Message(text: _error!, error: true),
-            if (_success != null) _Message(text: _success!),
+            if (_success != null)
+              _Message(
+                text: _success!,
+                onClose: () => setState(() => _success = null),
+              ),
             if (_store == null)
               _buildStoreForm(context)
             else
@@ -579,7 +671,10 @@ class _SellerPageState extends State<SellerPage> {
           title: const Text('Meu brechó'),
           subtitle: const Text('Logo, endereço e configurações da loja'),
           trailing: const Icon(Icons.chevron_right),
-          onTap: () => setState(() => _section = _SellerSection.store),
+          onTap: () => setState(() {
+            _section = _SellerSection.store;
+            _success = null;
+          }),
         ),
       ),
       Card(
@@ -588,7 +683,10 @@ class _SellerPageState extends State<SellerPage> {
           title: const Text('Produtos'),
           subtitle: const Text('Cadastre e gerencie suas peças'),
           trailing: const Icon(Icons.chevron_right),
-          onTap: () => setState(() => _section = _SellerSection.products),
+          onTap: () => setState(() {
+            _section = _SellerSection.products;
+            _success = null;
+          }),
         ),
       ),
     ],
@@ -600,7 +698,10 @@ class _SellerPageState extends State<SellerPage> {
       Row(
         children: [
           IconButton(
-            onPressed: () => setState(() => _section = _SellerSection.hub),
+            onPressed: () => setState(() {
+              _section = _SellerSection.hub;
+              _success = null;
+            }),
             icon: const Icon(Icons.arrow_back),
             tooltip: 'Voltar',
           ),
@@ -674,8 +775,10 @@ class _SellerPageState extends State<SellerPage> {
               Row(
                 children: [
                   IconButton(
-                    onPressed: () =>
-                        setState(() => _section = _SellerSection.hub),
+                    onPressed: () => setState(() {
+                      _section = _SellerSection.hub;
+                      _success = null;
+                    }),
                     icon: const Icon(Icons.arrow_back),
                     tooltip: 'Voltar',
                   ),
@@ -688,9 +791,10 @@ class _SellerPageState extends State<SellerPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 18),
+              _SellerProductList(products: _products),
+              const SizedBox(height: 24),
               Text(
-                'Nova peça',
+                'Cadastrar novo produto',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
@@ -700,7 +804,7 @@ class _SellerPageState extends State<SellerPage> {
                 controller: _title,
                 decoration: const InputDecoration(labelText: 'Título'),
                 textCapitalization: TextCapitalization.sentences,
-                onChanged: (_) => _syncSlug(_title, _slug),
+                onChanged: (value) => _slug.text = _slugify(value),
                 validator: (value) => (value?.trim().length ?? 0) < 3
                     ? 'Conte qual é a peça.'
                     : null,
@@ -710,10 +814,9 @@ class _SellerPageState extends State<SellerPage> {
                 controller: _slug,
                 decoration: const InputDecoration(
                   labelText: 'Endereço do anúncio',
+                  helperText: 'Gerado automaticamente a partir do título.',
                 ),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[a-z0-9-]')),
-                ],
+                readOnly: true,
                 validator: (value) => (value?.trim().length ?? 0) < 3
                     ? 'O endereço é obrigatório.'
                     : null,
@@ -795,6 +898,73 @@ class _SellerPageState extends State<SellerPage> {
                 ],
               ),
               const SizedBox(height: 14),
+              Text(
+                'Peso e dimensões',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 4),
+              const Text('Necessários para calcular embalagem e entrega.'),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _weight,
+                decoration: const InputDecoration(
+                  labelText: 'Peso',
+                  suffixText: 'kg',
+                ),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                validator: _positiveMeasurementValidator,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _width,
+                      decoration: const InputDecoration(
+                        labelText: 'Largura',
+                        suffixText: 'cm',
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      validator: _positiveMeasurementValidator,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _height,
+                      decoration: const InputDecoration(
+                        labelText: 'Altura',
+                        suffixText: 'cm',
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      validator: _positiveMeasurementValidator,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _length,
+                      decoration: const InputDecoration(
+                        labelText: 'Comprimento',
+                        suffixText: 'cm',
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      validator: _positiveMeasurementValidator,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
               TextFormField(
                 controller: _description,
                 decoration: const InputDecoration(
@@ -804,14 +974,12 @@ class _SellerPageState extends State<SellerPage> {
                 maxLines: 4,
               ),
               const SizedBox(height: 14),
-              const Card(
-                child: ListTile(
-                  leading: Icon(Icons.photo_camera_outlined),
-                  title: Text('Fotos chegam na próxima etapa'),
-                  subtitle: Text(
-                    'O upload será seguro e otimizado, sem usar links improvisados.',
-                  ),
-                ),
+              _ProductImagePicker(
+                images: _productImages,
+                onAdd: _saving ? null : _chooseProductImages,
+                onRemove: _saving
+                    ? null
+                    : (index) => setState(() => _productImages.removeAt(index)),
               ),
               const SizedBox(height: 16),
               FilledButton.icon(
@@ -1013,6 +1181,223 @@ class _LocationEditor extends StatelessWidget {
   );
 }
 
+class _SellerProductList extends StatelessWidget {
+  const _SellerProductList({required this.products});
+
+  final Future<List<SellerProduct>>? products;
+
+  @override
+  Widget build(BuildContext context) {
+    final future = products;
+    if (future == null) return const SizedBox.shrink();
+    return FutureBuilder<List<SellerProduct>>(
+      future: future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Card(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          );
+        }
+        if (snapshot.hasError) {
+          return const Card(
+            child: ListTile(
+              leading: Icon(Icons.cloud_off_outlined),
+              title: Text('Não foi possível carregar seus produtos.'),
+            ),
+          );
+        }
+        final items = snapshot.data ?? const <SellerProduct>[];
+        if (items.isEmpty) {
+          return const Card(
+            child: ListTile(
+              leading: Icon(Icons.inventory_2_outlined),
+              title: Text('Nenhum produto cadastrado'),
+              subtitle: Text('Seu primeiro produto aparecerá aqui.'),
+            ),
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Produtos cadastrados (${items.length})',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 10),
+            ...items.map((product) {
+              final price = product.price
+                  ?.toStringAsFixed(2)
+                  .replaceAll('.', ',');
+              return Card(
+                child: ListTile(
+                  leading: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: SizedBox.square(
+                      dimension: 58,
+                      child: product.primaryImageUrl == null
+                          ? ColoredBox(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.primaryContainer,
+                              child: const Icon(Icons.checkroom_outlined),
+                            )
+                          : Image.network(
+                              product.primaryImageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) =>
+                                  const Icon(Icons.broken_image_outlined),
+                            ),
+                    ),
+                  ),
+                  title: Text(product.title),
+                  subtitle: Text(
+                    [
+                      _statusLabel(product.status),
+                      if (price != null) 'R\$ $price',
+                      '${product.imageCount} foto${product.imageCount == 1 ? '' : 's'}',
+                    ].join(' • '),
+                  ),
+                ),
+              );
+            }),
+          ],
+        );
+      },
+    );
+  }
+
+  static String _statusLabel(String value) => switch (value) {
+    'ACTIVE' => 'Publicado',
+    'DRAFT' => 'Rascunho',
+    'PAUSED' => 'Pausado',
+    'SOLD' => 'Vendido',
+    'ARCHIVED' => 'Arquivado',
+    _ => value,
+  };
+}
+
+class _SelectedProductImage {
+  const _SelectedProductImage({
+    required this.bytes,
+    required this.mimeType,
+    required this.name,
+  });
+
+  final Uint8List bytes;
+  final String mimeType;
+  final String name;
+}
+
+class _ProductImagePicker extends StatelessWidget {
+  const _ProductImagePicker({
+    required this.images,
+    required this.onAdd,
+    required this.onRemove,
+  });
+
+  final List<_SelectedProductImage> images;
+  final VoidCallback? onAdd;
+  final ValueChanged<int>? onRemove;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.photo_library_outlined),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Fotos do produto',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Text('${images.length}/8'),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Obrigatório. Adicione até 8 fotos; a primeira será a capa.',
+          ),
+          if (images.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            SizedBox(
+              height: 112,
+              child: ReorderableListView.builder(
+                scrollDirection: Axis.horizontal,
+                buildDefaultDragHandles: false,
+                itemCount: images.length,
+                onReorderItem: (oldIndex, newIndex) {
+                  final image = images.removeAt(oldIndex);
+                  images.insert(newIndex, image);
+                },
+                itemBuilder: (context, index) => Padding(
+                  key: ObjectKey(images[index]),
+                  padding: const EdgeInsets.only(right: 10),
+                  child: Stack(
+                    children: [
+                      ReorderableDragStartListener(
+                        index: index,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.memory(
+                            images[index].bytes,
+                            width: 104,
+                            height: 104,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                      if (index == 0)
+                        const Positioned(
+                          left: 5,
+                          bottom: 5,
+                          child: Chip(
+                            label: Text('Capa'),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
+                      Positioned(
+                        right: 2,
+                        top: 2,
+                        child: IconButton.filled(
+                          visualDensity: VisualDensity.compact,
+                          onPressed: onRemove == null
+                              ? null
+                              : () => onRemove!(index),
+                          icon: const Icon(Icons.close, size: 18),
+                          tooltip: 'Remover foto',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: images.length >= 8 ? null : onAdd,
+            icon: const Icon(Icons.add_photo_alternate_outlined),
+            label: Text(images.isEmpty ? 'Adicionar fotos' : 'Adicionar mais'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 class _StoreLogoAvatar extends StatelessWidget {
   const _StoreLogoAvatar({
     required this.name,
@@ -1078,15 +1463,26 @@ class _Header extends StatelessWidget {
 }
 
 class _Message extends StatelessWidget {
-  const _Message({required this.text, this.error = false});
+  const _Message({required this.text, this.error = false, this.onClose});
   final String text;
   final bool error;
+  final VoidCallback? onClose;
   @override
   Widget build(BuildContext context) => Card(
     color: error
         ? Theme.of(context).colorScheme.errorContainer
         : Theme.of(context).colorScheme.primaryContainer,
-    child: Padding(padding: const EdgeInsets.all(14), child: Text(text)),
+    child: ListTile(
+      leading: Icon(error ? Icons.error_outline : Icons.check_circle_outline),
+      title: Text(text),
+      trailing: onClose == null
+          ? null
+          : IconButton(
+              onPressed: onClose,
+              icon: const Icon(Icons.close),
+              tooltip: 'Fechar mensagem',
+            ),
+    ),
   );
 }
 

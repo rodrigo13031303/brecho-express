@@ -84,14 +84,20 @@ class CatalogService {
     }
   }
 
-  Future<CatalogProductDetail> loadProductDetail(String publicId) async {
+  Future<CatalogProductDetail> loadProductDetail(
+    String publicId, {
+    CatalogPublicLocation? location,
+  }) async {
     final encoded = Uri.encodeComponent(publicId);
     final responses = await Future.wait([
       _client.get(_baseUri.resolve('products/$encoded')),
       _client.get(_baseUri.resolve('products/$encoded/images')),
     ]).timeout(const Duration(seconds: 20));
     return CatalogProductDetail(
-      product: _decodeObject(responses[0], CatalogProduct.fromJson),
+      product: _decodeObject(
+        responses[0],
+        CatalogProduct.fromJson,
+      ).withLocation(location),
       images: _decodeList(responses[1], CatalogImage.fromJson),
     );
   }
@@ -175,6 +181,13 @@ class CatalogProduct {
     required this.condition,
     this.description,
     this.storePublicId,
+    this.storeName,
+    this.primaryImageUrl,
+    this.imageCount = 0,
+    this.weight,
+    this.width,
+    this.height,
+    this.length,
     this.location,
   });
   factory CatalogProduct.fromJson(Map<String, dynamic> json) => CatalogProduct(
@@ -184,6 +197,13 @@ class CatalogProduct {
     condition: json['condition'] as String,
     description: json['description'] as String?,
     storePublicId: json['storePublicId'] as String?,
+    storeName: json['storeName'] as String?,
+    primaryImageUrl: json['primaryImageUrl'] as String?,
+    imageCount: (json['imageCount'] as num?)?.toInt() ?? 0,
+    weight: (json['weight'] as num?)?.toDouble(),
+    width: (json['width'] as num?)?.toDouble(),
+    height: (json['height'] as num?)?.toDouble(),
+    length: (json['length'] as num?)?.toDouble(),
   );
   final String publicId;
   final String title;
@@ -191,6 +211,13 @@ class CatalogProduct {
   final String condition;
   final String? description;
   final String? storePublicId;
+  final String? storeName;
+  final String? primaryImageUrl;
+  final int imageCount;
+  final double? weight;
+  final double? width;
+  final double? height;
+  final double? length;
   final CatalogPublicLocation? location;
 
   CatalogProduct withLocation(CatalogPublicLocation? value) => CatalogProduct(
@@ -200,6 +227,13 @@ class CatalogProduct {
     condition: condition,
     description: description,
     storePublicId: storePublicId,
+    storeName: storeName,
+    primaryImageUrl: primaryImageUrl,
+    imageCount: imageCount,
+    weight: weight,
+    width: width,
+    height: height,
+    length: length,
     location: value,
   );
 

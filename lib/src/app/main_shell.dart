@@ -659,7 +659,15 @@ class _ProductCard extends StatelessWidget {
             color: Theme.of(context).colorScheme.primaryContainer,
             borderRadius: BorderRadius.circular(14),
           ),
-          child: const Icon(Icons.checkroom_outlined),
+          clipBehavior: Clip.antiAlias,
+          child: product.primaryImageUrl == null
+              ? const Icon(Icons.checkroom_outlined)
+              : Image.network(
+                  product.primaryImageUrl!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) =>
+                      const Icon(Icons.broken_image_outlined),
+                ),
         ),
         title: Text(
           product.title,
@@ -669,6 +677,7 @@ class _ProductCard extends StatelessWidget {
         ),
         subtitle: Text(
           [
+            if (product.storeName != null) product.storeName!,
             _conditionLabel(product.condition),
             'R\$ $price',
             if (product.location != null) product.location!.label,
@@ -678,8 +687,7 @@ class _ProductCard extends StatelessWidget {
         trailing: const Icon(Icons.chevron_right),
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute<void>(
-            builder: (context) =>
-                ProductDetailPage(productPublicId: product.publicId),
+            builder: (context) => ProductDetailPage(product: product),
           ),
         ),
       ),

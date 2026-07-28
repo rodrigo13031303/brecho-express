@@ -89,7 +89,24 @@ class SellerService {
         },
       },
     );
-    return SellerStore.fromJson(_decodeObject(response));
+    try {
+      return SellerStore.fromJson(_decodeObject(response));
+    } on SellerException {
+      final successfulStatus =
+          response.statusCode >= 200 && response.statusCode < 300;
+      if (!successfulStatus) rethrow;
+
+      final stores = await listStores(session);
+      final normalizedSlug = slug.trim().toLowerCase();
+      for (final store in stores) {
+        if (store.slug.trim().toLowerCase() == normalizedSlug) {
+          return store;
+        }
+      }
+      throw const SellerException(
+        'O servidor confirmou a criação, mas não foi possível carregar o brechó.',
+      );
+    }
   }
 
   Future<SellerStore> activateStore(
@@ -181,6 +198,25 @@ class SellerService {
     _decodeObject(response);
   }
 
+  Future<List<SellerProduct>> listProducts({
+    required BrechoSession session,
+    required String storePublicId,
+  }) async {
+    final store = Uri.encodeComponent(storePublicId);
+    final response = await _get(
+      _baseUri.resolve('stores/$store/products'),
+      session,
+    );
+    final data = _decodeData(response);
+    if (data is! List) {
+      throw const SellerException('A lista de produtos veio inválida.');
+    }
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(SellerProduct.fromJson)
+        .toList(growable: false);
+  }
+
   Future<SellerProduct> publishProduct({
     required BrechoSession session,
     required String storePublicId,
@@ -191,6 +227,11 @@ class SellerService {
     required double price,
     required int quantity,
     required String condition,
+    required double weight,
+    required double width,
+    required double height,
+    required double length,
+    required List<SellerProductImageUpload> images,
   }) async {
     final store = Uri.encodeComponent(storePublicId);
     final created = await _post(
@@ -204,9 +245,22 @@ class SellerService {
         'price': price,
         'quantity': quantity,
         'condition': condition,
+        'weight': weight,
+        'width': width,
+        'height': height,
+        'length': length,
       },
     );
     final draft = SellerProduct.fromJson(_decodeObject(created));
+    for (var index = 0; index < images.length; index++) {
+      await uploadProductImage(
+        session: session,
+        productPublicId: draft.publicId,
+        image: images[index],
+        sortOrder: index,
+        isPrimary: index == 0,
+      );
+    }
     final product = Uri.encodeComponent(draft.publicId);
     final activated = await _post(
       _baseUri.resolve('stores/$store/products/$product/actions/activate'),
@@ -214,6 +268,30 @@ class SellerService {
       body: const {},
     );
     return SellerProduct.fromJson(_decodeObject(activated));
+  }
+
+  Future<void> uploadProductImage({
+    required BrechoSession session,
+    required String productPublicId,
+    required SellerProductImageUpload image,
+    required int sortOrder,
+    required bool isPrimary,
+  }) async {
+    final product = Uri.encodeComponent(productPublicId);
+    final response = await _client
+        .post(
+          _baseUri.resolve('products/$product/images/media'),
+          headers: {
+            'Authorization': 'Bearer ${session.accessToken}',
+            'Accept': 'application/json',
+            'Content-Type': image.mimeType,
+            'X-Image-Sort-Order': '$sortOrder',
+            'X-Image-Primary': isPrimary ? '1' : '0',
+          },
+          body: image.bytes,
+        )
+        .timeout(const Duration(seconds: 30));
+    _decodeObject(response);
   }
 
   Future<http.Response> _get(Uri uri, BrechoSession session) => _client
@@ -322,17 +400,26 @@ class SellerProduct {
     required this.publicId,
     required this.title,
     required this.status,
+    this.price,
+    this.primaryImageUrl,
+    this.imageCount = 0,
   });
 
   factory SellerProduct.fromJson(Map<String, dynamic> json) => SellerProduct(
     publicId: json['productPublicId'] as String,
     title: json['title'] as String,
     status: json['status'] as String,
+    price: (json['price'] as num?)?.toDouble(),
+    primaryImageUrl: json['primaryImageUrl'] as String?,
+    imageCount: (json['imageCount'] as num?)?.toInt() ?? 0,
   );
 
   final String publicId;
   final String title;
   final String status;
+  final double? price;
+  final String? primaryImageUrl;
+  final int imageCount;
 }
 
 class SellerException implements Exception {
@@ -340,4 +427,11 @@ class SellerException implements Exception {
   final String message;
   final String? code;
   final String? traceId;
+}
+
+class SellerProductImageUpload {
+  const SellerProductImageUpload({required this.bytes, required this.mimeType});
+
+  final Uint8List bytes;
+  final String mimeType;
 }

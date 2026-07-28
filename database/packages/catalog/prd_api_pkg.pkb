@@ -3,9 +3,34 @@ CREATE OR REPLACE PACKAGE BODY prd_api_pkg AS
 
   FUNCTION to_json(p prd_service_pkg.t_product_record) RETURN JSON_OBJECT_T IS
     j JSON_OBJECT_T:=JSON_OBJECT_T();
+    l_store_name BEX_STORE.STR_NAME%TYPE;
+    l_primary_image_url BEX_PRODUCT_IMAGE.PIM_URL%TYPE;
+    l_image_count PLS_INTEGER := 0;
   BEGIN
+    BEGIN
+      SELECT STR_NAME INTO l_store_name
+        FROM BEX_STORE
+       WHERE STR_PUBLIC_ID = TRIM(p.store_public_id);
+    EXCEPTION WHEN NO_DATA_FOUND THEN l_store_name := NULL; END;
+    BEGIN
+      SELECT COUNT(*),
+             MAX(CASE WHEN image_data.PIM_IS_PRIMARY = 1
+                      THEN image_data.PIM_URL END)
+        INTO l_image_count, l_primary_image_url
+        FROM BEX_PRODUCT_IMAGE image_data
+        JOIN BEX_PRODUCT product_data ON product_data.PRD_ID = image_data.PRD_ID
+       WHERE product_data.PRD_PUBLIC_ID = TRIM(p.product_public_id)
+         AND image_data.PIM_STATUS = 'ACTIVE';
+    EXCEPTION WHEN NO_DATA_FOUND THEN
+      l_image_count := 0; l_primary_image_url := NULL;
+    END;
     core_json_pkg.put_string(j,'productPublicId',TRIM(p.product_public_id));
     core_json_pkg.put_string(j,'storePublicId',TRIM(p.store_public_id));
+    IF l_store_name IS NULL THEN core_json_pkg.put_null(j,'storeName');
+    ELSE core_json_pkg.put_string(j,'storeName',l_store_name); END IF;
+    IF l_primary_image_url IS NULL THEN core_json_pkg.put_null(j,'primaryImageUrl');
+    ELSE core_json_pkg.put_string(j,'primaryImageUrl',l_primary_image_url); END IF;
+    core_json_pkg.put_number(j,'imageCount',l_image_count);
     core_json_pkg.put_string(j,'categoryPublicId',TRIM(p.category_public_id));
     IF p.brand_public_id IS NULL THEN core_json_pkg.put_null(j,'brandPublicId');
     ELSE core_json_pkg.put_string(j,'brandPublicId',TRIM(p.brand_public_id)); END IF;

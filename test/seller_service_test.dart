@@ -37,6 +37,31 @@ void main() {
     service.close();
   });
 
+  test('lista os produtos cadastrados no brechó', () async {
+    final service = SellerService(
+      client: MockClient((request) async {
+        expect(request.method, 'GET');
+        expect(request.url.path, endsWith('/stores/store-1/products'));
+        expect(request.headers['authorization'], 'Bearer secret-token');
+        return http.Response(
+          '{"success":true,"data":[{"productPublicId":"product-1",'
+          '"title":"Vestido azul","status":"ACTIVE","price":59.9,'
+          '"primaryImageUrl":"https://example/image.jpg","imageCount":3}]}',
+          200,
+        );
+      }),
+    );
+
+    final products = await service.listProducts(
+      session: session,
+      storePublicId: 'store-1',
+    );
+
+    expect(products, hasLength(1));
+    expect(products.single.imageCount, 3);
+    expect(products.single.primaryImageUrl, 'https://example/image.jpg');
+    service.close();
+  });
   test('cria uma peça e em seguida ativa a publicação', () async {
     var calls = 0;
     final service = SellerService(
@@ -47,9 +72,29 @@ void main() {
           final body = jsonDecode(request.body) as Map<String, dynamic>;
           expect(body['title'], 'Vestido azul');
           expect(body['condition'], 'GOOD');
+          expect(body['weight'], 0.35);
+          expect(body['width'], 30);
+          expect(body['height'], 5);
+          expect(body['length'], 40);
           return http.Response(
             '{"success":true,"data":{"productPublicId":"product-1",'
             '"title":"Vestido azul","status":"DRAFT"}}',
+            201,
+          );
+        }
+        if (calls == 2) {
+          expect(
+            request.url.path,
+            endsWith('/products/product-1/images/media'),
+          );
+          expect(request.headers['content-type'], 'image/jpeg');
+          expect(request.headers['x-image-sort-order'], '0');
+          expect(request.headers['x-image-primary'], '1');
+          expect(request.bodyBytes, [1, 2, 3]);
+          return http.Response(
+            '{"success":true,"data":{"imagePublicId":"image-1",'
+            '"imageUrl":"https://example/image-1","sortOrder":0,'
+            '"isPrimary":true}}',
             201,
           );
         }
@@ -76,9 +121,19 @@ void main() {
       price: 59.9,
       quantity: 1,
       condition: 'GOOD',
+      weight: 0.35,
+      width: 30,
+      height: 5,
+      length: 40,
+      images: [
+        SellerProductImageUpload(
+          bytes: Uint8List.fromList([1, 2, 3]),
+          mimeType: 'image/jpeg',
+        ),
+      ],
     );
 
-    expect(calls, 2);
+    expect(calls, 3);
     expect(product.status, 'ACTIVE');
     service.close();
   });
@@ -197,6 +252,52 @@ void main() {
     );
 
     expect(store.status, 'ACTIVE');
+    service.close();
+  });
+
+  test('recarrega o brechó quando ORDS retorna 201 sem envelope', () async {
+    var requestCount = 0;
+    final service = SellerService(
+      client: MockClient((request) async {
+        requestCount++;
+        if (request.method == 'POST') {
+          expect(
+            request.url.path,
+            endsWith('/accounts/account-1/stores/onboarding'),
+          );
+          return http.Response('{}', 201);
+        }
+        expect(request.method, 'GET');
+        expect(request.url.path, endsWith('/accounts/account-1/stores'));
+        return http.Response(
+          '{"success":true,"data":[{"storePublicId":"store-1",'
+          '"storeName":"Meu Brechó","storeSlug":"meu-brecho",'
+          '"status":"ACTIVE","logoUrl":null}]}',
+          200,
+        );
+      }),
+    );
+    const location = StoreLocationDraft(
+      postalCode: '13010111',
+      street: 'Rua Barão de Jaguara',
+      number: '100',
+      complement: '',
+      district: 'Centro',
+      city: 'Campinas',
+      state: 'SP',
+      latitude: -22.905,
+      longitude: -47.06,
+    );
+
+    final store = await service.createCompleteStore(
+      session: session,
+      name: 'Meu Brechó',
+      slug: 'meu-brecho',
+      location: location,
+    );
+
+    expect(store.status, 'ACTIVE');
+    expect(requestCount, 2);
     service.close();
   });
 

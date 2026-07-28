@@ -148,6 +148,36 @@ END;
   ORDS.DEFINE_HANDLER(
     p_module_name => 'brecho-express-v1',
     p_pattern => 'stores/:storePublicId/products',
+    p_method => 'GET', p_source_type => ORDS.SOURCE_TYPE_PLSQL,
+    p_mimes_allowed => 'application/json',
+    p_source => q'~
+DECLARE
+  l_authenticated BOOLEAN; l_account_id NUMBER;
+  l_session_public_id VARCHAR2(32); l_status PLS_INTEGER; l_body CLOB;
+BEGIN
+  ord_runtime_pkg.begin_authenticated_request(
+    :authorization, l_authenticated, l_account_id, l_session_public_id,
+    l_status, l_body
+  );
+  :trace_id := core_context_pkg.trace_id();
+  IF l_authenticated THEN
+    prd_api_pkg.list_store_products(
+      :storePublicId,NULL,l_account_id,l_status,l_body
+    );
+  END IF;
+  :status_code := l_status;
+  ord_runtime_pkg.write_json_response(l_body);
+  ord_runtime_pkg.clear_request_context;
+EXCEPTION WHEN OTHERS THEN
+  ROLLBACK; ord_runtime_pkg.clear_request_context; RAISE;
+END;
+~'
+  );
+  define_auth_parameter('stores/:storePublicId/products', 'GET');
+
+  ORDS.DEFINE_HANDLER(
+    p_module_name => 'brecho-express-v1',
+    p_pattern => 'stores/:storePublicId/products',
     p_method => 'POST', p_source_type => ORDS.SOURCE_TYPE_PLSQL,
     p_mimes_allowed => 'application/json',
     p_source => q'~
@@ -190,6 +220,7 @@ END;
 DECLARE
   l_authenticated BOOLEAN; l_account_id NUMBER;
   l_session_public_id VARCHAR2(32); l_status PLS_INTEGER; l_body CLOB;
+  l_image_count PLS_INTEGER;
 BEGIN
   ord_runtime_pkg.begin_authenticated_request(
     :authorization, l_authenticated, l_account_id, l_session_public_id,
@@ -197,10 +228,24 @@ BEGIN
   );
   :trace_id := core_context_pkg.trace_id();
   IF l_authenticated THEN
-    prd_api_pkg.change_status(
-      :productPublicId,:storePublicId,'ACTIVE',
-      l_account_id,l_status,l_body
-    );
+    SELECT COUNT(*) INTO l_image_count
+      FROM BEX_PRODUCT_IMAGE image_data
+      JOIN BEX_PRODUCT product_data ON product_data.PRD_ID = image_data.PRD_ID
+      JOIN BEX_STORE store_data ON store_data.STR_ID = product_data.STR_ID
+     WHERE product_data.PRD_PUBLIC_ID = LOWER(TRIM(:productPublicId))
+       AND store_data.STR_PUBLIC_ID = LOWER(TRIM(:storePublicId))
+       AND store_data.ACC_ID = l_account_id
+       AND image_data.PIM_STATUS = 'ACTIVE';
+
+    IF l_image_count = 0 THEN
+      l_status := 422;
+      l_body := '{"success":false,"error":{"code":"BEX-PIM-003","message":"Adicione pelo menos uma foto antes de publicar o produto."}}';
+    ELSE
+      prd_api_pkg.change_status(
+        :productPublicId,:storePublicId,'ACTIVE',
+        l_account_id,l_status,l_body
+      );
+    END IF;
   END IF;
   :status_code := l_status;
   ord_runtime_pkg.write_json_response(l_body);
