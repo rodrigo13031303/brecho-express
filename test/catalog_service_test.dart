@@ -36,7 +36,7 @@ void main() {
         );
       }
       return http.Response(
-        '{"success":true,"data":{"productPublicId":"prd","title":"Vestido","price":59.9,"condition":"GOOD","description":"Azul"}}',
+        '{"success":true,"data":{"productPublicId":"prd","title":"Vestido","price":59.9,"condition":"GOOD","description":"Azul","storeName":"Moda Circular","storeLogoUrl":"https://example.invalid/logo.jpg"}}',
         200,
       );
     });
@@ -45,6 +45,8 @@ void main() {
     final detail = await service.loadProductDetail('prd');
 
     expect(detail.product.title, 'Vestido');
+    expect(detail.product.storeName, 'Moda Circular');
+    expect(detail.product.storeLogoUrl, 'https://example.invalid/logo.jpg');
     expect(detail.images.single.isPrimary, isTrue);
     expect(detail.images.single.altText, 'Frente');
     service.close();

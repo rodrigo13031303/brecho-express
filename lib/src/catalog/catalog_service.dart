@@ -182,6 +182,7 @@ class CatalogProduct {
     this.description,
     this.storePublicId,
     this.storeName,
+    this.storeLogoUrl,
     this.primaryImageUrl,
     this.imageCount = 0,
     this.weight,
@@ -198,6 +199,7 @@ class CatalogProduct {
     description: json['description'] as String?,
     storePublicId: json['storePublicId'] as String?,
     storeName: json['storeName'] as String?,
+    storeLogoUrl: json['storeLogoUrl'] as String?,
     primaryImageUrl: json['primaryImageUrl'] as String?,
     imageCount: (json['imageCount'] as num?)?.toInt() ?? 0,
     weight: (json['weight'] as num?)?.toDouble(),
@@ -212,6 +214,7 @@ class CatalogProduct {
   final String? description;
   final String? storePublicId;
   final String? storeName;
+  final String? storeLogoUrl;
   final String? primaryImageUrl;
   final int imageCount;
   final double? weight;
@@ -228,6 +231,7 @@ class CatalogProduct {
     description: description,
     storePublicId: storePublicId,
     storeName: storeName,
+    storeLogoUrl: storeLogoUrl,
     primaryImageUrl: primaryImageUrl,
     imageCount: imageCount,
     weight: weight,

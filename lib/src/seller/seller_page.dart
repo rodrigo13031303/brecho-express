@@ -8,7 +8,7 @@ import '../catalog/catalog_service.dart';
 import '../location/store_location_service.dart';
 import 'seller_service.dart';
 
-enum _SellerSection { hub, store, products }
+enum _SellerSection { hub, store, products, newProduct }
 
 class SellerPage extends StatefulWidget {
   const SellerPage({
@@ -32,6 +32,7 @@ class _SellerPageState extends State<SellerPage> {
   final _locationService = StoreLocationService();
   final _storeForm = GlobalKey<FormState>();
   final _productForm = GlobalKey<FormState>();
+  final _productSearch = TextEditingController();
   final _storeName = TextEditingController();
   final _storeSlug = TextEditingController();
   final _storeDescription = TextEditingController();
@@ -57,6 +58,7 @@ class _SellerPageState extends State<SellerPage> {
   SellerStore? _store;
   String? _categoryPublicId;
   String _condition = 'GOOD';
+  String _productStatus = 'ACTIVE';
   Uint8List? _selectedLogo;
   String? _selectedLogoMime;
   final List<_SelectedProductImage> _productImages = [];
@@ -81,6 +83,7 @@ class _SellerPageState extends State<SellerPage> {
     _service.close();
     _locationService.close();
     for (final controller in [
+      _productSearch,
       _storeName,
       _storeSlug,
       _storeDescription,
@@ -152,9 +155,9 @@ class _SellerPageState extends State<SellerPage> {
       return;
     }
     final images = await _imagePicker.pickMultiImage(
-      maxWidth: 1600,
-      maxHeight: 1600,
-      imageQuality: 84,
+      maxWidth: 1200,
+      maxHeight: 1200,
+      imageQuality: 76,
       limit: remaining,
     );
     if (images.isEmpty || !mounted) return;
@@ -162,9 +165,9 @@ class _SellerPageState extends State<SellerPage> {
     final selected = <_SelectedProductImage>[];
     for (final image in images) {
       final bytes = await image.readAsBytes();
-      if (bytes.length > 5 * 1024 * 1024) {
+      if (bytes.length > 3 * 1024 * 1024) {
         if (mounted) {
-          setState(() => _error = 'Cada foto deve ter no máximo 5 MB.');
+          setState(() => _error = 'Cada foto deve ter no máximo 3 MB.');
         }
         return;
       }
@@ -460,14 +463,18 @@ class _SellerPageState extends State<SellerPage> {
           session: widget.session,
           storePublicId: _store!.publicId,
         );
-        _success = '${product.title} foi publicada no catálogo!';
+        _success = '${product.title} foi publicada no catálogo! 🎉';
+        _section = _SellerSection.products;
       });
       widget.onPublished();
     } on SellerException catch (error) {
       if (mounted) setState(() => _error = error.message);
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
-        setState(() => _error = 'Não foi possível publicar a peça agora.');
+        setState(
+          () => _error =
+              'Não foi possível publicar a peça. Detalhe: ${error.toString()}',
+        );
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -659,7 +666,7 @@ class _SellerPageState extends State<SellerPage> {
       _buildStoreHeader(store),
       const SizedBox(height: 24),
       Text(
-        'O que você quer fazer?',
+        'O que você quer fazer hoje? 🚀',
         style: Theme.of(
           context,
         ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
@@ -668,7 +675,7 @@ class _SellerPageState extends State<SellerPage> {
       Card(
         child: ListTile(
           leading: const Icon(Icons.storefront_outlined),
-          title: const Text('Meu brechó'),
+          title: const Text('Meu brechó 🏪'),
           subtitle: const Text('Logo, endereço e configurações da loja'),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => setState(() {
@@ -680,7 +687,7 @@ class _SellerPageState extends State<SellerPage> {
       Card(
         child: ListTile(
           leading: const Icon(Icons.checkroom_outlined),
-          title: const Text('Produtos'),
+          title: const Text('Produtos 👗'),
           subtitle: const Text('Cadastre e gerencie suas peças'),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => setState(() {
@@ -740,6 +747,79 @@ class _SellerPageState extends State<SellerPage> {
       ),
     ],
   );
+  Widget _buildProducts(SellerStore store) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Row(
+        children: [
+          IconButton(
+            onPressed: () => setState(() {
+              _section = _SellerSection.hub;
+              _success = null;
+            }),
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Voltar',
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Minhas peças 👗',
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 8),
+      const Text(
+        'Encontre rapidamente qualquer item, inclusive os já vendidos.',
+      ),
+      const SizedBox(height: 16),
+      TextField(
+        controller: _productSearch,
+        onChanged: (_) => setState(() {}),
+        decoration: const InputDecoration(
+          labelText: 'Buscar nas minhas peças',
+          hintText: 'Ex.: vestido azul',
+          prefixIcon: Icon(Icons.search),
+        ),
+      ),
+      const SizedBox(height: 12),
+      DropdownButtonFormField<String>(
+        initialValue: _productStatus,
+        decoration: const InputDecoration(
+          labelText: 'Situação',
+          prefixIcon: Icon(Icons.filter_alt_outlined),
+        ),
+        items: const [
+          DropdownMenuItem(value: 'ALL', child: Text('Todas as peças')),
+          DropdownMenuItem(value: 'ACTIVE', child: Text('Em estoque')),
+          DropdownMenuItem(value: 'SOLD', child: Text('Vendidas')),
+          DropdownMenuItem(value: 'DRAFT', child: Text('Rascunhos')),
+          DropdownMenuItem(value: 'PAUSED', child: Text('Pausadas')),
+          DropdownMenuItem(value: 'ARCHIVED', child: Text('Arquivadas')),
+        ],
+        onChanged: (value) => setState(() => _productStatus = value ?? 'ALL'),
+      ),
+      const SizedBox(height: 16),
+      FilledButton.icon(
+        onPressed: () => setState(() {
+          _section = _SellerSection.newProduct;
+          _error = null;
+          _success = null;
+        }),
+        icon: const Icon(Icons.add_circle_outline),
+        label: const Text('Cadastrar novo produto'),
+      ),
+      const SizedBox(height: 18),
+      _SellerProductList(
+        products: _products,
+        query: _productSearch.text,
+        status: _productStatus,
+      ),
+    ],
+  );
   Widget _buildSeller(BuildContext context) {
     final store = _store!;
     if (store.status != 'ACTIVE') {
@@ -761,6 +841,7 @@ class _SellerPageState extends State<SellerPage> {
     }
     if (_section == _SellerSection.hub) return _buildSellerHub(store);
     if (_section == _SellerSection.store) return _buildStoreSettings(store);
+    if (_section == _SellerSection.products) return _buildProducts(store);
 
     return FutureBuilder<CatalogSnapshot>(
       future: widget.catalog,
@@ -776,23 +857,21 @@ class _SellerPageState extends State<SellerPage> {
                 children: [
                   IconButton(
                     onPressed: () => setState(() {
-                      _section = _SellerSection.hub;
+                      _section = _SellerSection.products;
                       _success = null;
                     }),
                     icon: const Icon(Icons.arrow_back),
-                    tooltip: 'Voltar',
+                    tooltip: 'Voltar aos produtos',
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'Produtos',
+                    'Nova peça ✨',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
               ),
-              _SellerProductList(products: _products),
-              const SizedBox(height: 24),
               Text(
                 'Cadastrar novo produto',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -1182,9 +1261,15 @@ class _LocationEditor extends StatelessWidget {
 }
 
 class _SellerProductList extends StatelessWidget {
-  const _SellerProductList({required this.products});
+  const _SellerProductList({
+    required this.products,
+    required this.query,
+    required this.status,
+  });
 
   final Future<List<SellerProduct>>? products;
+  final String query;
+  final String status;
 
   @override
   Widget build(BuildContext context) {
@@ -1209,13 +1294,23 @@ class _SellerProductList extends StatelessWidget {
             ),
           );
         }
-        final items = snapshot.data ?? const <SellerProduct>[];
+        final allItems = snapshot.data ?? const <SellerProduct>[];
+        final normalizedQuery = query.trim().toLowerCase();
+        final items = allItems
+            .where((product) {
+              final matchesStatus = status == 'ALL' || product.status == status;
+              final matchesQuery =
+                  normalizedQuery.isEmpty ||
+                  product.title.toLowerCase().contains(normalizedQuery);
+              return matchesStatus && matchesQuery;
+            })
+            .toList(growable: false);
         if (items.isEmpty) {
           return const Card(
             child: ListTile(
               leading: Icon(Icons.inventory_2_outlined),
-              title: Text('Nenhum produto cadastrado'),
-              subtitle: Text('Seu primeiro produto aparecerá aqui.'),
+              title: Text('Nenhuma peça encontrada 🔎'),
+              subtitle: Text('Tente outro nome ou mude o filtro.'),
             ),
           );
         }
@@ -1223,7 +1318,7 @@ class _SellerProductList extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Produtos cadastrados (${items.length})',
+              '${items.length} peça${items.length == 1 ? '' : 's'} encontrada${items.length == 1 ? '' : 's'}',
               style: Theme.of(
                 context,
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),

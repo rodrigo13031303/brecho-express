@@ -99,7 +99,10 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                     Card(
                       margin: EdgeInsets.zero,
                       child: ListTile(
-                        leading: const Icon(Icons.storefront_outlined),
+                        leading: _StoreAvatar(
+                          name: product.storeName ?? 'Brechó Express',
+                          logoUrl: product.storeLogoUrl,
+                        ),
                         title: Text(product.storeName ?? 'Brechó Express'),
                         subtitle: product.location == null
                             ? const Text('Localização não informada')
@@ -240,6 +243,29 @@ class _ProductGalleryState extends State<_ProductGallery> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _StoreAvatar extends StatelessWidget {
+  const _StoreAvatar({required this.name, this.logoUrl});
+
+  final String name;
+  final String? logoUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = name.trim().isEmpty ? 'B' : name.trim()[0].toUpperCase();
+    final image = logoUrl?.trim().isNotEmpty == true
+        ? NetworkImage(logoUrl!)
+        : null;
+    return CircleAvatar(
+      foregroundImage: image,
+      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+      onForegroundImageError: image == null ? null : (_, _) {},
+      child: image == null
+          ? Text(initial, style: const TextStyle(fontWeight: FontWeight.w800))
+          : null,
     );
   }
 }

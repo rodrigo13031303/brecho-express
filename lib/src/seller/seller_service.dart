@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -234,23 +235,37 @@ class SellerService {
     required List<SellerProductImageUpload> images,
   }) async {
     final store = Uri.encodeComponent(storePublicId);
-    final created = await _post(
-      _baseUri.resolve('stores/$store/products'),
-      session,
-      body: {
-        'categoryPublicId': categoryPublicId,
-        'title': title,
-        'slug': slug,
-        if (description.trim().isNotEmpty) 'description': description.trim(),
-        'price': price,
-        'quantity': quantity,
-        'condition': condition,
-        'weight': weight,
-        'width': width,
-        'height': height,
-        'length': length,
-      },
-    );
+    final productBody = <String, dynamic>{
+      'categoryPublicId': categoryPublicId,
+      'title': title,
+      'slug': slug,
+      if (description.trim().isNotEmpty) 'description': description.trim(),
+      'price': price,
+      'quantity': quantity,
+      'condition': condition,
+      'weight': weight,
+      'width': width,
+      'height': height,
+      'length': length,
+    };
+    http.Response created;
+    try {
+      created = await _post(
+        _baseUri.resolve('stores/$store/products'),
+        session,
+        body: productBody,
+      );
+      _decodeObject(created);
+    } on SellerException catch (error) {
+      if (error.code != 'BEX-PRD-004') rethrow;
+      productBody['slug'] =
+          '$slug-${DateTime.now().millisecondsSinceEpoch.toRadixString(36)}';
+      created = await _post(
+        _baseUri.resolve('stores/$store/products'),
+        session,
+        body: productBody,
+      );
+    }
     final draft = SellerProduct.fromJson(_decodeObject(created));
     for (var index = 0; index < images.length; index++) {
       await uploadProductImage(
@@ -290,25 +305,56 @@ class SellerService {
           },
           body: image.bytes,
         )
-        .timeout(const Duration(seconds: 30));
+        .timeout(
+          const Duration(seconds: 90),
+          onTimeout: () {
+            throw const SellerException(
+              'A foto demorou para enviar. Tente novamente com uma conexão estável.',
+            );
+          },
+        );
     _decodeObject(response);
   }
 
-  Future<http.Response> _get(Uri uri, BrechoSession session) => _client
-      .get(uri, headers: _headers(session))
-      .timeout(const Duration(seconds: 20));
+  Future<http.Response> _get(Uri uri, BrechoSession session) async {
+    try {
+      return await _client
+          .get(uri, headers: _headers(session))
+          .timeout(const Duration(seconds: 45));
+    } on http.ClientException {
+      throw const SellerException(
+        'A conexão oscilou. Confira sua internet e tente novamente.',
+      );
+    } on TimeoutException {
+      throw const SellerException(
+        'O servidor demorou para responder. Tente novamente em instantes.',
+      );
+    }
+  }
 
   Future<http.Response> _post(
     Uri uri,
     BrechoSession session, {
     Map<String, dynamic>? body,
-  }) => _client
-      .post(
-        uri,
-        headers: _headers(session),
-        body: body == null ? null : jsonEncode(body),
-      )
-      .timeout(const Duration(seconds: 20));
+  }) async {
+    try {
+      return await _client
+          .post(
+            uri,
+            headers: _headers(session),
+            body: body == null ? null : jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 60));
+    } on http.ClientException {
+      throw const SellerException(
+        'A conexão oscilou. Confira sua internet e tente novamente.',
+      );
+    } on TimeoutException {
+      throw const SellerException(
+        'O servidor demorou para responder. Tente novamente em instantes.',
+      );
+    }
+  }
 
   Map<String, String> _headers(BrechoSession session) => {
     'Authorization': 'Bearer ${session.accessToken}',
