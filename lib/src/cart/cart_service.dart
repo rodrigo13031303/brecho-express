@@ -226,26 +226,35 @@ class PurchaseRequest {
 
 class PurchaseRequestItem {
   const PurchaseRequestItem({
+    required this.itemPublicId,
     required this.productPublicId,
     required this.storePublicId,
     required this.quantity,
     required this.unitPrice,
+    required this.confirmedQuantity,
+    required this.rejectReason,
     required this.status,
   });
 
   factory PurchaseRequestItem.fromJson(Map<String, dynamic> json) =>
       PurchaseRequestItem(
+        itemPublicId: json['itemPublicId'] as String,
         productPublicId: json['productPublicId'] as String,
         storePublicId: json['storePublicId'] as String,
         quantity: (json['requestedQuantity'] as num).toInt(),
         unitPrice: (json['unitPrice'] as num).toDouble(),
+        confirmedQuantity: (json['confirmedQuantity'] as num?)?.toInt(),
+        rejectReason: json['rejectReason'] as String?,
         status: json['status'] as String,
       );
 
+  final String itemPublicId;
   final String productPublicId;
   final String storePublicId;
   final int quantity;
   final double unitPrice;
+  final int? confirmedQuantity;
+  final String? rejectReason;
   final String status;
 }
 

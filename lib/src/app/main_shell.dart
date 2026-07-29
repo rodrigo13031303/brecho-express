@@ -8,6 +8,7 @@ import '../cart/cart_service.dart';
 import '../catalog/catalog_service.dart';
 import '../catalog/product_detail_page.dart';
 import '../location/store_location_service.dart';
+import '../purchase/purchases_hub_page.dart';
 import '../seller/seller_page.dart';
 
 class MainShell extends StatefulWidget {
@@ -42,6 +43,7 @@ class _MainShellState extends State<MainShell> {
   CartSnapshot? _cartValue;
   String? _busyCartItemId;
   bool _checkingOut = false;
+  int _purchaseRefresh = 0;
   bool _distanceEnabled = false;
   bool _enablingDistance = false;
   GeoPoint? _viewerLocation;
@@ -107,6 +109,7 @@ class _MainShellState extends State<MainShell> {
       if (mounted) {
         setState(() {
           _cartValue = null;
+          _purchaseRefresh++;
           _cart = _loadCart();
         });
       }
@@ -225,15 +228,20 @@ class _MainShellState extends State<MainShell> {
         catalog: _catalog,
         onPublished: _retryCatalog,
       ),
-      CartPage(
-        cart: _cart,
+      PurchasesHubPage(
+        session: widget.session,
         catalog: _catalog,
-        busyItemId: _busyCartItemId,
-        onRetry: _retryCart,
-        onQuantityChanged: _changeCartQuantity,
-        onRemove: _removeCartItem,
-        onCheckout: _checkout,
-        checkoutBusy: _checkingOut,
+        refreshToken: _purchaseRefresh,
+        cartPage: CartPage(
+          cart: _cart,
+          catalog: _catalog,
+          busyItemId: _busyCartItemId,
+          onRetry: _retryCart,
+          onQuantityChanged: _changeCartQuantity,
+          onRemove: _removeCartItem,
+          onCheckout: _checkout,
+          checkoutBusy: _checkingOut,
+        ),
       ),
       ProfilePage(
         session: widget.session,
@@ -271,7 +279,7 @@ class _MainShellState extends State<MainShell> {
               count: _cartValue?.itemCount ?? 0,
               selected: true,
             ),
-            label: 'Carrinho',
+            label: 'Compras',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),

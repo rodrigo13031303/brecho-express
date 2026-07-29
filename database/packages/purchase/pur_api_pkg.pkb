@@ -29,7 +29,12 @@ CREATE OR REPLACE PACKAGE BODY pur_api_pkg AS
     WHILE i IS NOT NULL LOOP core_json_pkg.append_element(a,item_json(p.items(i)));
       i:=p.items.NEXT(i);END LOOP;j.put('items',a);RETURN j;
   END;
-  FUNCTION object_body(p CLOB) RETURN JSON_OBJECT_T IS e JSON_ELEMENT_T;
+  FUNCTION table_json(p pur_service_pkg.t_table) RETURN JSON_ARRAY_T IS
+    a JSON_ARRAY_T:=JSON_ARRAY_T();i PLS_INTEGER:=p.FIRST;
+  BEGIN
+    WHILE i IS NOT NULL LOOP core_json_pkg.append_element(a,request_json(p(i)));
+      i:=p.NEXT(i);END LOOP;RETURN a;
+  END;  FUNCTION object_body(p CLOB) RETURN JSON_OBJECT_T IS e JSON_ELEMENT_T;
   BEGIN IF p IS NULL OR DBMS_LOB.GETLENGTH(p)=0 THEN RAISE e_bad;END IF;
     BEGIN e:=JSON_ELEMENT_T.parse(p);EXCEPTION WHEN OTHERS THEN RAISE e_bad;END;
     IF e IS NULL OR NOT e.is_object THEN RAISE e_bad;END IF;RETURN TREAT(e AS JSON_OBJECT_T);END;
@@ -65,7 +70,21 @@ CREATE OR REPLACE PACKAGE BODY pur_api_pkg AS
     WHEN crt_service_pkg.e_empty_cart OR crt_service_pkg.e_cart_closed OR prd_service_pkg.e_invalid_product
       THEN ROLLBACK;err(422,'BEX-PUR-004','Carrinho nao pode ser enviado.',o_status,o_body);
     WHEN OTHERS THEN ROLLBACK;internal_error(o_status,o_body);END;
-  PROCEDURE get_request(p_request_public_id VARCHAR2,p_actor_id NUMBER,o_status OUT PLS_INTEGER,o_body OUT NOCOPY CLOB) IS r pur_service_pkg.t_record;
+  PROCEDURE list_buyer_requests(p_actor_id NUMBER,o_status OUT PLS_INTEGER,o_body OUT NOCOPY CLOB) IS
+    r pur_service_pkg.t_table;
+  BEGIN actor(p_actor_id);r:=pur_service_pkg.list_for_buyer(p_actor_id);
+    o_body:=core_response_pkg.build_success(table_json(r));o_status:=200;
+  EXCEPTION WHEN e_bad THEN err(400,'BEX-REQ-004','Ator obrigatorio.',o_status,o_body);
+    WHEN pur_service_pkg.e_forbidden THEN err(403,'BEX-PUR-003','Operacao nao autorizada.',o_status,o_body);
+    WHEN OTHERS THEN internal_error(o_status,o_body);END;
+  PROCEDURE list_store_requests(p_store_public_id VARCHAR2,p_actor_id NUMBER,
+    o_status OUT PLS_INTEGER,o_body OUT NOCOPY CLOB) IS r pur_service_pkg.t_table;
+  BEGIN required(p_store_public_id);actor(p_actor_id);
+    r:=pur_service_pkg.list_for_store(p_store_public_id,p_actor_id);
+    o_body:=core_response_pkg.build_success(table_json(r));o_status:=200;
+  EXCEPTION WHEN e_bad THEN err(400,'BEX-REQ-004','Valores obrigatorios.',o_status,o_body);
+    WHEN str_service_pkg.e_catalog_forbidden THEN err(403,'BEX-PUR-003','Operacao nao autorizada.',o_status,o_body);
+    WHEN OTHERS THEN internal_error(o_status,o_body);END;  PROCEDURE get_request(p_request_public_id VARCHAR2,p_actor_id NUMBER,o_status OUT PLS_INTEGER,o_body OUT NOCOPY CLOB) IS r pur_service_pkg.t_record;
   BEGIN required(p_request_public_id);actor(p_actor_id);r:=pur_service_pkg.get_request(p_request_public_id,p_actor_id);
     o_body:=core_response_pkg.build_success(request_json(r));o_status:=200;
   EXCEPTION WHEN e_bad THEN err(400,'BEX-REQ-004','Valores obrigatorios.',o_status,o_body);

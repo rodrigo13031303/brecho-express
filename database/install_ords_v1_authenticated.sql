@@ -28,6 +28,7 @@ PROMPT ============================================================
 @@ords/install_brecho_express_v1_seller_authenticated.sql
 @@ords/install_brecho_express_v1_store_onboarding.sql
 @@ords/install_brecho_express_v1_cart_authenticated.sql
+@@ords/install_brecho_express_v1_purchase_authenticated.sql
 @@tests/ords/test_ord_runtime_pkg.sql
 
 DECLARE
@@ -58,6 +59,8 @@ BEGIN
   DBMS_OUTPUT.PUT_LINE('GET cart');
   DBMS_OUTPUT.PUT_LINE('POST/PUT/DELETE cart/:cartPublicId/items');
   DBMS_OUTPUT.PUT_LINE('POST cart/:cartPublicId/checkout');
+  DBMS_OUTPUT.PUT_LINE('GET purchase-requests');
+  DBMS_OUTPUT.PUT_LINE('GET/POST store purchase-requests');
 END;
 /
 

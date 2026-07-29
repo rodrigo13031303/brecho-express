@@ -6,13 +6,18 @@ CREATE OR REPLACE PACKAGE BODY pur_service_pkg AS
     s:=str_service_pkg.get_store_by_id(x.str_id);r.store_public_id:=s.store_public_id;
     r.requested_quantity:=x.pri_requested_quantity;r.confirmed_quantity:=x.pri_confirmed_quantity;
     r.unit_price:=x.pri_unit_price;r.reject_reason:=x.pri_reject_reason;r.status:=x.pri_status;RETURN r;END;
-  FUNCTION map_request(x pur_repository_pkg.t_request) RETURN t_record IS r t_record;
+  FUNCTION map_request(x pur_repository_pkg.t_request,p_store_id NUMBER DEFAULT NULL) RETURN t_record IS r t_record;
     p BEX_PROFILE%ROWTYPE;xs pur_repository_pkg.t_items;i PLS_INTEGER;
   BEGIN p:=pfl_service_pkg.get_by_id(x.pfl_id);r.request_public_id:=x.pur_public_id;
     r.profile_public_id:=p.pfl_public_id;r.status:=x.pur_status;r.requested_at:=x.pur_requested_at;
     r.confirmed_at:=x.pur_confirmed_at;r.response_at:=x.pur_response_at;r.expires_at:=x.pur_expires_at;
     xs:=pur_repository_pkg.list_items(x.pur_id);i:=xs.FIRST;
-    WHILE i IS NOT NULL LOOP r.items(r.items.COUNT+1):=map_item(xs(i));i:=xs.NEXT(i);END LOOP;RETURN r;END;
+    WHILE i IS NOT NULL LOOP
+      IF p_store_id IS NULL OR xs(i).str_id=p_store_id THEN
+        r.items(r.items.COUNT+1):=map_item(xs(i));
+      END IF;
+      i:=xs.NEXT(i);
+    END LOOP;RETURN r;END;
   FUNCTION internal(p VARCHAR2) RETURN pur_repository_pkg.t_request IS r pur_repository_pkg.t_request;
   BEGIN BEGIN r:=pur_repository_pkg.get_request_by_public(p);
     EXCEPTION WHEN NO_DATA_FOUND THEN RAISE e_request_not_found;END;RETURN r;END;
@@ -31,7 +36,26 @@ CREATE OR REPLACE PACKAGE BODY pur_service_pkg AS
   BEGIN r:=internal(p_public_id);BEGIN p:=pfl_service_pkg.get_by_account_id(p_actor_id);
     EXCEPTION WHEN pfl_service_pkg.e_profile_not_found THEN RAISE e_forbidden;END;
     IF r.pfl_id<>p.pfl_id THEN RAISE e_forbidden;END IF;RETURN map_request(r);END;
-  PROCEDURE recalc(p_id NUMBER,p_actor NUMBER) IS xs pur_repository_pkg.t_items;
+  FUNCTION list_for_buyer(p_actor_id NUMBER) RETURN t_table IS
+    p BEX_PROFILE%ROWTYPE;xs pur_repository_pkg.t_requests;r t_table;i PLS_INTEGER;
+  BEGIN
+    BEGIN p:=pfl_service_pkg.get_by_account_id(p_actor_id);
+    EXCEPTION WHEN pfl_service_pkg.e_profile_not_found THEN RAISE e_forbidden;END;
+    xs:=pur_repository_pkg.list_by_profile(p.pfl_id);i:=xs.FIRST;
+    WHILE i IS NOT NULL LOOP r(r.COUNT+1):=map_request(xs(i));i:=xs.NEXT(i);END LOOP;
+    RETURN r;
+  END;
+  FUNCTION list_for_store(p_store_public_id VARCHAR2,p_actor_id NUMBER)
+    RETURN t_table IS
+    store_id NUMBER;xs pur_repository_pkg.t_requests;r t_table;i PLS_INTEGER;
+  BEGIN
+    store_id:=str_service_pkg.resolve_catalog_store_id(p_store_public_id,p_actor_id);
+    xs:=pur_repository_pkg.list_by_store(store_id);i:=xs.FIRST;
+    WHILE i IS NOT NULL LOOP
+      r(r.COUNT+1):=map_request(xs(i),store_id);i:=xs.NEXT(i);
+    END LOOP;
+    RETURN r;
+  END;  PROCEDURE recalc(p_id NUMBER,p_actor NUMBER) IS xs pur_repository_pkg.t_items;
     i PLS_INTEGER;pending NUMBER:=0;approved NUMBER:=0;rejected NUMBER:=0;partial NUMBER:=0;s VARCHAR2(30);
   BEGIN xs:=pur_repository_pkg.list_items(p_id);i:=xs.FIRST;
     WHILE i IS NOT NULL LOOP CASE xs(i).pri_status WHEN 'PENDING' THEN pending:=pending+1;

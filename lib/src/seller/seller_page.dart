@@ -6,9 +6,10 @@ import '../auth/brecho_session.dart';
 import '../branding/brecho_mark.dart';
 import '../catalog/catalog_service.dart';
 import '../location/store_location_service.dart';
+import 'seller_requests_page.dart';
 import 'seller_service.dart';
 
-enum _SellerSection { hub, store, products, newProduct }
+enum _SellerSection { hub, store, products, requests, newProduct }
 
 class SellerPage extends StatefulWidget {
   const SellerPage({
@@ -696,6 +697,18 @@ class _SellerPageState extends State<SellerPage> {
           }),
         ),
       ),
+      Card(
+        child: ListTile(
+          leading: const Icon(Icons.mark_email_unread_outlined),
+          title: const Text('Solicitações 📦'),
+          subtitle: const Text('Confirme as peças pedidas pelos compradores'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => setState(() {
+            _section = _SellerSection.requests;
+            _success = null;
+          }),
+        ),
+      ),
     ],
   );
 
@@ -842,6 +855,14 @@ class _SellerPageState extends State<SellerPage> {
     if (_section == _SellerSection.hub) return _buildSellerHub(store);
     if (_section == _SellerSection.store) return _buildStoreSettings(store);
     if (_section == _SellerSection.products) return _buildProducts(store);
+    if (_section == _SellerSection.requests) {
+      return SellerRequestsPage(
+        session: widget.session,
+        store: store,
+        catalog: widget.catalog,
+        onBack: () => setState(() => _section = _SellerSection.hub),
+      );
+    }
 
     return FutureBuilder<CatalogSnapshot>(
       future: widget.catalog,

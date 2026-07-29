@@ -2,6 +2,11 @@ CREATE OR REPLACE PACKAGE pur_api_pkg AS
   PROCEDURE checkout(
     p_cart_public_id VARCHAR2,p_actor_id NUMBER,
     o_status OUT PLS_INTEGER,o_body OUT NOCOPY CLOB);
+  PROCEDURE list_buyer_requests(
+    p_actor_id NUMBER,o_status OUT PLS_INTEGER,o_body OUT NOCOPY CLOB);
+  PROCEDURE list_store_requests(
+    p_store_public_id VARCHAR2,p_actor_id NUMBER,
+    o_status OUT PLS_INTEGER,o_body OUT NOCOPY CLOB);
   PROCEDURE get_request(
     p_request_public_id VARCHAR2,p_actor_id NUMBER,
     o_status OUT PLS_INTEGER,o_body OUT NOCOPY CLOB);
