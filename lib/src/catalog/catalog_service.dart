@@ -179,6 +179,7 @@ class CatalogProduct {
     required this.title,
     required this.price,
     required this.condition,
+    this.categoryPublicId,
     this.description,
     this.storePublicId,
     this.storeName,
@@ -196,6 +197,7 @@ class CatalogProduct {
     title: json['title'] as String,
     price: (json['price'] as num).toDouble(),
     condition: json['condition'] as String,
+    categoryPublicId: json['categoryPublicId'] as String?,
     description: json['description'] as String?,
     storePublicId: json['storePublicId'] as String?,
     storeName: json['storeName'] as String?,
@@ -211,6 +213,7 @@ class CatalogProduct {
   final String title;
   final double price;
   final String condition;
+  final String? categoryPublicId;
   final String? description;
   final String? storePublicId;
   final String? storeName;
@@ -228,6 +231,7 @@ class CatalogProduct {
     title: title,
     price: price,
     condition: condition,
+    categoryPublicId: categoryPublicId,
     description: description,
     storePublicId: storePublicId,
     storeName: storeName,
@@ -278,6 +282,16 @@ class CatalogPublicLocation {
         ? distance.toStringAsFixed(1).replaceAll('.', ',')
         : distance.round().toString();
     return '$district • a $formatted km';
+  }
+
+  String get distanceLabel {
+    final distance = distanceKm;
+    if (distance == null) return 'Distância indisponível';
+    if (distance < 1) return 'Menos de 1 km';
+    final formatted = distance < 10
+        ? distance.toStringAsFixed(1).replaceAll('.', ',')
+        : distance.round().toString();
+    return '$formatted km';
   }
 }
 

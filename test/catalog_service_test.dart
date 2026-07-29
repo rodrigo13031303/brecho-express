@@ -13,7 +13,7 @@ void main() {
         );
       }
       return http.Response(
-        '{"success":true,"data":[{"productPublicId":"prd","title":"Vestido","price":59.9,"condition":"GOOD","description":null}]}',
+        '{"success":true,"data":[{"productPublicId":"prd","categoryPublicId":"cat","title":"Vestido","price":59.9,"condition":"GOOD","description":null}]}',
         200,
       );
     });
@@ -24,6 +24,7 @@ void main() {
     expect(catalog.categories.single.name, 'Roupas');
     expect(catalog.products.single.title, 'Vestido');
     expect(catalog.products.single.price, 59.9);
+    expect(catalog.products.single.categoryPublicId, 'cat');
     service.close();
   });
 
@@ -36,7 +37,7 @@ void main() {
         );
       }
       return http.Response(
-        '{"success":true,"data":{"productPublicId":"prd","title":"Vestido","price":59.9,"condition":"GOOD","description":"Azul","storeName":"Moda Circular","storeLogoUrl":"https://example.invalid/logo.jpg"}}',
+        '{"success":true,"data":{"productPublicId":"prd","categoryPublicId":"cat","title":"Vestido","price":59.9,"condition":"GOOD","description":"Azul","storeName":"Moda Circular","storeLogoUrl":"https://example.invalid/logo.jpg"}}',
         200,
       );
     });
@@ -88,6 +89,7 @@ void main() {
     );
 
     expect(catalog.products.single.location?.label, 'Mooca • a 2,4 km');
+    expect(catalog.products.single.location?.distanceLabel, '2,4 km');
     service.close();
   });
 }

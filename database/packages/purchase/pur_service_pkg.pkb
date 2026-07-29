@@ -24,7 +24,7 @@ CREATE OR REPLACE PACKAGE BODY pur_service_pkg AS
     UPDATE BEX_PURCHASE_REQUEST_ITEM item_data
        SET item_data.PRI_STATUS='REJECTED',
            item_data.PRI_CONFIRMED_QUANTITY=0,
-           item_data.PRI_REJECT_REASON=UNISTR('Prazo de 5 minutos \00E3o atendido pelo brech\00F3'),
+           item_data.PRI_REJECT_REASON=UNISTR('Prazo de 5 minutos n\00E3o atendido pelo brech\00F3'),
            item_data.PRI_UPDATED_AT=SYS_EXTRACT_UTC(SYSTIMESTAMP)
      WHERE item_data.PRI_STATUS='PENDING'
        AND EXISTS(
@@ -78,8 +78,8 @@ CREATE OR REPLACE PACKAGE BODY pur_service_pkg AS
        WHERE item_data.PUR_ID=rid
     ) LOOP
       enqueue_account(
-        seller.ACC_ID,'SELLER_REQUEST','Nova solicitacao!',
-        'Voce tem 5 minutos para confirmar a disponibilidade.',
+        seller.ACC_ID,'SELLER_REQUEST',UNISTR('Nova solicita\00E7\00E3o!'),
+        UNISTR('Voc\00EA tem 5 minutos para confirmar a disponibilidade.'),
         '{"type":"SELLER_REQUEST","requestPublicId":"'
           ||TRIM(req.pur_public_id)||'"}'
       );
@@ -139,10 +139,10 @@ CREATE OR REPLACE PACKAGE BODY pur_service_pkg AS
     r:=pur_repository_pkg.get_request_by_id(r.pur_id);
     IF r.pur_status<>'PENDING' THEN
       enqueue_profile(
-        r.pfl_id,'BUYER_STOCK_RESPONSE','O brecho respondeu!',
+        r.pfl_id,'BUYER_STOCK_RESPONSE',UNISTR('O brech\00F3 respondeu!'),
         CASE WHEN r.pur_status='REJECTED'
-          THEN 'As pecas nao estao disponiveis desta vez.'
-          ELSE 'As pecas foram confirmadas. Continue sua compra.'
+          THEN UNISTR('As pe\00E7as n\00E3o est\00E3o dispon\00EDveis desta vez.')
+          ELSE UNISTR('As pe\00E7as foram confirmadas. Continue sua compra.')
         END,
         '{"type":"BUYER_STOCK_RESPONSE","requestPublicId":"'
           ||TRIM(r.pur_public_id)||'","status":"'||r.pur_status||'"}'

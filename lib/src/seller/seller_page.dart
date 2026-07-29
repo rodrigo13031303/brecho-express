@@ -499,12 +499,30 @@ class _SellerPageState extends State<SellerPage> {
       _error = null;
     });
     try {
+      final replacementImages =
+          (changes.remove('_replacementImages') as List?)
+              ?.whereType<_SelectedProductImage>()
+              .toList(growable: false) ??
+          const <_SelectedProductImage>[];
       await _service.updateProduct(
         session: widget.session,
         storePublicId: _store!.publicId,
         product: product,
         changes: changes,
       );
+      for (var index = 0; index < replacementImages.length; index++) {
+        final image = replacementImages[index];
+        await _service.uploadProductImage(
+          session: widget.session,
+          productPublicId: product.publicId,
+          image: SellerProductImageUpload(
+            bytes: image.bytes,
+            mimeType: image.mimeType,
+          ),
+          sortOrder: index,
+          isPrimary: index == 0,
+        );
+      }
       if (!mounted) return;
       setState(() {
         _products = _service.listProducts(
@@ -1671,6 +1689,8 @@ class _ProductEditSheetState extends State<_ProductEditSheet> {
   );
   late String _condition = widget.product.condition;
   late String? _category = widget.product.categoryPublicId;
+  final _replacementImages = <_SelectedProductImage>[];
+  final _editImagePicker = ImagePicker();
 
   @override
   void dispose() {
@@ -1717,7 +1737,47 @@ class _ProductEditSheetState extends State<_ProductEditSheet> {
       'width': _number(_width),
       'height': _number(_height),
       'length': _number(_length),
+      '_replacementImages': _replacementImages,
     });
+  }
+
+  Future<void> _chooseReplacementImages() async {
+    final remaining = 8 - _replacementImages.length;
+    if (remaining <= 0) return;
+    final images = await _editImagePicker.pickMultiImage(
+      maxWidth: 900,
+      maxHeight: 1200,
+      imageQuality: 65,
+      limit: remaining,
+    );
+    if (images.isEmpty || !mounted) return;
+    final selected = <_SelectedProductImage>[];
+    for (final image in images) {
+      final bytes = await image.readAsBytes();
+      if (bytes.length > 1536 * 1024) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Cada foto deve ter no máximo 1,5 MB.'),
+            ),
+          );
+        }
+        return;
+      }
+      final name = image.name.toLowerCase();
+      selected.add(
+        _SelectedProductImage(
+          bytes: bytes,
+          mimeType: name.endsWith('.png')
+              ? 'image/png'
+              : name.endsWith('.webp')
+              ? 'image/webp'
+              : 'image/jpeg',
+          name: image.name,
+        ),
+      );
+    }
+    if (mounted) setState(() => _replacementImages.addAll(selected));
   }
 
   @override
@@ -1739,6 +1799,33 @@ class _ProductEditSheetState extends State<_ProductEditSheet> {
             ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    _replacementImages.isEmpty
+                        ? '${widget.product.imageCount} foto(s) publicada(s)'
+                        : '${_replacementImages.length} nova(s) foto(s) selecionada(s)',
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: _chooseReplacementImages,
+                    icon: const Icon(Icons.add_photo_alternate_outlined),
+                    label: const Text('Trocar / adicionar imagens'),
+                  ),
+                  if (_replacementImages.isNotEmpty)
+                    TextButton(
+                      onPressed: () => setState(_replacementImages.clear),
+                      child: const Text('Limpar novas imagens'),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
           TextField(
             controller: _title,
             decoration: const InputDecoration(labelText: 'Título'),

@@ -49,8 +49,6 @@ class _MainShellState extends State<MainShell> {
   String? _busyCartItemId;
   bool _checkingOut = false;
   int _purchaseRefresh = 0;
-  bool _distanceEnabled = false;
-  bool _enablingDistance = false;
   GeoPoint? _viewerLocation;
   String? _viewerLocationLabel;
 
@@ -207,7 +205,6 @@ class _MainShellState extends State<MainShell> {
 
   void _applyBuyerLocation(BuyerCatalogLocation location) {
     setState(() {
-      _distanceEnabled = true;
       _viewerLocation = location.point;
       _viewerLocationLabel = location.label;
       _catalog = _catalogService.load(
@@ -234,29 +231,6 @@ class _MainShellState extends State<MainShell> {
     if (mounted) _applyBuyerLocation(result);
   }
 
-  Future<void> _enableDistance() async {
-    if (_enablingDistance) return;
-    setState(() => _enablingDistance = true);
-    try {
-      final point = await _locationService.currentCoordinates();
-      if (!mounted) return;
-      final location = BuyerCatalogLocation(
-        point: point,
-        label: 'Minha localização atual',
-      );
-      await _buyerLocationStore.write(location);
-      if (mounted) _applyBuyerLocation(location);
-    } on StoreLocationException catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.message)));
-      }
-    } finally {
-      if (mounted) setState(() => _enablingDistance = false);
-    }
-  }
-
   void _selectTab(int index) => setState(() => _currentIndex = index);
 
   @override
@@ -274,9 +248,7 @@ class _MainShellState extends State<MainShell> {
       ExplorePage(
         catalog: _catalog,
         onRetry: _retryCatalog,
-        distanceEnabled: _distanceEnabled,
-        enablingDistance: _enablingDistance,
-        onEnableDistance: _enableDistance,
+
         locationLabel: _viewerLocationLabel,
         onChooseLocation: _chooseBuyerLocation,
         onAddToCart: _addToCart,
@@ -522,9 +494,7 @@ class ExplorePage extends StatefulWidget {
   const ExplorePage({
     required this.catalog,
     required this.onRetry,
-    required this.distanceEnabled,
-    required this.enablingDistance,
-    required this.onEnableDistance,
+
     required this.onAddToCart,
     required this.locationLabel,
     required this.onChooseLocation,
@@ -532,9 +502,7 @@ class ExplorePage extends StatefulWidget {
   });
   final Future<CatalogSnapshot> catalog;
   final VoidCallback onRetry;
-  final bool distanceEnabled;
-  final bool enablingDistance;
-  final VoidCallback onEnableDistance;
+
   final Future<void> Function(CatalogProduct product) onAddToCart;
   final String? locationLabel;
   final VoidCallback onChooseLocation;
@@ -545,6 +513,9 @@ class ExplorePage extends StatefulWidget {
 class _ExplorePageState extends State<ExplorePage> {
   final _searchController = TextEditingController();
   bool _sortNearest = false;
+  String? _categoryPublicId;
+  _PriceFilter _priceFilter = _PriceFilter.all;
+  _SizeFilter _sizeFilter = _SizeFilter.all;
   @override
   void dispose() {
     _searchController.dispose();
@@ -586,28 +557,31 @@ class _ExplorePageState extends State<ExplorePage> {
             ),
           ),
           const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            children: [
-              const FilterChip(label: Text('Categoria'), onSelected: null),
-              const FilterChip(label: Text('Tamanho'), onSelected: null),
-              const FilterChip(label: Text('Preço'), onSelected: null),
-              FilterChip(
-                selected: widget.distanceEnabled,
-                avatar: widget.enablingDistance
-                    ? const SizedBox.square(
-                        dimension: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.near_me_outlined, size: 18),
-                label: Text(
-                  widget.distanceEnabled ? 'Distância ativa' : 'Ver distância',
+          FutureBuilder<CatalogSnapshot>(
+            future: widget.catalog,
+            builder: (context, snapshot) => Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilterChip(
+                  selected: _categoryPublicId != null,
+                  label: Text(_categoryLabel(snapshot.data)),
+                  onSelected: snapshot.hasData
+                      ? (_) => _chooseCategory(snapshot.data!.categories)
+                      : null,
                 ),
-                onSelected: widget.enablingDistance
-                    ? null
-                    : (_) => widget.onEnableDistance(),
-              ),
-            ],
+                FilterChip(
+                  selected: _sizeFilter != _SizeFilter.all,
+                  label: Text(_sizeFilter.label),
+                  onSelected: (_) => _chooseSize(),
+                ),
+                FilterChip(
+                  selected: _priceFilter != _PriceFilter.all,
+                  label: Text(_priceFilter.label),
+                  onSelected: (_) => _choosePrice(),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<bool>(
@@ -631,12 +605,96 @@ class _ExplorePageState extends State<ExplorePage> {
             onRetry: widget.onRetry,
             query: _searchController.text,
             sortNearest: _sortNearest,
+            categoryPublicId: _categoryPublicId,
+            priceFilter: _priceFilter,
+            sizeFilter: _sizeFilter,
             onAddToCart: widget.onAddToCart,
           ),
         ],
       ),
     );
   }
+
+  String _categoryLabel(CatalogSnapshot? snapshot) {
+    if (_categoryPublicId == null) return 'Categoria';
+    for (final category in snapshot?.categories ?? const <CatalogCategory>[]) {
+      if (category.publicId == _categoryPublicId) return category.name;
+    }
+    return 'Categoria';
+  }
+
+  Future<void> _chooseCategory(List<CatalogCategory> categories) async {
+    final value = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.apps),
+              title: const Text('Todas as categorias'),
+              onTap: () => Navigator.pop(context, ''),
+            ),
+            ...categories.map(
+              (item) => ListTile(
+                leading: const Icon(Icons.checkroom_outlined),
+                title: Text(item.name),
+                selected: item.publicId == _categoryPublicId,
+                onTap: () => Navigator.pop(context, item.publicId),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (value == null || !mounted) return;
+    setState(() => _categoryPublicId = value.isEmpty ? null : value);
+  }
+
+  Future<void> _chooseSize() async {
+    final value = await _chooseEnum<_SizeFilter>(
+      title: 'Comprimento / tamanho',
+      values: _SizeFilter.values,
+      label: (item) => item.menuLabel,
+    );
+    if (value != null && mounted) setState(() => _sizeFilter = value);
+  }
+
+  Future<void> _choosePrice() async {
+    final value = await _chooseEnum<_PriceFilter>(
+      title: 'Faixa de preço',
+      values: _PriceFilter.values,
+      label: (item) => item.menuLabel,
+    );
+    if (value != null && mounted) setState(() => _priceFilter = value);
+  }
+
+  Future<T?> _chooseEnum<T>({
+    required String title,
+    required List<T> values,
+    required String Function(T) label,
+  }) => showModalBottomSheet<T>(
+    context: context,
+    showDragHandle: true,
+    builder: (context) => SafeArea(
+      child: ListView(
+        shrinkWrap: true,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+            child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+          ),
+          ...values.map(
+            (item) => ListTile(
+              title: Text(label(item)),
+              onTap: () => Navigator.pop(context, item),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _BuyerLocationSheet extends StatefulWidget {
@@ -803,30 +861,36 @@ class ProfilePage extends StatelessWidget {
       builder: (context) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: ListView(
+            shrinkWrap: true,
             children: [
-              Text(
-                'Escolha seu estilo',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 4),
-              const Text('A cor do cabide permanece sempre a mesma.'),
-              const SizedBox(height: 20),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: AppPalette.values
-                    .map(
-                      (item) => ChoiceChip(
-                        selected: item == palette,
-                        onSelected: (_) => Navigator.pop(context, item),
-                        avatar: CircleAvatar(backgroundColor: item.seedColor),
-                        label: Text(item.label),
-                      ),
-                    )
-                    .toList(),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Escolha seu estilo',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 4),
+                  const Text('A cor do cabide permanece sempre a mesma.'),
+                  const SizedBox(height: 20),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: AppPalette.values
+                        .map(
+                          (item) => ChoiceChip(
+                            selected: item == palette,
+                            onSelected: (_) => Navigator.pop(context, item),
+                            avatar: CircleAvatar(
+                              backgroundColor: item.seedColor,
+                            ),
+                            label: Text(item.label),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ],
               ),
             ],
           ),
@@ -951,6 +1015,9 @@ class _CatalogContent extends StatelessWidget {
     this.query = '',
     this.preview = false,
     this.sortNearest = false,
+    this.categoryPublicId,
+    this.priceFilter = _PriceFilter.all,
+    this.sizeFilter = _SizeFilter.all,
     required this.onAddToCart,
   });
   final Future<CatalogSnapshot> catalog;
@@ -958,6 +1025,9 @@ class _CatalogContent extends StatelessWidget {
   final String query;
   final bool preview;
   final bool sortNearest;
+  final String? categoryPublicId;
+  final _PriceFilter priceFilter;
+  final _SizeFilter sizeFilter;
   final Future<void> Function(CatalogProduct product) onAddToCart;
 
   @override
@@ -987,6 +1057,13 @@ class _CatalogContent extends StatelessWidget {
         }
         final products = snapshot.data!.products
             .where((item) => item.matches(query))
+            .where(
+              (item) =>
+                  categoryPublicId == null ||
+                  item.categoryPublicId == categoryPublicId,
+            )
+            .where(priceFilter.matches)
+            .where(sizeFilter.matches)
             .toList();
         if (products.isEmpty) {
           return _CatalogMessage(
@@ -1111,7 +1188,7 @@ class _ProductCard extends StatelessWidget {
                         const SizedBox(width: 2),
                         Expanded(
                           child: Text(
-                            product.location!.label,
+                            product.location!.distanceLabel,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: Theme.of(context).textTheme.bodySmall,
@@ -1128,6 +1205,43 @@ class _ProductCard extends StatelessWidget {
       ),
     );
   }
+}
+
+enum _PriceFilter {
+  all('Preço', 'Todos os preços'),
+  upTo50('Até R\$ 50', 'Até R\$ 50'),
+  from50To100('R\$ 50–100', 'De R\$ 50 a R\$ 100'),
+  above100('Acima de R\$ 100', 'Acima de R\$ 100');
+
+  const _PriceFilter(this.label, this.menuLabel);
+  final String label;
+  final String menuLabel;
+
+  bool matches(CatalogProduct product) => switch (this) {
+    all => true,
+    upTo50 => product.price <= 50,
+    from50To100 => product.price > 50 && product.price <= 100,
+    above100 => product.price > 100,
+  };
+}
+
+enum _SizeFilter {
+  all('Tamanho', 'Todos os tamanhos'),
+  small('Até 50 cm', 'Pequeno — até 50 cm'),
+  medium('50–100 cm', 'Médio — de 50 a 100 cm'),
+  large('Acima de 100 cm', 'Grande — acima de 100 cm');
+
+  const _SizeFilter(this.label, this.menuLabel);
+  final String label;
+  final String menuLabel;
+
+  bool matches(CatalogProduct product) => switch (this) {
+    all => true,
+    small => product.length != null && product.length! <= 50,
+    medium =>
+      product.length != null && product.length! > 50 && product.length! <= 100,
+    large => product.length != null && product.length! > 100,
+  };
 }
 
 class _CatalogMessage extends StatelessWidget {
