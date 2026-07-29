@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import 'catalog_service.dart';
@@ -242,15 +243,14 @@ class _ProductGalleryState extends State<_ProductGallery> {
             child: PageView.builder(
               itemCount: images.length,
               onPageChanged: (value) => setState(() => _page = value),
-              itemBuilder: (context, index) => Image.network(
-                images[index].url,
+              itemBuilder: (context, index) => CachedNetworkImage(
+                imageUrl: images[index].url,
                 width: double.infinity,
-                fit: BoxFit.cover,
-                semanticLabel: images[index].altText ?? 'Foto da peça',
-                loadingBuilder: (context, child, progress) => progress == null
-                    ? child
-                    : const Center(child: CircularProgressIndicator()),
-                errorBuilder: (context, error, stackTrace) => Container(
+                fit: BoxFit.contain,
+                memCacheWidth: 1200,
+                placeholder: (_, _) =>
+                    const Center(child: CircularProgressIndicator()),
+                errorWidget: (context, error, stackTrace) => Container(
                   color: Theme.of(context).colorScheme.primaryContainer,
                   child: const Center(
                     child: Icon(Icons.broken_image_outlined, size: 72),

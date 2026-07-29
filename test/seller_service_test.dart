@@ -325,4 +325,26 @@ void main() {
     expect(location.number, '100');
     service.close();
   });
+  test('aceita endereço privado direto em resposta HTTP 200', () async {
+    final service = SellerService(
+      client: MockClient(
+        (_) async => http.Response(
+          '{"postalCode":"13010111","street":"Rua Barão de Jaguara",'
+          '"number":"100","complement":null,"district":"Centro",'
+          '"city":"Campinas","state":"SP",'
+          '"latitude":-22.905,"longitude":-47.06}',
+          200,
+        ),
+      ),
+    );
+
+    final location = await service.loadLocation(
+      session: session,
+      storePublicId: 'store-1',
+    );
+
+    expect(location.city, 'Campinas');
+    expect(location.district, 'Centro');
+    service.close();
+  });
 }

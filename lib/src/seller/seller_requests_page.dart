@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../auth/brecho_session.dart';
@@ -28,15 +30,20 @@ class _SellerRequestsPageState extends State<SellerRequestsPage> {
   final _service = PurchaseService();
   late Future<List<PurchaseRequest>> _requests;
   String? _busyItem;
+  Timer? _ticker;
 
   @override
   void initState() {
     super.initState();
     _reload();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
   void dispose() {
+    _ticker?.cancel();
     _service.close();
     super.dispose();
   }
@@ -201,7 +208,7 @@ class _RequestCard extends StatelessWidget {
               if (request.status == 'PENDING' && request.expiresAt != null)
                 Chip(
                   avatar: const Icon(Icons.timer_outlined, size: 18),
-                  label: Text(_remaining(request.expiresAt!)),
+                  label: Text(_remaining(request)),
                 ),
             ],
           ),
@@ -249,8 +256,14 @@ class _RequestCard extends StatelessWidget {
     _ => value,
   };
 
-  static String _remaining(DateTime expiresAt) {
-    final value = expiresAt.toLocal().difference(DateTime.now());
+  static String _remaining(PurchaseRequest request) {
+    final fiveMinuteLimit = request.requestedAt.add(const Duration(minutes: 5));
+    final serverLimit = request.expiresAt;
+    final effectiveLimit =
+        serverLimit != null && serverLimit.isBefore(fiveMinuteLimit)
+        ? serverLimit
+        : fiveMinuteLimit;
+    final value = effectiveLimit.toLocal().difference(DateTime.now());
     if (value.isNegative) return 'encerrando';
     final minutes = value.inMinutes.toString().padLeft(2, '0');
     final seconds = (value.inSeconds % 60).toString().padLeft(2, '0');

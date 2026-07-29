@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -221,9 +222,9 @@ class _SellerPageState extends State<SellerPage> {
       return;
     }
     final images = await _imagePicker.pickMultiImage(
-      maxWidth: 1200,
+      maxWidth: 900,
       maxHeight: 1200,
-      imageQuality: 76,
+      imageQuality: 65,
       limit: remaining,
     );
     if (images.isEmpty || !mounted) return;
@@ -231,9 +232,9 @@ class _SellerPageState extends State<SellerPage> {
     final selected = <_SelectedProductImage>[];
     for (final image in images) {
       final bytes = await image.readAsBytes();
-      if (bytes.length > 3 * 1024 * 1024) {
+      if (bytes.length > 1536 * 1024) {
         if (mounted) {
-          setState(() => _error = 'Cada foto deve ter no máximo 3 MB.');
+          setState(() => _error = 'Cada foto deve ter no máximo 1,5 MB.');
         }
         return;
       }
@@ -345,7 +346,10 @@ class _SellerPageState extends State<SellerPage> {
     return location;
   }
 
-  Future<void> _loadStoreLocation(SellerStore store) async {
+  Future<void> _loadStoreLocation(
+    SellerStore store, {
+    bool showError = false,
+  }) async {
     if (_locationLoaded) return;
     _locationLoaded = true;
     try {
@@ -356,7 +360,7 @@ class _SellerPageState extends State<SellerPage> {
       if (mounted) setState(() => _fillLocation(location));
     } on SellerException catch (error) {
       _locationLoaded = false;
-      if (mounted) {
+      if (mounted && showError) {
         _showLocationMessage(
           'Não foi possível carregar o endereço salvo. ${error.message}',
           error: true,
@@ -826,7 +830,7 @@ class _SellerPageState extends State<SellerPage> {
             _success = null;
             _locationLoaded = false;
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              _loadStoreLocation(store);
+              _loadStoreLocation(store, showError: true);
             });
           }),
         ),
@@ -1561,10 +1565,16 @@ class _SellerProductList extends StatelessWidget {
                               ).colorScheme.primaryContainer,
                               child: const Icon(Icons.checkroom_outlined),
                             )
-                          : Image.network(
-                              product.primaryImageUrl!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) =>
+                          : CachedNetworkImage(
+                              imageUrl: product.primaryImageUrl!,
+                              fit: BoxFit.contain,
+                              memCacheWidth: 240,
+                              placeholder: (_, _) => const Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                              errorWidget: (_, _, _) =>
                                   const Icon(Icons.broken_image_outlined),
                             ),
                     ),

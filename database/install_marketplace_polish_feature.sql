@@ -11,6 +11,16 @@ PROMPT ============================================================
 PROMPT BRECHO EXPRESS - MARKETPLACE POLISH FEATURE
 PROMPT ============================================================
 
+UPDATE BEX_PURCHASE_REQUEST
+   SET PUR_EXPIRES_AT = PUR_REQUESTED_AT + INTERVAL '5' MINUTE,
+       PUR_UPDATED_AT = SYSTIMESTAMP
+ WHERE PUR_STATUS = 'PENDING'
+   AND (
+     PUR_EXPIRES_AT IS NULL OR
+     PUR_EXPIRES_AT > PUR_REQUESTED_AT + INTERVAL '5' MINUTE
+   );
+COMMIT;
+
 @@packages/purchase/install_pur_service_pkg.sql
 @@ords/install_brecho_express_v1_product_management_authenticated.sql
 

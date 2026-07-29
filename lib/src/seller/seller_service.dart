@@ -167,8 +167,8 @@ class SellerService {
       district: data['district'] as String,
       city: data['city'] as String,
       state: data['state'] as String,
-      latitude: (data['latitude'] as num).toDouble(),
-      longitude: (data['longitude'] as num).toDouble(),
+      latitude: _doubleValue(data['latitude']),
+      longitude: _doubleValue(data['longitude']),
     );
   }
 
@@ -197,6 +197,17 @@ class SellerService {
         )
         .timeout(const Duration(seconds: 20));
     _decodeObject(response);
+  }
+
+  static double _doubleValue(dynamic value) {
+    if (value is num) return value.toDouble();
+    final parsed = double.tryParse(value?.toString() ?? '');
+    if (parsed == null) {
+      throw const SellerException(
+        'As coordenadas do endereço vieram inválidas.',
+      );
+    }
+    return parsed;
   }
 
   Future<StoreShippingConfig> loadShippingConfig({
@@ -443,6 +454,13 @@ class SellerService {
       final successfulStatus =
           response.statusCode >= 200 && response.statusCode < 300;
       final successfulEnvelope = envelope['success'] == true;
+      final directSuccessfulObject =
+          successfulStatus &&
+          envelope.isNotEmpty &&
+          !envelope.containsKey('success') &&
+          !envelope.containsKey('data') &&
+          !envelope.containsKey('error');
+      if (directSuccessfulObject) return envelope;
       final hasSuccessfulData =
           successfulStatus &&
           envelope.containsKey('data') &&

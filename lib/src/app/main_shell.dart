@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../appearance/app_palette.dart';
@@ -1036,10 +1037,14 @@ class _ProductCard extends StatelessWidget {
                 color: Theme.of(context).colorScheme.primaryContainer,
                 child: product.primaryImageUrl == null
                     ? const Icon(Icons.checkroom_outlined, size: 54)
-                    : Image.network(
-                        product.primaryImageUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) =>
+                    : CachedNetworkImage(
+                        imageUrl: product.primaryImageUrl!,
+                        fit: BoxFit.contain,
+                        memCacheWidth: 720,
+                        placeholder: (_, _) => const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        errorWidget: (_, _, _) =>
                             const Icon(Icons.broken_image_outlined),
                       ),
               ),
