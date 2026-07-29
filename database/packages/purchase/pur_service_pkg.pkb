@@ -24,19 +24,19 @@ CREATE OR REPLACE PACKAGE BODY pur_service_pkg AS
     UPDATE BEX_PURCHASE_REQUEST_ITEM item_data
        SET item_data.PRI_STATUS='REJECTED',
            item_data.PRI_CONFIRMED_QUANTITY=0,
-           item_data.PRI_REJECT_REASON='Prazo de 5 minutos não atendido pelo brechó',
-           item_data.PRI_UPDATED_AT=SYSTIMESTAMP
+           item_data.PRI_REJECT_REASON=UNISTR('Prazo de 5 minutos \00E3o atendido pelo brech\00F3'),
+           item_data.PRI_UPDATED_AT=SYS_EXTRACT_UTC(SYSTIMESTAMP)
      WHERE item_data.PRI_STATUS='PENDING'
        AND EXISTS(
          SELECT 1 FROM BEX_PURCHASE_REQUEST request_data
           WHERE request_data.PUR_ID=item_data.PUR_ID
             AND request_data.PUR_STATUS='PENDING'
-            AND request_data.PUR_EXPIRES_AT<=SYSTIMESTAMP
+            AND request_data.PUR_EXPIRES_AT<=SYS_EXTRACT_UTC(SYSTIMESTAMP)
        );
     UPDATE BEX_PURCHASE_REQUEST
-       SET PUR_STATUS='EXPIRED',PUR_RESPONSE_AT=SYSTIMESTAMP,
-           PUR_UPDATED_AT=SYSTIMESTAMP
-     WHERE PUR_STATUS='PENDING' AND PUR_EXPIRES_AT<=SYSTIMESTAMP;
+       SET PUR_STATUS='EXPIRED',PUR_RESPONSE_AT=SYS_EXTRACT_UTC(SYSTIMESTAMP),
+           PUR_UPDATED_AT=SYS_EXTRACT_UTC(SYSTIMESTAMP)
+     WHERE PUR_STATUS='PENDING' AND PUR_EXPIRES_AT<=SYS_EXTRACT_UTC(SYSTIMESTAMP);
     COMMIT;
   END;
   FUNCTION map_item(x pur_repository_pkg.t_item) RETURN t_item_record IS r t_item_record;
@@ -66,7 +66,7 @@ CREATE OR REPLACE PACKAGE BODY pur_service_pkg AS
     req pur_repository_pkg.t_request;
   BEGIN c:=crt_service_pkg.prepare_checkout(p_cart_public_id,p_actor_id);
     pur_repository_pkg.insert_request(LOWER(RAWTOHEX(SYS_GUID())),c.profile_id,
-      SYSTIMESTAMP + INTERVAL '5' MINUTE,p_actor_id,rid);i:=c.items.FIRST;
+      SYS_EXTRACT_UTC(SYSTIMESTAMP) + INTERVAL '5' MINUTE,p_actor_id,rid);i:=c.items.FIRST;
     WHILE i IS NOT NULL LOOP pur_repository_pkg.insert_item(LOWER(RAWTOHEX(SYS_GUID())),
       rid,c.items(i).product_id,c.items(i).store_id,c.items(i).requested_quantity,
       c.items(i).unit_price,p_actor_id,dummy);i:=c.items.NEXT(i);END LOOP;
@@ -78,8 +78,8 @@ CREATE OR REPLACE PACKAGE BODY pur_service_pkg AS
        WHERE item_data.PUR_ID=rid
     ) LOOP
       enqueue_account(
-        seller.ACC_ID,'SELLER_REQUEST','Nova solicitação! 🔔',
-        'Você tem 5 minutos para confirmar a disponibilidade.',
+        seller.ACC_ID,'SELLER_REQUEST','Nova solicitacao!',
+        'Voce tem 5 minutos para confirmar a disponibilidade.',
         '{"type":"SELLER_REQUEST","requestPublicId":"'
           ||TRIM(req.pur_public_id)||'"}'
       );
@@ -139,10 +139,10 @@ CREATE OR REPLACE PACKAGE BODY pur_service_pkg AS
     r:=pur_repository_pkg.get_request_by_id(r.pur_id);
     IF r.pur_status<>'PENDING' THEN
       enqueue_profile(
-        r.pfl_id,'BUYER_STOCK_RESPONSE','O brechó respondeu! 🛍️',
+        r.pfl_id,'BUYER_STOCK_RESPONSE','O brecho respondeu!',
         CASE WHEN r.pur_status='REJECTED'
-          THEN 'As peças não estão disponíveis desta vez.'
-          ELSE 'As peças foram confirmadas. Continue sua compra.'
+          THEN 'As pecas nao estao disponiveis desta vez.'
+          ELSE 'As pecas foram confirmadas. Continue sua compra.'
         END,
         '{"type":"BUYER_STOCK_RESPONSE","requestPublicId":"'
           ||TRIM(r.pur_public_id)||'","status":"'||r.pur_status||'"}'

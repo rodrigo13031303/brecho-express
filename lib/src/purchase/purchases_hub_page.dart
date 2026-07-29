@@ -228,7 +228,7 @@ class _BuyerRequestCard extends StatelessWidget {
               title: Text(product?.title ?? 'Peça solicitada'),
               subtitle: Text(
                 '${item.quantity} un. • ${_itemStatus(item.status)}'
-                '${item.rejectReason == null ? '' : '\n${item.rejectReason}'}',
+                '${item.rejectReason == null ? '' : '\n${_rejectReason(item.rejectReason!)}'}',
               ),
             );
           }),
@@ -273,6 +273,14 @@ class _BuyerRequestCard extends StatelessWidget {
     'REJECTED' => Icons.cancel_outlined,
     _ => Icons.hourglass_top_outlined,
   };
+
+  static String _rejectReason(String reason) {
+    if (reason == 'SELLER_TIMEOUT' ||
+        reason.startsWith('Prazo de 5 minutos')) {
+      return 'Prazo de 5 minutos não atendido pelo brechó';
+    }
+    return reason;
+  }
 
   static String _itemStatus(String value) => switch (value) {
     'PENDING' => 'aguardando confirmação',

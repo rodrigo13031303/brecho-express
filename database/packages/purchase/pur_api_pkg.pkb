@@ -19,13 +19,13 @@ CREATE OR REPLACE PACKAGE BODY pur_api_pkg AS
     core_json_pkg.put_string(j,'requestPublicId',TRIM(p.request_public_id));
     core_json_pkg.put_string(j,'profilePublicId',TRIM(p.profile_public_id));
     core_json_pkg.put_string(j,'status',p.status);
-    core_json_pkg.put_string(j,'requestedAt',core_json_pkg.format_timestamp(p.requested_at));
+    core_json_pkg.put_string(j,'requestedAt',core_json_pkg.format_timestamp(p.requested_at)||'Z');
     IF p.confirmed_at IS NULL THEN core_json_pkg.put_null(j,'confirmedAt');
-    ELSE core_json_pkg.put_string(j,'confirmedAt',core_json_pkg.format_timestamp(p.confirmed_at));END IF;
+    ELSE core_json_pkg.put_string(j,'confirmedAt',core_json_pkg.format_timestamp(p.confirmed_at)||'Z');END IF;
     IF p.response_at IS NULL THEN core_json_pkg.put_null(j,'responseAt');
-    ELSE core_json_pkg.put_string(j,'responseAt',core_json_pkg.format_timestamp(p.response_at));END IF;
+    ELSE core_json_pkg.put_string(j,'responseAt',core_json_pkg.format_timestamp(p.response_at)||'Z');END IF;
     IF p.expires_at IS NULL THEN core_json_pkg.put_null(j,'expiresAt');
-    ELSE core_json_pkg.put_string(j,'expiresAt',core_json_pkg.format_timestamp(p.expires_at));END IF;
+    ELSE core_json_pkg.put_string(j,'expiresAt',core_json_pkg.format_timestamp(p.expires_at)||'Z');END IF;
     WHILE i IS NOT NULL LOOP core_json_pkg.append_element(a,item_json(p.items(i)));
       i:=p.items.NEXT(i);END LOOP;j.put('items',a);RETURN j;
   END;
