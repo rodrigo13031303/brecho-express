@@ -32,6 +32,7 @@ PROMPT ============================================================
 @@packages/store/install_store_shipping_config_module.sql
 @@install_order_checkout_runtime.sql
 @@packages/purchase/install_order_checkout_module.sql
+@@packages/purchase/install_order_tracking_module.sql
 @@ords/install_brecho_express_v1_seller_authenticated.sql
 @@ords/install_brecho_express_v1_store_onboarding.sql
 @@ords/install_brecho_express_v1_cart_authenticated.sql
@@ -40,6 +41,7 @@ PROMPT ============================================================
 @@ords/install_brecho_express_v1_shipping_authenticated.sql
 @@ords/install_brecho_express_v1_store_shipping_authenticated.sql
 @@ords/install_brecho_express_v1_order_checkout_authenticated.sql
+@@ords/install_brecho_express_v1_order_tracking_authenticated.sql
 @@tests/ords/test_ord_runtime_pkg.sql
 
 DECLARE

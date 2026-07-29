@@ -24,10 +24,11 @@ CREATE OR REPLACE PACKAGE BODY och_api_pkg AS
     shipping JSON_ARRAY_T:=JSON_ARRAY_T();x JSON_OBJECT_T;
     order_public CHAR(32);order_number VARCHAR2(50);status VARCHAR2(20);
     subtotal NUMBER;shipping_amount NUMBER;total NUMBER;created_at TIMESTAMP;
+    payment_expires_at TIMESTAMP;
   BEGIN
     SELECT ORD_PUBLIC_ID,ORD_NUMBER,ORD_STATUS,ORD_SUBTOTAL_AMOUNT,
-      ORD_SHIPPING_AMOUNT,ORD_TOTAL_AMOUNT,ORD_CREATED_AT
-    INTO order_public,order_number,status,subtotal,shipping_amount,total,created_at
+      ORD_SHIPPING_AMOUNT,ORD_TOTAL_AMOUNT,ORD_CREATED_AT,ORD_PAYMENT_EXPIRES_AT
+    INTO order_public,order_number,status,subtotal,shipping_amount,total,created_at,payment_expires_at
     FROM BEX_ORDER WHERE ORD_ID=p_order_id;
     core_json_pkg.put_string(j,'orderPublicId',TRIM(order_public));
     core_json_pkg.put_string(j,'orderNumber',order_number);
@@ -36,6 +37,8 @@ CREATE OR REPLACE PACKAGE BODY och_api_pkg AS
     core_json_pkg.put_number(j,'shippingAmount',shipping_amount);
     core_json_pkg.put_number(j,'totalAmount',total);
     core_json_pkg.put_string(j,'createdAt',core_json_pkg.format_timestamp(created_at));
+    IF payment_expires_at IS NULL THEN core_json_pkg.put_null(j,'paymentExpiresAt');
+    ELSE core_json_pkg.put_string(j,'paymentExpiresAt',core_json_pkg.format_timestamp(payment_expires_at));END IF;
     FOR r IN(
       SELECT oi.ORI_PUBLIC_ID,p.PRD_PUBLIC_ID,s.STR_PUBLIC_ID,p.PRD_TITLE,
         oi.ORI_QUANTITY,oi.ORI_UNIT_PRICE,oi.ORI_TOTAL_PRICE
@@ -130,6 +133,24 @@ CREATE OR REPLACE PACKAGE BODY och_api_pkg AS
     SELECT SUM(PRI_CONFIRMED_QUANTITY*PRI_UNIT_PRICE) INTO subtotal
     FROM BEX_PURCHASE_REQUEST_ITEM
     WHERE PUR_ID=request_id AND NVL(PRI_CONFIRMED_QUANTITY,0)>0;
+    FOR item_row IN(
+      SELECT PRD_ID,PRI_CONFIRMED_QUANTITY quantity_value
+      FROM BEX_PURCHASE_REQUEST_ITEM
+      WHERE PUR_ID=request_id AND NVL(PRI_CONFIRMED_QUANTITY,0)>0
+      ORDER BY PRD_ID
+    ) LOOP
+      DECLARE available NUMBER;reserved NUMBER;locked_id NUMBER;
+      BEGIN
+        SELECT PRD_ID,PRD_QUANTITY INTO locked_id,available
+        FROM BEX_PRODUCT WHERE PRD_ID=item_row.PRD_ID
+          AND PRD_STATUS='ACTIVE' FOR UPDATE;
+        SELECT NVL(SUM(ORV_QUANTITY),0) INTO reserved
+        FROM BEX_ORDER_RESERVATION
+        WHERE PRD_ID=item_row.PRD_ID AND ORV_STATUS='ACTIVE'
+          AND ORV_EXPIRES_AT>SYSTIMESTAMP;
+        IF available-reserved<item_row.quantity_value THEN RAISE e_not_ready;END IF;
+      EXCEPTION WHEN NO_DATA_FOUND THEN RAISE e_not_ready;END;
+    END LOOP;
 
     order_public:=LOWER(RAWTOHEX(SYS_GUID()));
     order_number:='BEX-'||TO_CHAR(SYSTIMESTAMP,'YYYYMMDDHH24MISSFF3')
@@ -137,11 +158,11 @@ CREATE OR REPLACE PACKAGE BODY och_api_pkg AS
     INSERT INTO BEX_ORDER(
       ORD_PUBLIC_ID,PUR_ID,PFL_ID,ORD_NUMBER,ORD_SUBTOTAL_AMOUNT,
       ORD_DISCOUNT_AMOUNT,ORD_SHIPPING_AMOUNT,ORD_TOTAL_AMOUNT,ORD_STATUS,
-      ORD_PAID_AT,ORD_CREATED_BY,ORD_UPDATED_BY
+      ORD_PAID_AT,ORD_PAYMENT_EXPIRES_AT,ORD_CREATED_BY,ORD_UPDATED_BY
     ) VALUES(
       order_public,request_id,profile_id,order_number,subtotal,0,
       shipping_amount,subtotal+shipping_amount,'PAYMENT_PENDING',
-      NULL,p_actor_id,p_actor_id
+      NULL,SYSTIMESTAMP+INTERVAL '30' MINUTE,p_actor_id,p_actor_id
     ) RETURNING ORD_ID INTO order_id;
 
     INSERT INTO BEX_ORDER_ITEM(
@@ -154,6 +175,15 @@ CREATE OR REPLACE PACKAGE BODY och_api_pkg AS
     FROM BEX_PURCHASE_REQUEST_ITEM
     WHERE PUR_ID=request_id AND NVL(PRI_CONFIRMED_QUANTITY,0)>0;
 
+    INSERT INTO BEX_ORDER_RESERVATION(
+      ORV_PUBLIC_ID,ORD_ID,PRD_ID,ORV_QUANTITY,ORV_EXPIRES_AT,
+      ORV_CREATED_BY,ORV_UPDATED_BY
+    )
+    SELECT LOWER(RAWTOHEX(SYS_GUID())),order_id,PRD_ID,
+      PRI_CONFIRMED_QUANTITY,SYSTIMESTAMP+INTERVAL '30' MINUTE,
+      p_actor_id,p_actor_id
+    FROM BEX_PURCHASE_REQUEST_ITEM
+    WHERE PUR_ID=request_id AND NVL(PRI_CONFIRMED_QUANTITY,0)>0;
     INSERT INTO BEX_ORDER_SHIPPING(
       OSH_PUBLIC_ID,ORD_ID,STR_ID,PSO_ID,OSH_METHOD,OSH_PRICE,
       OSH_DISTANCE_KM,OSH_ESTIMATED_MIN_DAYS,OSH_ESTIMATED_MAX_DAYS,

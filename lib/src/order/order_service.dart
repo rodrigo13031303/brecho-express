@@ -13,6 +13,37 @@ class OrderService {
   );
   final http.Client _client;
 
+  Future<List<OrderSnapshot>> listBuyer(BrechoSession session) async {
+    final response = await _send('GET', _baseUri.resolve('orders'), session);
+    return _decodeList(response);
+  }
+
+  Future<List<OrderSnapshot>> listStore({
+    required BrechoSession session,
+    required String storePublicId,
+  }) async {
+    final store = Uri.encodeComponent(storePublicId);
+    final response = await _send(
+      'GET',
+      _baseUri.resolve('stores/$store/orders'),
+      session,
+    );
+    return _decodeList(response);
+  }
+
+  Future<OrderSnapshot> cancel({
+    required BrechoSession session,
+    required String orderPublicId,
+  }) async {
+    final order = Uri.encodeComponent(orderPublicId);
+    final response = await _send(
+      'POST',
+      _baseUri.resolve('orders/$order/actions/cancel'),
+      session,
+    );
+    return OrderSnapshot.fromJson(_decodeObject(response));
+  }
+
   Future<OrderSnapshot> create({
     required BrechoSession session,
     required String requestPublicId,
@@ -64,7 +95,26 @@ class OrderService {
     }
   }
 
+  List<OrderSnapshot> _decodeList(http.Response response) {
+    final data = _decodeData(response);
+    if (data is! List) {
+      throw const OrderException('A lista de pedidos veio inválida.');
+    }
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(OrderSnapshot.fromJson)
+        .toList(growable: false);
+  }
+
   Map<String, dynamic> _decodeObject(http.Response response) {
+    final data = _decodeData(response);
+    if (data is! Map<String, dynamic>) {
+      throw const OrderException('A resposta do pedido veio inválida.');
+    }
+    return data;
+  }
+
+  dynamic _decodeData(http.Response response) {
     try {
       final envelope = jsonDecode(response.body);
       if (envelope is! Map<String, dynamic>) {
@@ -79,11 +129,7 @@ class OrderService {
             : null;
         throw OrderException(message ?? 'Não foi possível fechar o pedido.');
       }
-      final data = envelope['data'];
-      if (data is! Map<String, dynamic>) {
-        throw const OrderException('A resposta do pedido veio inválida.');
-      }
-      return data;
+      return envelope['data'];
     } on FormatException {
       throw const OrderException('A resposta do pedido veio inválida.');
     }
@@ -101,6 +147,7 @@ class OrderSnapshot {
     required this.shipping,
     required this.total,
     required this.createdAt,
+    required this.paymentExpiresAt,
     required this.items,
     required this.shipments,
   });
@@ -113,6 +160,9 @@ class OrderSnapshot {
     shipping: (json['shippingAmount'] as num).toDouble(),
     total: (json['totalAmount'] as num).toDouble(),
     createdAt: DateTime.parse(json['createdAt'] as String),
+    paymentExpiresAt: json['paymentExpiresAt'] == null
+        ? null
+        : DateTime.parse(json['paymentExpiresAt'] as String),
     items: (json['items'] as List? ?? const [])
         .whereType<Map<String, dynamic>>()
         .map(OrderItem.fromJson)
@@ -130,6 +180,7 @@ class OrderSnapshot {
   final double shipping;
   final double total;
   final DateTime createdAt;
+  final DateTime? paymentExpiresAt;
   final List<OrderItem> items;
   final List<OrderShipping> shipments;
 }

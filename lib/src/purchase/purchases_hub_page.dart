@@ -5,6 +5,7 @@ import '../branding/brecho_mark.dart';
 import '../cart/cart_service.dart';
 import '../catalog/catalog_service.dart';
 import '../delivery/delivery_address_page.dart';
+import '../order/orders_page.dart';
 import 'purchase_service.dart';
 
 class PurchasesHubPage extends StatefulWidget {
@@ -47,6 +48,11 @@ class _PurchasesHubPageState extends State<PurchasesHubPage> {
                 icon: Icon(Icons.inventory_2_outlined),
                 label: Text('Solicitações'),
               ),
+              ButtonSegment(
+                value: 2,
+                icon: Icon(Icons.receipt_long_outlined),
+                label: Text('Pedidos'),
+              ),
             ],
             selected: {_selected},
             onSelectionChanged: (value) =>
@@ -64,6 +70,7 @@ class _PurchasesHubPageState extends State<PurchasesHubPage> {
               catalog: widget.catalog,
               refreshToken: widget.refreshToken,
             ),
+            OrdersPage(session: widget.session),
           ],
         ),
       ),

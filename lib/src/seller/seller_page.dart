@@ -6,11 +6,20 @@ import '../auth/brecho_session.dart';
 import '../branding/brecho_mark.dart';
 import '../catalog/catalog_service.dart';
 import '../location/store_location_service.dart';
+import '../order/orders_page.dart';
 import 'seller_requests_page.dart';
 import 'seller_service.dart';
 import 'seller_shipping_page.dart';
 
-enum _SellerSection { hub, store, shipping, products, requests, newProduct }
+enum _SellerSection {
+  hub,
+  store,
+  shipping,
+  products,
+  requests,
+  orders,
+  newProduct,
+}
 
 class SellerPage extends StatefulWidget {
   const SellerPage({
@@ -712,6 +721,18 @@ class _SellerPageState extends State<SellerPage> {
       ),
       Card(
         child: ListTile(
+          leading: const Icon(Icons.receipt_long_outlined),
+          title: const Text('Pedidos recebidos 🛍️'),
+          subtitle: const Text('Acompanhe pagamentos e preparação'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => setState(() {
+            _section = _SellerSection.orders;
+            _success = null;
+          }),
+        ),
+      ),
+      Card(
+        child: ListTile(
           leading: const Icon(Icons.mark_email_unread_outlined),
           title: const Text('Solicitações 📦'),
           subtitle: const Text('Confirme as peças pedidas pelos compradores'),
@@ -875,6 +896,13 @@ class _SellerPageState extends State<SellerPage> {
       );
     }
     if (_section == _SellerSection.products) return _buildProducts(store);
+    if (_section == _SellerSection.orders) {
+      return OrdersPage(
+        session: widget.session,
+        store: store,
+        onBack: () => setState(() => _section = _SellerSection.hub),
+      );
+    }
     if (_section == _SellerSection.requests) {
       return SellerRequestsPage(
         session: widget.session,
