@@ -12,6 +12,8 @@ class CartPage extends StatelessWidget {
     required this.onRetry,
     required this.onQuantityChanged,
     required this.onRemove,
+    required this.onCheckout,
+    required this.checkoutBusy,
     super.key,
   });
 
@@ -21,6 +23,62 @@ class CartPage extends StatelessWidget {
   final VoidCallback onRetry;
   final Future<void> Function(CartItem item, int quantity) onQuantityChanged;
   final Future<void> Function(CartItem item) onRemove;
+  final Future<PurchaseRequest> Function() onCheckout;
+  final bool checkoutBusy;
+
+  Future<void> _confirmCheckout(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.inventory_2_outlined),
+        title: const Text('Solicitar estas peças?'),
+        content: const Text(
+          'Vamos conferir estoque e preço e enviar a solicitação aos brechós. '
+          'Você só informará endereço e pagamento após a confirmação.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Agora não'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Sim, solicitar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    try {
+      final request = await onCheckout();
+      if (!context.mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          icon: const Icon(Icons.mark_email_read_outlined),
+          title: const Text('Solicitação enviada! 🎉'),
+          content: Text(
+            '${request.items.length} peça${request.items.length == 1 ? '' : 's'} '
+            'agora aguardam a confirmação dos brechós.',
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Entendi'),
+            ),
+          ],
+        ),
+      );
+    } on CartException catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.message),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -55,8 +113,7 @@ class CartPage extends StatelessWidget {
           builder: (context, catalogSnapshot) {
             final products = {
               for (final product
-                  in catalogSnapshot.data?.products ??
-                      const <CatalogProduct>[])
+                  in catalogSnapshot.data?.products ?? const <CatalogProduct>[])
                 product.publicId: product,
             };
             final groups = <String, List<CartItem>>{};
@@ -76,7 +133,8 @@ class CartPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 22),
                 ...groups.entries.map((entry) {
-                  final firstProduct = products[entry.value.first.productPublicId];
+                  final firstProduct =
+                      products[entry.value.first.productPublicId];
                   return _StoreGroup(
                     storeName: firstProduct?.storeName ?? 'Brechó',
                     items: entry.value,
@@ -113,9 +171,22 @@ class CartPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 16),
                         FilledButton.icon(
-                          onPressed: null,
-                          icon: const Icon(Icons.lock_outline),
-                          label: const Text('Checkout em breve'),
+                          onPressed: checkoutBusy
+                              ? null
+                              : () => _confirmCheckout(context),
+                          icon: checkoutBusy
+                              ? const SizedBox.square(
+                                  dimension: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.verified_outlined),
+                          label: Text(
+                            checkoutBusy
+                                ? 'Revalidando peças…'
+                                : 'Solicitar disponibilidade',
+                          ),
                         ),
                       ],
                     ),

@@ -58,6 +58,21 @@ class CartService {
     return CartSnapshot.fromJson(_decodeObject(response));
   }
 
+  Future<PurchaseRequest> checkout({
+    required BrechoSession session,
+    required String cartPublicId,
+  }) async {
+    final cart = Uri.encodeComponent(cartPublicId);
+    final response = await _request(
+      () => _client.post(
+        _baseUri.resolve('cart/$cart/checkout'),
+        headers: _headers(session),
+        body: '{}',
+      ),
+    );
+    return PurchaseRequest.fromJson(_decodeObject(response));
+  }
+
   Future<CartSnapshot> remove({
     required BrechoSession session,
     required String cartPublicId,
@@ -177,6 +192,61 @@ class CartItem {
   final String storePublicId;
   final int quantity;
   final double unitPrice;
+}
+
+class PurchaseRequest {
+  const PurchaseRequest({
+    required this.publicId,
+    required this.status,
+    required this.requestedAt,
+    required this.expiresAt,
+    required this.items,
+  });
+
+  factory PurchaseRequest.fromJson(Map<String, dynamic> json) =>
+      PurchaseRequest(
+        publicId: json['requestPublicId'] as String,
+        status: json['status'] as String,
+        requestedAt: DateTime.parse(json['requestedAt'] as String),
+        expiresAt: json['expiresAt'] == null
+            ? null
+            : DateTime.parse(json['expiresAt'] as String),
+        items: (json['items'] as List? ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .map(PurchaseRequestItem.fromJson)
+            .toList(growable: false),
+      );
+
+  final String publicId;
+  final String status;
+  final DateTime requestedAt;
+  final DateTime? expiresAt;
+  final List<PurchaseRequestItem> items;
+}
+
+class PurchaseRequestItem {
+  const PurchaseRequestItem({
+    required this.productPublicId,
+    required this.storePublicId,
+    required this.quantity,
+    required this.unitPrice,
+    required this.status,
+  });
+
+  factory PurchaseRequestItem.fromJson(Map<String, dynamic> json) =>
+      PurchaseRequestItem(
+        productPublicId: json['productPublicId'] as String,
+        storePublicId: json['storePublicId'] as String,
+        quantity: (json['requestedQuantity'] as num).toInt(),
+        unitPrice: (json['unitPrice'] as num).toDouble(),
+        status: json['status'] as String,
+      );
+
+  final String productPublicId;
+  final String storePublicId;
+  final int quantity;
+  final double unitPrice;
+  final String status;
 }
 
 class CartException implements Exception {

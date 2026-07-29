@@ -93,4 +93,33 @@ void main() {
     );
     service.close();
   });
+
+  test('envia o carrinho para validação dos brechós', () async {
+    final service = CartService(
+      client: MockClient((request) async {
+        expect(request.method, 'POST');
+        expect(request.url.path, endsWith('/cart/cart-1/checkout'));
+        return http.Response(
+          '{"success":true,"data":{"requestPublicId":"request-1",'
+          '"status":"PENDING","requestedAt":"2026-07-29T12:00:00Z",'
+          '"expiresAt":"2026-07-31T12:00:00Z","items":['
+          '{"itemPublicId":"request-item-1","productPublicId":"product-1",'
+          '"storePublicId":"store-1","requestedQuantity":1,'
+          '"confirmedQuantity":null,"unitPrice":49.9,'
+          '"rejectReason":null,"status":"PENDING"}]}}',
+          201,
+        );
+      }),
+    );
+
+    final request = await service.checkout(
+      session: session,
+      cartPublicId: 'cart-1',
+    );
+
+    expect(request.publicId, 'request-1');
+    expect(request.status, 'PENDING');
+    expect(request.items.single.productPublicId, 'product-1');
+    service.close();
+  });
 }

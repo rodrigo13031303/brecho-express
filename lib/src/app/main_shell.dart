@@ -41,6 +41,7 @@ class _MainShellState extends State<MainShell> {
   late Future<CartSnapshot> _cart;
   CartSnapshot? _cartValue;
   String? _busyCartItemId;
+  bool _checkingOut = false;
   bool _distanceEnabled = false;
   bool _enablingDistance = false;
   GeoPoint? _viewerLocation;
@@ -95,6 +96,26 @@ class _MainShellState extends State<MainShell> {
     });
   }
 
+  Future<PurchaseRequest> _checkout() async {
+    final current = await _cart;
+    setState(() => _checkingOut = true);
+    try {
+      final request = await _cartService.checkout(
+        session: widget.session,
+        cartPublicId: current.publicId,
+      );
+      if (mounted) {
+        setState(() {
+          _cartValue = null;
+          _cart = _loadCart();
+        });
+      }
+      return request;
+    } finally {
+      if (mounted) setState(() => _checkingOut = false);
+    }
+  }
+
   Future<void> _changeCartQuantity(CartItem item, int quantity) async {
     final current = await _cart;
     setState(() => _busyCartItemId = item.publicId);
@@ -143,6 +164,7 @@ class _MainShellState extends State<MainShell> {
       SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
   }
+
   void _retryCatalog() {
     final point = _viewerLocation;
     setState(
@@ -210,6 +232,8 @@ class _MainShellState extends State<MainShell> {
         onRetry: _retryCart,
         onQuantityChanged: _changeCartQuantity,
         onRemove: _removeCartItem,
+        onCheckout: _checkout,
+        checkoutBusy: _checkingOut,
       ),
       ProfilePage(
         session: widget.session,
@@ -273,6 +297,7 @@ class _CartNavigationIcon extends StatelessWidget {
     child: Icon(selected ? Icons.shopping_cart : Icons.shopping_cart_outlined),
   );
 }
+
 class HomePage extends StatelessWidget {
   const HomePage({
     required this.catalog,
@@ -755,7 +780,10 @@ class _CatalogContent extends StatelessWidget {
         final visible = preview ? products.take(4) : products;
         return Column(
           children: visible
-              .map((product) => _ProductCard(product: product, onAddToCart: onAddToCart))
+              .map(
+                (product) =>
+                    _ProductCard(product: product, onAddToCart: onAddToCart),
+              )
               .toList(),
         );
       },
@@ -810,10 +838,8 @@ class _ProductCard extends StatelessWidget {
         trailing: const Icon(Icons.chevron_right),
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute<void>(
-            builder: (context) => ProductDetailPage(
-              product: product,
-              onAddToCart: onAddToCart,
-            ),
+            builder: (context) =>
+                ProductDetailPage(product: product, onAddToCart: onAddToCart),
           ),
         ),
       ),
