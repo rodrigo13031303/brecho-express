@@ -17,7 +17,7 @@ CREATE OR REPLACE PACKAGE pdl_service_pkg AS
     district VARCHAR2(100),
     city VARCHAR2(100),
     state_code CHAR(2),
-    country_code CHAR(2),
+    country_code CHAR(2),latitude NUMBER,longitude NUMBER,
     status VARCHAR2(30)
   );
   e_not_found EXCEPTION;
@@ -55,7 +55,8 @@ CREATE OR REPLACE PACKAGE BODY pdl_service_pkg AS
   BEGIN
     SELECT d.PDL_PUBLIC_ID,q.PUR_PUBLIC_ID,a.ADR_PUBLIC_ID,d.PDL_LABEL,
       d.PDL_ZIP_CODE,d.PDL_STREET,d.PDL_NUMBER,d.PDL_COMPLEMENT,
-      d.PDL_DISTRICT,d.PDL_CITY,d.PDL_STATE,d.PDL_COUNTRY,d.PDL_STATUS
+      d.PDL_DISTRICT,d.PDL_CITY,d.PDL_STATE,d.PDL_COUNTRY,
+      d.PDL_LATITUDE,d.PDL_LONGITUDE,d.PDL_STATUS
     INTO r
     FROM BEX_PURCHASE_DELIVERY d
     JOIN BEX_PURCHASE_REQUEST q ON q.PUR_ID=d.PUR_ID
@@ -101,19 +102,26 @@ CREATE OR REPLACE PACKAGE BODY pdl_service_pkg AS
       d.PDL_NUMBER=a.adr_number,d.PDL_COMPLEMENT=a.adr_complement,
       d.PDL_DISTRICT=a.adr_district,d.PDL_CITY=a.adr_city,
       d.PDL_STATE=a.adr_state,d.PDL_COUNTRY=a.adr_country,
+      d.PDL_LATITUDE=a.adr_latitude,d.PDL_LONGITUDE=a.adr_longitude,
       d.PDL_STATUS='ADDRESS_SELECTED',d.PDL_UPDATED_AT=SYSTIMESTAMP,
       d.PDL_UPDATED_BY=p_actor_id
     WHEN NOT MATCHED THEN INSERT(
       PDL_PUBLIC_ID,PUR_ID,ADR_ID,PDL_LABEL,PDL_ZIP_CODE,PDL_STREET,
       PDL_NUMBER,PDL_COMPLEMENT,PDL_DISTRICT,PDL_CITY,PDL_STATE,
-      PDL_COUNTRY,PDL_CREATED_BY,PDL_UPDATED_BY
+      PDL_COUNTRY,PDL_LATITUDE,PDL_LONGITUDE,PDL_CREATED_BY,PDL_UPDATED_BY
     ) VALUES(
       LOWER(RAWTOHEX(SYS_GUID())),q.pur_id,a.adr_id,a.adr_label,
       a.adr_zip_code,a.adr_street,a.adr_number,a.adr_complement,
       a.adr_district,a.adr_city,a.adr_state,a.adr_country,
-      p_actor_id,p_actor_id
+      a.adr_latitude,a.adr_longitude,p_actor_id,p_actor_id
     );
     SELECT PDL_ID INTO id FROM BEX_PURCHASE_DELIVERY WHERE PUR_ID=q.pur_id;
+    BEGIN
+      EXECUTE IMMEDIATE
+        'UPDATE BEX_PURCHASE_SHIPPING_OPTION SET PSO_STATUS=''EXPIRED'', '||
+        'PSO_IS_SELECTED=0,PSO_UPDATED_AT=SYSTIMESTAMP WHERE PUR_ID=:1'
+        USING q.pur_id;
+    EXCEPTION WHEN OTHERS THEN NULL;END;
     RETURN map_row(id);
   END;
 END pdl_service_pkg;
@@ -150,6 +158,8 @@ CREATE OR REPLACE PACKAGE BODY pdl_api_pkg AS
     core_json_pkg.put_string(j,'city',p.city);
     core_json_pkg.put_string(j,'state',p.state_code);
     core_json_pkg.put_string(j,'country',p.country_code);
+    IF p.latitude IS NULL THEN core_json_pkg.put_null(j,'latitude');ELSE core_json_pkg.put_number(j,'latitude',p.latitude);END IF;
+    IF p.longitude IS NULL THEN core_json_pkg.put_null(j,'longitude');ELSE core_json_pkg.put_number(j,'longitude',p.longitude);END IF;
     core_json_pkg.put_string(j,'status',p.status);
     RETURN j;
   END;

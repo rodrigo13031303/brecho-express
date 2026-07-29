@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../auth/brecho_session.dart';
 import '../location/store_location_service.dart';
+import '../shipping/shipping_options_page.dart';
 import 'delivery_service.dart';
 
 class DeliveryAddressPage extends StatefulWidget {
@@ -98,33 +99,43 @@ class _DeliveryAddressPageState extends State<DeliveryAddressPage> {
   }
 
   Future<void> _saveAddress() async {
-    final draft = AddressDraft(
-      label: _label.text,
-      zipCode: _zip.text,
+    final locationDraft = StoreLocationDraft(
+      postalCode: _zip.text,
       street: _street.text,
       number: _number.text,
       complement: _complement.text,
       district: _district.text,
       city: _city.text,
       state: _state.text,
-      isDefault: true,
     );
-    if (draft.zipCode.replaceAll(RegExp(r'[^0-9]'), '').length != 8 ||
-        draft.street.trim().isEmpty ||
-        draft.number.trim().isEmpty ||
-        draft.district.trim().isEmpty ||
-        draft.city.trim().isEmpty ||
-        draft.state.trim().length != 2) {
-      _message('Complete CEP, rua, número, bairro, cidade e UF.');
+    try {
+      locationDraft.validate();
+    } on StoreLocationException catch (error) {
+      _message(error.message);
       return;
     }
     setState(() => _busy = true);
     try {
+      final located = await _location.ensureCoordinates(locationDraft);
       final saved = await _service.createAddress(
         session: widget.session,
-        draft: draft,
+        draft: AddressDraft(
+          label: _label.text,
+          zipCode: located.postalCode,
+          street: located.street,
+          number: located.number,
+          complement: located.complement,
+          district: located.district,
+          city: located.city,
+          state: located.state,
+          latitude: located.latitude,
+          longitude: located.longitude,
+          isDefault: true,
+        ),
       );
       await _select(saved);
+    } on StoreLocationException catch (error) {
+      _message(error.message);
     } on DeliveryException catch (error) {
       _message(error.message);
     } finally {
@@ -244,17 +255,37 @@ class _DeliveryAddressPageState extends State<DeliveryAddressPage> {
   Widget _confirmed(PurchaseDelivery delivery) => Card(
     color: Theme.of(context).colorScheme.primaryContainer,
     margin: const EdgeInsets.only(bottom: 22),
-    child: ListTile(
-      leading: const Icon(Icons.local_shipping_outlined),
-      title: const Text(
-        'Entrega confirmada ✅',
-        style: TextStyle(fontWeight: FontWeight.w800),
+    child: Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.local_shipping_outlined),
+            title: const Text(
+              'Entrega confirmada ✅',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
+            subtitle: Text('${delivery.line1}\n${delivery.line2}'),
+            isThreeLine: true,
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: FilledButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => ShippingOptionsPage(
+                    session: widget.session,
+                    requestPublicId: widget.requestPublicId,
+                  ),
+                ),
+              ),
+              icon: const Icon(Icons.calculate_outlined),
+              label: const Text('Calcular e escolher o frete'),
+            ),
+          ),
+        ],
       ),
-      subtitle: Text(
-        '${delivery.line1}\n${delivery.line2}\n'
-        'Próxima etapa: opções e valor do frete.',
-      ),
-      isThreeLine: true,
     ),
   );
 

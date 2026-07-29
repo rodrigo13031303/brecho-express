@@ -51,6 +51,7 @@ void main() {
           final body = jsonDecode(request.body) as Map<String, dynamic>;
           expect(body['city'], 'São Paulo');
           expect(body['country'], 'BR');
+          expect(body['latitude'], -23.5505);
           return http.Response('{"success":true,"data":$addressJson}', 201);
         }
         expect(request.method, 'PUT');
@@ -83,6 +84,8 @@ void main() {
         district: 'Sé',
         city: 'São Paulo',
         state: 'sp',
+        latitude: -23.5505,
+        longitude: -46.6333,
       ),
     );
     final delivery = await service.selectAddress(

@@ -139,6 +139,8 @@ class AddressDraft {
     required this.district,
     required this.city,
     required this.state,
+    this.latitude,
+    this.longitude,
     this.isDefault = false,
   });
 
@@ -150,6 +152,8 @@ class AddressDraft {
   final String district;
   final String city;
   final String state;
+  final double? latitude;
+  final double? longitude;
   final bool isDefault;
 
   Map<String, dynamic> toJson() => {
@@ -162,6 +166,8 @@ class AddressDraft {
     'city': city.trim(),
     'state': state.trim().toUpperCase(),
     'country': 'BR',
+    if (latitude != null) 'latitude': latitude,
+    if (longitude != null) 'longitude': longitude,
     'isDefault': isDefault,
   };
 }
@@ -177,6 +183,8 @@ class SavedAddress {
     required this.district,
     required this.city,
     required this.state,
+    required this.latitude,
+    required this.longitude,
     required this.isDefault,
     required this.status,
   });
@@ -191,6 +199,8 @@ class SavedAddress {
     district: json['district'] as String,
     city: json['city'] as String,
     state: json['state'] as String,
+    latitude: (json['latitude'] as num?)?.toDouble(),
+    longitude: (json['longitude'] as num?)?.toDouble(),
     isDefault: json['isDefault'] as bool? ?? false,
     status: json['status'] as String,
   );
@@ -204,6 +214,8 @@ class SavedAddress {
   final String district;
   final String city;
   final String state;
+  final double? latitude;
+  final double? longitude;
   final bool isDefault;
   final String status;
 
