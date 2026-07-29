@@ -4,7 +4,9 @@ CREATE OR REPLACE PACKAGE BODY adr_api_pkg AS
   BEGIN core_json_pkg.put_string(j,'addressPublicId',TRIM(p.adr_public_id));
     IF p.adr_label IS NULL THEN core_json_pkg.put_null(j,'label');ELSE core_json_pkg.put_string(j,'label',p.adr_label);END IF;
     core_json_pkg.put_string(j,'zipCode',p.adr_zip_code);core_json_pkg.put_string(j,'street',p.adr_street);
-    core_json_pkg.put_string(j,'number',p.adr_number);core_json_pkg.put_string(j,'district',p.adr_district);
+    core_json_pkg.put_string(j,'number',p.adr_number);
+    IF p.adr_complement IS NULL THEN core_json_pkg.put_null(j,'complement');ELSE core_json_pkg.put_string(j,'complement',p.adr_complement);END IF;
+    core_json_pkg.put_string(j,'district',p.adr_district);
     core_json_pkg.put_string(j,'city',p.adr_city);core_json_pkg.put_string(j,'state',p.adr_state);
     core_json_pkg.put_string(j,'country',p.adr_country);core_json_pkg.put_boolean(j,'isDefault',p.adr_is_default=1);
     core_json_pkg.put_string(j,'status',p.adr_status);RETURN j;END;

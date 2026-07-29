@@ -4,6 +4,7 @@ import '../auth/brecho_session.dart';
 import '../branding/brecho_mark.dart';
 import '../cart/cart_service.dart';
 import '../catalog/catalog_service.dart';
+import '../delivery/delivery_address_page.dart';
 import 'purchase_service.dart';
 
 class PurchasesHubPage extends StatefulWidget {
@@ -161,8 +162,11 @@ class _BuyerRequestsPageState extends State<_BuyerRequestsPage> {
               ),
               const SizedBox(height: 18),
               ...requests.map(
-                (request) =>
-                    _BuyerRequestCard(request: request, products: products),
+                (request) => _BuyerRequestCard(
+                  request: request,
+                  products: products,
+                  session: widget.session,
+                ),
               ),
             ],
           );
@@ -173,10 +177,15 @@ class _BuyerRequestsPageState extends State<_BuyerRequestsPage> {
 }
 
 class _BuyerRequestCard extends StatelessWidget {
-  const _BuyerRequestCard({required this.request, required this.products});
+  const _BuyerRequestCard({
+    required this.request,
+    required this.products,
+    required this.session,
+  });
 
   final PurchaseRequest request;
   final Map<String, CatalogProduct> products;
+  final BrechoSession session;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -220,9 +229,16 @@ class _BuyerRequestCard extends StatelessWidget {
               request.status == 'PARTIALLY_APPROVED') ...[
             const SizedBox(height: 8),
             FilledButton.icon(
-              onPressed: null,
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => DeliveryAddressPage(
+                    session: session,
+                    requestPublicId: request.publicId,
+                  ),
+                ),
+              ),
               icon: const Icon(Icons.local_shipping_outlined),
-              label: const Text('Informar entrega — próxima etapa'),
+              label: const Text('Informar endereço de entrega'),
             ),
           ],
         ],
