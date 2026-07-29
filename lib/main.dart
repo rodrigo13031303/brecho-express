@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import 'src/appearance/app_palette.dart';
 import 'src/appearance/appearance_store.dart';
 import 'src/auth/google_login_page.dart';
+import 'src/notification/push_notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await PushNotificationService.initializeFirebase();
   final appearanceStore = AppearanceStore();
   final initialPalette = await appearanceStore.restore();
   runApp(

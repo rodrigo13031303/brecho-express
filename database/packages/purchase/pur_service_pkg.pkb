@@ -1,5 +1,24 @@
 CREATE OR REPLACE PACKAGE BODY pur_service_pkg AS
-  PROCEDURE expire_pending IS
+  PROCEDURE enqueue_account(
+    p_account_id NUMBER,p_type VARCHAR2,p_title VARCHAR2,
+    p_body VARCHAR2,p_data VARCHAR2
+  ) IS
+  BEGIN
+    EXECUTE IMMEDIATE
+      'BEGIN BEX_PUSH_PKG.ENQUEUE_ACCOUNT(:1,:2,:3,:4,:5); END;'
+      USING p_account_id,p_type,p_title,p_body,p_data;
+  EXCEPTION WHEN OTHERS THEN NULL;
+  END;
+  PROCEDURE enqueue_profile(
+    p_profile_id NUMBER,p_type VARCHAR2,p_title VARCHAR2,
+    p_body VARCHAR2,p_data VARCHAR2
+  ) IS
+  BEGIN
+    EXECUTE IMMEDIATE
+      'BEGIN BEX_PUSH_PKG.ENQUEUE_PROFILE(:1,:2,:3,:4,:5); END;'
+      USING p_profile_id,p_type,p_title,p_body,p_data;
+  EXCEPTION WHEN OTHERS THEN NULL;
+  END;  PROCEDURE expire_pending IS
     PRAGMA AUTONOMOUS_TRANSACTION;
   BEGIN
     UPDATE BEX_PURCHASE_REQUEST_ITEM item_data
@@ -44,14 +63,29 @@ CREATE OR REPLACE PACKAGE BODY pur_service_pkg AS
     EXCEPTION WHEN NO_DATA_FOUND THEN RAISE e_request_not_found;END;RETURN r;END;
   FUNCTION checkout(p_cart_public_id VARCHAR2,p_actor_id NUMBER) RETURN t_record IS
     c crt_service_pkg.t_checkout;rid NUMBER;i PLS_INTEGER;dummy NUMBER;
+    req pur_repository_pkg.t_request;
   BEGIN c:=crt_service_pkg.prepare_checkout(p_cart_public_id,p_actor_id);
     pur_repository_pkg.insert_request(LOWER(RAWTOHEX(SYS_GUID())),c.profile_id,
       SYSTIMESTAMP + INTERVAL '5' MINUTE,p_actor_id,rid);i:=c.items.FIRST;
     WHILE i IS NOT NULL LOOP pur_repository_pkg.insert_item(LOWER(RAWTOHEX(SYS_GUID())),
       rid,c.items(i).product_id,c.items(i).store_id,c.items(i).requested_quantity,
       c.items(i).unit_price,p_actor_id,dummy);i:=c.items.NEXT(i);END LOOP;
+    req:=pur_repository_pkg.get_request_by_id(rid);
+    FOR seller IN(
+      SELECT DISTINCT store_data.ACC_ID
+        FROM BEX_PURCHASE_REQUEST_ITEM item_data
+        JOIN BEX_STORE store_data ON store_data.STR_ID=item_data.STR_ID
+       WHERE item_data.PUR_ID=rid
+    ) LOOP
+      enqueue_account(
+        seller.ACC_ID,'SELLER_REQUEST','Nova solicitação! 🔔',
+        'Você tem 5 minutos para confirmar a disponibilidade.',
+        '{"type":"SELLER_REQUEST","requestPublicId":"'
+          ||TRIM(req.pur_public_id)||'"}'
+      );
+    END LOOP;
     crt_service_pkg.complete_checkout(c.cart_id,p_actor_id);
-    RETURN map_request(pur_repository_pkg.get_request_by_id(rid));END;
+    RETURN map_request(req);END;
   FUNCTION get_request(p_public_id VARCHAR2,p_actor_id NUMBER) RETURN t_record IS
     r pur_repository_pkg.t_request;p BEX_PROFILE%ROWTYPE;
   BEGIN expire_pending; r:=internal(p_public_id);BEGIN p:=pfl_service_pkg.get_by_account_id(p_actor_id);
@@ -101,7 +135,20 @@ CREATE OR REPLACE PACKAGE BODY pur_service_pkg AS
     BEGIN pur_rule_pkg.validate_response(x.pri_requested_quantity,p_confirmed_quantity,
       p_reject_reason,s,reason);EXCEPTION WHEN pur_rule_pkg.e_invalid_response THEN RAISE e_invalid_response;END;
     pur_repository_pkg.respond_item(x.pri_id,p_confirmed_quantity,reason,s,p_actor_id);
-    recalc(r.pur_id,p_actor_id);RETURN map_request(pur_repository_pkg.get_request_by_id(r.pur_id));END;
+    recalc(r.pur_id,p_actor_id);
+    r:=pur_repository_pkg.get_request_by_id(r.pur_id);
+    IF r.pur_status<>'PENDING' THEN
+      enqueue_profile(
+        r.pfl_id,'BUYER_STOCK_RESPONSE','O brechó respondeu! 🛍️',
+        CASE WHEN r.pur_status='REJECTED'
+          THEN 'As peças não estão disponíveis desta vez.'
+          ELSE 'As peças foram confirmadas. Continue sua compra.'
+        END,
+        '{"type":"BUYER_STOCK_RESPONSE","requestPublicId":"'
+          ||TRIM(r.pur_public_id)||'","status":"'||r.pur_status||'"}'
+      );
+    END IF;
+    RETURN map_request(r);END;
   FUNCTION get_order_source(p_request_public_id VARCHAR2) RETURN t_order_source IS
     p pur_repository_pkg.t_request;xs pur_repository_pkg.t_items;r t_order_source;i PLS_INTEGER;
   BEGIN p:=internal(p_request_public_id);

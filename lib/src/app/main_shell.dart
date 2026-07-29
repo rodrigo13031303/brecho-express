@@ -10,6 +10,7 @@ import '../catalog/catalog_service.dart';
 import '../catalog/product_detail_page.dart';
 import '../location/buyer_location_store.dart';
 import '../location/store_location_service.dart';
+import '../notification/push_notification_service.dart';
 import '../purchase/purchases_hub_page.dart';
 import '../seller/seller_page.dart';
 
@@ -41,6 +42,7 @@ class _MainShellState extends State<MainShell> {
   late final CartService _cartService;
   late final StoreLocationService _locationService;
   late final BuyerLocationStore _buyerLocationStore;
+  late final PushNotificationService _pushNotificationService;
   late Future<CatalogSnapshot> _catalog;
   late Future<CartSnapshot> _cart;
   CartSnapshot? _cartValue;
@@ -59,17 +61,28 @@ class _MainShellState extends State<MainShell> {
     _cartService = CartService();
     _locationService = StoreLocationService();
     _buyerLocationStore = BuyerLocationStore();
+    _pushNotificationService = PushNotificationService();
     _catalog = widget.initialCatalog ?? _catalogService.load();
     _cart = _loadCart();
     _restoreBuyerLocation();
+    _activatePushNotifications();
   }
 
   @override
   void dispose() {
     _catalogService.close();
     _cartService.close();
+    _pushNotificationService.close();
     _locationService.close();
     super.dispose();
+  }
+
+  Future<void> _activatePushNotifications() async {
+    try {
+      await _pushNotificationService.activate(widget.session);
+    } catch (_) {
+      // O app continua funcional e tenta registrar novamente no próximo login.
+    }
   }
 
   Future<CartSnapshot> _loadCart() async {
@@ -118,6 +131,7 @@ class _MainShellState extends State<MainShell> {
           _purchaseRefresh++;
           _cart = _loadCart();
           _restoreBuyerLocation();
+          _activatePushNotifications();
         });
       }
       return request;
