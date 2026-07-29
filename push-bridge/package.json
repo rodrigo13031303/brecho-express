@@ -1,0 +1,16 @@
+{
+  "name": "brecho-express-push-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/bridge.mjs",
+    "check": "node --check src/bridge.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "14.2.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

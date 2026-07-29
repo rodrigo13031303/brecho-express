@@ -79,6 +79,9 @@ Thumbs.db
 # Sensitive files (auto-detected)
 build
 client_secret_*.json
+firebase-service-account*.json
+*-firebase-adminsdk-*.json
+service-account*.json
 *.p8
 *.jks
 *.keystore
