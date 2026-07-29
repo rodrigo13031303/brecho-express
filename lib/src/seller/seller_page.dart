@@ -8,8 +8,9 @@ import '../catalog/catalog_service.dart';
 import '../location/store_location_service.dart';
 import 'seller_requests_page.dart';
 import 'seller_service.dart';
+import 'seller_shipping_page.dart';
 
-enum _SellerSection { hub, store, products, requests, newProduct }
+enum _SellerSection { hub, store, shipping, products, requests, newProduct }
 
 class SellerPage extends StatefulWidget {
   const SellerPage({
@@ -687,6 +688,18 @@ class _SellerPageState extends State<SellerPage> {
       ),
       Card(
         child: ListTile(
+          leading: const Icon(Icons.local_shipping_outlined),
+          title: const Text('Entregas e retirada 🚚'),
+          subtitle: const Text('Preços, alcance e prazo de preparação'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => setState(() {
+            _section = _SellerSection.shipping;
+            _success = null;
+          }),
+        ),
+      ),
+      Card(
+        child: ListTile(
           leading: const Icon(Icons.checkroom_outlined),
           title: const Text('Produtos 👗'),
           subtitle: const Text('Cadastre e gerencie suas peças'),
@@ -854,6 +867,13 @@ class _SellerPageState extends State<SellerPage> {
     }
     if (_section == _SellerSection.hub) return _buildSellerHub(store);
     if (_section == _SellerSection.store) return _buildStoreSettings(store);
+    if (_section == _SellerSection.shipping) {
+      return SellerShippingPage(
+        session: widget.session,
+        store: store,
+        onBack: () => setState(() => _section = _SellerSection.hub),
+      );
+    }
     if (_section == _SellerSection.products) return _buildProducts(store);
     if (_section == _SellerSection.requests) {
       return SellerRequestsPage(

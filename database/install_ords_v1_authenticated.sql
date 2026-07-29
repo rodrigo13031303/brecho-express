@@ -29,12 +29,14 @@ PROMPT ============================================================
 @@packages/purchase/install_delivery_module.sql
 @@install_purchase_shipping_runtime.sql
 @@packages/purchase/install_shipping_quote_module.sql
+@@packages/store/install_store_shipping_config_module.sql
 @@ords/install_brecho_express_v1_seller_authenticated.sql
 @@ords/install_brecho_express_v1_store_onboarding.sql
 @@ords/install_brecho_express_v1_cart_authenticated.sql
 @@ords/install_brecho_express_v1_purchase_authenticated.sql
 @@ords/install_brecho_express_v1_delivery_authenticated.sql
 @@ords/install_brecho_express_v1_shipping_authenticated.sql
+@@ords/install_brecho_express_v1_store_shipping_authenticated.sql
 @@tests/ords/test_ord_runtime_pkg.sql
 
 DECLARE

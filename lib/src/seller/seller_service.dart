@@ -199,6 +199,34 @@ class SellerService {
     _decodeObject(response);
   }
 
+  Future<StoreShippingConfig> loadShippingConfig({
+    required BrechoSession session,
+    required String storePublicId,
+  }) async {
+    final store = Uri.encodeComponent(storePublicId);
+    final response = await _get(
+      _baseUri.resolve('stores/$store/shipping-config'),
+      session,
+    );
+    return StoreShippingConfig.fromJson(_decodeObject(response));
+  }
+
+  Future<StoreShippingConfig> saveShippingConfig({
+    required BrechoSession session,
+    required String storePublicId,
+    required StoreShippingConfig config,
+  }) async {
+    final store = Uri.encodeComponent(storePublicId);
+    final response = await _client
+        .put(
+          _baseUri.resolve('stores/$store/shipping-config'),
+          headers: _headers(session),
+          body: jsonEncode(config.toJson()),
+        )
+        .timeout(const Duration(seconds: 30));
+    return StoreShippingConfig.fromJson(_decodeObject(response));
+  }
+
   Future<List<SellerProduct>> listProducts({
     required BrechoSession session,
     required String storePublicId,
@@ -439,6 +467,43 @@ class SellerStore {
     status: status,
     logoUrl: value,
   );
+}
+
+class StoreShippingConfig {
+  const StoreShippingConfig({
+    required this.pickupEnabled,
+    required this.localDeliveryEnabled,
+    required this.localBasePrice,
+    required this.localPricePerKm,
+    required this.localMaxDistanceKm,
+    required this.preparationDays,
+  });
+
+  factory StoreShippingConfig.fromJson(Map<String, dynamic> json) =>
+      StoreShippingConfig(
+        pickupEnabled: json['pickupEnabled'] as bool? ?? true,
+        localDeliveryEnabled: json['localDeliveryEnabled'] as bool? ?? true,
+        localBasePrice: (json['localBasePrice'] as num).toDouble(),
+        localPricePerKm: (json['localPricePerKm'] as num).toDouble(),
+        localMaxDistanceKm: (json['localMaxDistanceKm'] as num).toDouble(),
+        preparationDays: (json['preparationDays'] as num).toInt(),
+      );
+
+  final bool pickupEnabled;
+  final bool localDeliveryEnabled;
+  final double localBasePrice;
+  final double localPricePerKm;
+  final double localMaxDistanceKm;
+  final int preparationDays;
+
+  Map<String, dynamic> toJson() => {
+    'pickupEnabled': pickupEnabled,
+    'localDeliveryEnabled': localDeliveryEnabled,
+    'localBasePrice': localBasePrice,
+    'localPricePerKm': localPricePerKm,
+    'localMaxDistanceKm': localMaxDistanceKm,
+    'preparationDays': preparationDays,
+  };
 }
 
 class SellerProduct {

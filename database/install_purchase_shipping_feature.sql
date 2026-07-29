@@ -16,8 +16,10 @@ PROMPT ============================================================
 @@install_purchase_shipping_runtime.sql
 @@packages/purchase/install_delivery_module.sql
 @@packages/purchase/install_shipping_quote_module.sql
+@@packages/store/install_store_shipping_config_module.sql
 @@ords/install_brecho_express_v1_delivery_authenticated.sql
 @@ords/install_brecho_express_v1_shipping_authenticated.sql
+@@ords/install_brecho_express_v1_store_shipping_authenticated.sql
 
 DECLARE
   l_invalid_count PLS_INTEGER;
@@ -26,7 +28,7 @@ BEGIN
   FROM USER_OBJECTS
   WHERE OBJECT_NAME IN(
     'ADR_API_PKG','PDL_SERVICE_PKG','PDL_API_PKG',
-    'PSQ_SERVICE_PKG','PSQ_API_PKG'
+    'PSQ_SERVICE_PKG','PSQ_API_PKG','SSC_API_PKG'
   ) AND STATUS<>'VALID';
   IF l_invalid_count>0 THEN
     RAISE_APPLICATION_ERROR(-20999,'Shipping packages were not installed correctly.');
