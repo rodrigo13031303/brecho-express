@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../auth/brecho_session.dart';
+import '../order/order_pending_page.dart';
+import '../order/order_service.dart';
 import 'shipping_service.dart';
 
 class ShippingOptionsPage extends StatefulWidget {
@@ -19,6 +21,7 @@ class ShippingOptionsPage extends StatefulWidget {
 
 class _ShippingOptionsPageState extends State<ShippingOptionsPage> {
   final _service = ShippingService();
+  final _orderService = OrderService();
   late Future<List<ShippingOption>> _options;
   bool _busy = false;
 
@@ -34,6 +37,7 @@ class _ShippingOptionsPageState extends State<ShippingOptionsPage> {
   @override
   void dispose() {
     _service.close();
+    _orderService.close();
     super.dispose();
   }
 
@@ -64,6 +68,28 @@ class _ShippingOptionsPageState extends State<ShippingOptionsPage> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _createOrder() async {
+    setState(() => _busy = true);
+    try {
+      final order = await _orderService.create(
+        session: widget.session,
+        requestPublicId: widget.requestPublicId,
+      );
+      if (!mounted) return;
+      await Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(builder: (_) => OrderPendingPage(order: order)),
+      );
+    } on OrderException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(error.message)));
+      _reload();
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -144,9 +170,11 @@ class _ShippingOptionsPageState extends State<ShippingOptionsPage> {
                 ),
                 const SizedBox(height: 12),
                 FilledButton.icon(
-                  onPressed: selectedStores == groups.length ? () {} : null,
+                  onPressed: selectedStores == groups.length && !_busy
+                      ? _createOrder
+                      : null,
                   icon: const Icon(Icons.payments_outlined),
-                  label: const Text('Pagamento — próxima etapa'),
+                  label: const Text('Revisar pedido e pagar'),
                 ),
               ],
             ),
