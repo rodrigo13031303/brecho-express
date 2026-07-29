@@ -313,6 +313,42 @@ class SellerService {
     return SellerProduct.fromJson(_decodeObject(activated));
   }
 
+  Future<SellerProduct> updateProduct({
+    required BrechoSession session,
+    required String storePublicId,
+    required SellerProduct product,
+    required Map<String, dynamic> changes,
+  }) async {
+    final store = Uri.encodeComponent(storePublicId);
+    final encodedProduct = Uri.encodeComponent(product.publicId);
+    final response = await _client
+        .put(
+          _baseUri.resolve('stores/$store/products/$encodedProduct'),
+          headers: _headers(session),
+          body: jsonEncode(changes),
+        )
+        .timeout(const Duration(seconds: 30));
+    return SellerProduct.fromJson(_decodeObject(response));
+  }
+
+  Future<SellerProduct> changeProductStatus({
+    required BrechoSession session,
+    required String storePublicId,
+    required String productPublicId,
+    required String status,
+  }) async {
+    final store = Uri.encodeComponent(storePublicId);
+    final product = Uri.encodeComponent(productPublicId);
+    final response = await _client
+        .put(
+          _baseUri.resolve('stores/$store/products/$product/status'),
+          headers: _headers(session),
+          body: jsonEncode({'status': status}),
+        )
+        .timeout(const Duration(seconds: 30));
+    return SellerProduct.fromJson(_decodeObject(response));
+  }
+
   Future<void> uploadProductImage({
     required BrechoSession session,
     required String productPublicId,
@@ -511,26 +547,53 @@ class SellerProduct {
     required this.publicId,
     required this.title,
     required this.status,
+    this.slug = '',
+    this.quantity = 0,
+    this.condition = 'GOOD',
+    this.categoryPublicId,
+    this.description,
     this.price,
     this.primaryImageUrl,
     this.imageCount = 0,
+    this.weight,
+    this.width,
+    this.height,
+    this.length,
   });
 
   factory SellerProduct.fromJson(Map<String, dynamic> json) => SellerProduct(
     publicId: json['productPublicId'] as String,
     title: json['title'] as String,
     status: json['status'] as String,
+    slug: json['slug'] as String? ?? '',
+    quantity: (json['quantity'] as num?)?.toInt() ?? 0,
+    condition: json['condition'] as String? ?? 'GOOD',
+    categoryPublicId: json['categoryPublicId'] as String?,
+    description: json['description'] as String?,
     price: (json['price'] as num?)?.toDouble(),
     primaryImageUrl: json['primaryImageUrl'] as String?,
     imageCount: (json['imageCount'] as num?)?.toInt() ?? 0,
+    weight: (json['weight'] as num?)?.toDouble(),
+    width: (json['width'] as num?)?.toDouble(),
+    height: (json['height'] as num?)?.toDouble(),
+    length: (json['length'] as num?)?.toDouble(),
   );
 
   final String publicId;
   final String title;
   final String status;
+  final String slug;
+  final int quantity;
+  final String condition;
+  final String? categoryPublicId;
+  final String? description;
   final double? price;
   final String? primaryImageUrl;
   final int imageCount;
+  final double? weight;
+  final double? width;
+  final double? height;
+  final double? length;
 }
 
 class SellerException implements Exception {

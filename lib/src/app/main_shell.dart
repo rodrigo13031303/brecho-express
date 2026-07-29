@@ -7,6 +7,7 @@ import '../cart/cart_page.dart';
 import '../cart/cart_service.dart';
 import '../catalog/catalog_service.dart';
 import '../catalog/product_detail_page.dart';
+import '../location/buyer_location_store.dart';
 import '../location/store_location_service.dart';
 import '../purchase/purchases_hub_page.dart';
 import '../seller/seller_page.dart';
@@ -38,6 +39,7 @@ class _MainShellState extends State<MainShell> {
   late final CatalogService _catalogService;
   late final CartService _cartService;
   late final StoreLocationService _locationService;
+  late final BuyerLocationStore _buyerLocationStore;
   late Future<CatalogSnapshot> _catalog;
   late Future<CartSnapshot> _cart;
   CartSnapshot? _cartValue;
@@ -47,6 +49,7 @@ class _MainShellState extends State<MainShell> {
   bool _distanceEnabled = false;
   bool _enablingDistance = false;
   GeoPoint? _viewerLocation;
+  String? _viewerLocationLabel;
 
   @override
   void initState() {
@@ -54,8 +57,10 @@ class _MainShellState extends State<MainShell> {
     _catalogService = CatalogService();
     _cartService = CartService();
     _locationService = StoreLocationService();
+    _buyerLocationStore = BuyerLocationStore();
     _catalog = widget.initialCatalog ?? _catalogService.load();
     _cart = _loadCart();
+    _restoreBuyerLocation();
   }
 
   @override
@@ -111,6 +116,7 @@ class _MainShellState extends State<MainShell> {
           _cartValue = null;
           _purchaseRefresh++;
           _cart = _loadCart();
+          _restoreBuyerLocation();
         });
       }
       return request;
@@ -178,20 +184,53 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
+  Future<void> _restoreBuyerLocation() async {
+    final saved = await _buyerLocationStore.read();
+    if (saved == null || !mounted) return;
+    _applyBuyerLocation(saved);
+  }
+
+  void _applyBuyerLocation(BuyerCatalogLocation location) {
+    setState(() {
+      _distanceEnabled = true;
+      _viewerLocation = location.point;
+      _viewerLocationLabel = location.label;
+      _catalog = _catalogService.load(
+        requesterLatitude: location.point.latitude,
+        requesterLongitude: location.point.longitude,
+      );
+    });
+  }
+
+  Future<void> _chooseBuyerLocation() async {
+    final postalCode = TextEditingController();
+    final result = await showModalBottomSheet<BuyerCatalogLocation>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => _BuyerLocationSheet(
+        postalCode: postalCode,
+        service: _locationService,
+      ),
+    );
+    postalCode.dispose();
+    if (result == null || !mounted) return;
+    await _buyerLocationStore.write(result);
+    if (mounted) _applyBuyerLocation(result);
+  }
+
   Future<void> _enableDistance() async {
     if (_enablingDistance) return;
     setState(() => _enablingDistance = true);
     try {
       final point = await _locationService.currentCoordinates();
       if (!mounted) return;
-      setState(() {
-        _distanceEnabled = true;
-        _viewerLocation = point;
-        _catalog = _catalogService.load(
-          requesterLatitude: point.latitude,
-          requesterLongitude: point.longitude,
-        );
-      });
+      final location = BuyerCatalogLocation(
+        point: point,
+        label: 'Minha localização atual',
+      );
+      await _buyerLocationStore.write(location);
+      if (mounted) _applyBuyerLocation(location);
     } on StoreLocationException catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -214,6 +253,8 @@ class _MainShellState extends State<MainShell> {
         onExplore: () => _selectTab(1),
         onSell: () => _selectTab(2),
         onAddToCart: _addToCart,
+        locationLabel: _viewerLocationLabel,
+        onChooseLocation: _chooseBuyerLocation,
       ),
       ExplorePage(
         catalog: _catalog,
@@ -221,6 +262,8 @@ class _MainShellState extends State<MainShell> {
         distanceEnabled: _distanceEnabled,
         enablingDistance: _enablingDistance,
         onEnableDistance: _enableDistance,
+        locationLabel: _viewerLocationLabel,
+        onChooseLocation: _chooseBuyerLocation,
         onAddToCart: _addToCart,
       ),
       SellerPage(
@@ -266,7 +309,7 @@ class _MainShellState extends State<MainShell> {
           NavigationDestination(
             icon: Icon(Icons.search),
             selectedIcon: Icon(Icons.manage_search),
-            label: 'Explorar',
+            label: 'Comprar',
           ),
           NavigationDestination(
             icon: Icon(Icons.add_circle_outline),
@@ -279,7 +322,7 @@ class _MainShellState extends State<MainShell> {
               count: _cartValue?.itemCount ?? 0,
               selected: true,
             ),
-            label: 'Compras',
+            label: 'Carrinho',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),
@@ -313,6 +356,8 @@ class HomePage extends StatelessWidget {
     required this.onExplore,
     required this.onSell,
     required this.onAddToCart,
+    required this.locationLabel,
+    required this.onChooseLocation,
     super.key,
   });
   final Future<CatalogSnapshot> catalog;
@@ -320,6 +365,8 @@ class HomePage extends StatelessWidget {
   final VoidCallback onExplore;
   final VoidCallback onSell;
   final Future<void> Function(CatalogProduct product) onAddToCart;
+  final String? locationLabel;
+  final VoidCallback onChooseLocation;
 
   @override
   Widget build(BuildContext context) {
@@ -350,6 +397,16 @@ class HomePage extends StatelessWidget {
                   readOnly: true,
                   leading: const Icon(Icons.search),
                   hintText: 'Buscar peças, marcas ou estilos',
+                ),
+                const SizedBox(height: 14),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.location_on_outlined),
+                    title: Text(locationLabel ?? 'Escolha onde quer comprar'),
+                    subtitle: const Text('Ver distância dos brechós'),
+                    trailing: const Icon(Icons.edit_location_alt_outlined),
+                    onTap: onChooseLocation,
+                  ),
                 ),
                 const SizedBox(height: 28),
                 Text(
@@ -385,6 +442,21 @@ class HomePage extends StatelessWidget {
                     ),
                   ],
                 ),
+                const SizedBox(height: 28),
+                Text(
+                  'Novidades',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 12),
+                _CatalogContent(
+                  catalog: catalog,
+                  onRetry: onRetry,
+                  preview: true,
+                  onAddToCart: onAddToCart,
+                ),
+
                 const SizedBox(height: 28),
                 Container(
                   padding: const EdgeInsets.all(22),
@@ -422,19 +494,6 @@ class HomePage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 28),
-                Text(
-                  'Novidades',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 12),
-                _CatalogContent(
-                  catalog: catalog,
-                  onRetry: onRetry,
-                  preview: true,
-                  onAddToCart: onAddToCart,
-                ),
               ],
             ),
           ),
@@ -452,6 +511,8 @@ class ExplorePage extends StatefulWidget {
     required this.enablingDistance,
     required this.onEnableDistance,
     required this.onAddToCart,
+    required this.locationLabel,
+    required this.onChooseLocation,
     super.key,
   });
   final Future<CatalogSnapshot> catalog;
@@ -460,12 +521,15 @@ class ExplorePage extends StatefulWidget {
   final bool enablingDistance;
   final VoidCallback onEnableDistance;
   final Future<void> Function(CatalogProduct product) onAddToCart;
+  final String? locationLabel;
+  final VoidCallback onChooseLocation;
   @override
   State<ExplorePage> createState() => _ExplorePageState();
 }
 
 class _ExplorePageState extends State<ExplorePage> {
   final _searchController = TextEditingController();
+  bool _sortNearest = false;
   @override
   void dispose() {
     _searchController.dispose();
@@ -478,7 +542,7 @@ class _ExplorePageState extends State<ExplorePage> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
         children: [
-          const _BrandHeader(title: 'Explorar'),
+          const _BrandHeader(title: 'Comprar'),
           const SizedBox(height: 22),
           SearchBar(
             controller: _searchController,
@@ -497,6 +561,16 @@ class _ExplorePageState extends State<ExplorePage> {
             ],
           ),
           const SizedBox(height: 16),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.location_on_outlined),
+              title: Text(widget.locationLabel ?? 'Escolha sua localização'),
+              subtitle: const Text('Referência para calcular as distâncias'),
+              trailing: const Icon(Icons.edit_location_alt_outlined),
+              onTap: widget.onChooseLocation,
+            ),
+          ),
+          const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             children: [
@@ -520,17 +594,140 @@ class _ExplorePageState extends State<ExplorePage> {
               ),
             ],
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<bool>(
+            initialValue: _sortNearest,
+            decoration: const InputDecoration(
+              labelText: 'Ordenar produtos',
+              prefixIcon: Icon(Icons.sort),
+            ),
+            items: const [
+              DropdownMenuItem(value: false, child: Text('Mais recentes')),
+              DropdownMenuItem(
+                value: true,
+                child: Text('Brechós mais próximos'),
+              ),
+            ],
+            onChanged: (value) => setState(() => _sortNearest = value ?? false),
+          ),
+          const SizedBox(height: 24),
           _CatalogContent(
             catalog: widget.catalog,
             onRetry: widget.onRetry,
             query: _searchController.text,
+            sortNearest: _sortNearest,
             onAddToCart: widget.onAddToCart,
           ),
         ],
       ),
     );
   }
+}
+
+class _BuyerLocationSheet extends StatefulWidget {
+  const _BuyerLocationSheet({required this.postalCode, required this.service});
+  final TextEditingController postalCode;
+  final StoreLocationService service;
+
+  @override
+  State<_BuyerLocationSheet> createState() => _BuyerLocationSheetState();
+}
+
+class _BuyerLocationSheetState extends State<_BuyerLocationSheet> {
+  bool _busy = false;
+  String? _error;
+
+  Future<void> _byPostalCode() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final draft = await widget.service.lookupPostalCode(
+        widget.postalCode.text,
+      );
+      final point = await widget.service.coordinatesForBuyerReference(draft);
+      if (!mounted) return;
+      Navigator.pop(
+        context,
+        BuyerCatalogLocation(point: point, label: draft.publicLabel),
+      );
+    } on StoreLocationException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _current() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final point = await widget.service.currentCoordinates();
+      if (!mounted) return;
+      Navigator.pop(
+        context,
+        BuyerCatalogLocation(point: point, label: 'Minha localização atual'),
+      );
+    } on StoreLocationException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.fromLTRB(
+      24,
+      4,
+      24,
+      24 + MediaQuery.viewInsetsOf(context).bottom,
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Onde você quer comprar? 📍',
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 6),
+        const Text('Escolha qualquer região; não precisa ser onde você está.'),
+        const SizedBox(height: 18),
+        TextField(
+          controller: widget.postalCode,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'CEP de referência',
+            prefixIcon: Icon(Icons.location_on_outlined),
+          ),
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            _error!,
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        ],
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          onPressed: _busy ? null : _byPostalCode,
+          icon: const Icon(Icons.search),
+          label: const Text('Usar este CEP'),
+        ),
+        OutlinedButton.icon(
+          onPressed: _busy ? null : _current,
+          icon: const Icon(Icons.my_location),
+          label: const Text('Usar minha localização atual'),
+        ),
+      ],
+    ),
+  );
 }
 
 class OrdersPage extends StatelessWidget {
@@ -738,12 +935,14 @@ class _CatalogContent extends StatelessWidget {
     required this.onRetry,
     this.query = '',
     this.preview = false,
+    this.sortNearest = false,
     required this.onAddToCart,
   });
   final Future<CatalogSnapshot> catalog;
   final VoidCallback onRetry;
   final String query;
   final bool preview;
+  final bool sortNearest;
   final Future<void> Function(CatalogProduct product) onAddToCart;
 
   @override
@@ -785,14 +984,26 @@ class _CatalogContent extends StatelessWidget {
                 : 'Tente buscar por outro nome ou estilo.',
           );
         }
-        final visible = preview ? products.take(4) : products;
-        return Column(
-          children: visible
-              .map(
-                (product) =>
-                    _ProductCard(product: product, onAddToCart: onAddToCart),
-              )
-              .toList(),
+        if (sortNearest) {
+          products.sort((a, b) {
+            final left = a.location?.distanceKm ?? double.infinity;
+            final right = b.location?.distanceKm ?? double.infinity;
+            return left.compareTo(right);
+          });
+        }
+        final visible = (preview ? products.take(4) : products).toList();
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: visible.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: .58,
+          ),
+          itemBuilder: (context, index) =>
+              _ProductCard(product: visible[index], onAddToCart: onAddToCart),
         );
       },
     );
@@ -808,59 +1019,96 @@ class _ProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final price = product.price.toStringAsFixed(2).replaceAll('.', ',');
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(12),
-        leading: Container(
-          width: 64,
-          height: 64,
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: product.primaryImageUrl == null
-              ? const Icon(Icons.checkroom_outlined)
-              : Image.network(
-                  product.primaryImageUrl!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) =>
-                      const Icon(Icons.broken_image_outlined),
-                ),
-        ),
-        title: Text(
-          product.title,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
-        subtitle: Text(
-          [
-            if (product.storeName != null) product.storeName!,
-            _conditionLabel(product.condition),
-            'R\$ $price',
-            if (product.location != null) product.location!.label,
-          ].join(' • '),
-        ),
-        isThreeLine: true,
-        trailing: const Icon(Icons.chevron_right),
+      clipBehavior: Clip.antiAlias,
+      margin: EdgeInsets.zero,
+      child: InkWell(
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute<void>(
             builder: (context) =>
                 ProductDetailPage(product: product, onAddToCart: onAddToCart),
           ),
         ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: ColoredBox(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                child: product.primaryImageUrl == null
+                    ? const Icon(Icons.checkroom_outlined, size: 54)
+                    : Image.network(
+                        product.primaryImageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) =>
+                            const Icon(Icons.broken_image_outlined),
+                      ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 9, 10, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    product.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      if (product.storeLogoUrl != null)
+                        CircleAvatar(
+                          radius: 9,
+                          foregroundImage: NetworkImage(product.storeLogoUrl!),
+                        ),
+                      if (product.storeLogoUrl != null)
+                        const SizedBox(width: 5),
+                      Expanded(
+                        child: Text(
+                          product.storeName ?? 'Brechó Express',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    'R\$ $price',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                    ),
+                  ),
+                  if (product.location != null) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.location_on_outlined, size: 14),
+                        const SizedBox(width: 2),
+                        Expanded(
+                          child: Text(
+                            product.location!.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
-
-  static String _conditionLabel(String value) => switch (value) {
-    'NEW' => 'Novo',
-    'LIKE_NEW' => 'Como novo',
-    'GOOD' => 'Bom estado',
-    'FAIR' => 'Usado',
-    _ => value,
-  };
 }
 
 class _CatalogMessage extends StatelessWidget {

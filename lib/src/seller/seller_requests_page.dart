@@ -190,9 +190,20 @@ class _RequestCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            _requestStatus(request.status),
-            style: const TextStyle(fontWeight: FontWeight.w800),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _requestStatus(request.status),
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+              if (request.status == 'PENDING' && request.expiresAt != null)
+                Chip(
+                  avatar: const Icon(Icons.timer_outlined, size: 18),
+                  label: Text(_remaining(request.expiresAt!)),
+                ),
+            ],
           ),
           const Divider(height: 22),
           ...request.items.map((item) {
@@ -233,8 +244,18 @@ class _RequestCard extends StatelessWidget {
     'APPROVED' => 'Solicitação aprovada',
     'PARTIALLY_APPROVED' => 'Atendida parcialmente',
     'REJECTED' => 'Solicitação rejeitada',
+    'EXPIRED' => 'Prazo perdido pelo brechó ⏰',
+    'CANCELLED' => 'Solicitação cancelada',
     _ => value,
   };
+
+  static String _remaining(DateTime expiresAt) {
+    final value = expiresAt.toLocal().difference(DateTime.now());
+    if (value.isNegative) return 'encerrando';
+    final minutes = value.inMinutes.toString().padLeft(2, '0');
+    final seconds = (value.inSeconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
 
   static String _itemStatus(PurchaseRequestItem item) => switch (item.status) {
     'PENDING' => 'aguardando',

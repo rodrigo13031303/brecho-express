@@ -134,6 +134,32 @@ class StoreLocationService {
     }
   }
 
+  Future<GeoPoint> coordinatesForBuyerReference(
+    StoreLocationDraft draft,
+  ) async {
+    if (draft.latitude != null && draft.longitude != null) {
+      return GeoPoint(draft.latitude!, draft.longitude!);
+    }
+    final query = [
+      draft.postalCode,
+      draft.district,
+      draft.city,
+      draft.state,
+      'Brasil',
+    ].where((part) => part.trim().isNotEmpty).join(', ');
+    try {
+      final matches = await locationFromAddress(query);
+      if (matches.isNotEmpty) {
+        return GeoPoint(matches.first.latitude, matches.first.longitude);
+      }
+    } catch (_) {
+      // A mensagem abaixo orienta a tentar GPS ou outro CEP.
+    }
+    throw const StoreLocationException(
+      'Não conseguimos localizar esse CEP. Tente outro ou use o GPS.',
+    );
+  }
+
   Future<StoreLocationDraft> ensureCoordinates(StoreLocationDraft draft) async {
     draft.validate();
     final query = [
@@ -254,6 +280,18 @@ class StoreLocationDraft {
         latitude: latitude,
         longitude: longitude,
       );
+
+  StoreLocationDraft copyWith({String? number}) => StoreLocationDraft(
+    postalCode: postalCode,
+    street: street,
+    number: number ?? this.number,
+    complement: complement,
+    district: district,
+    city: city,
+    state: state,
+    latitude: latitude,
+    longitude: longitude,
+  );
 
   void validate() {
     if (postalCode.replaceAll(RegExp(r'[^0-9]'), '').length != 8 ||

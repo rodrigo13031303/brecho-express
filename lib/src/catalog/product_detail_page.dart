@@ -67,6 +67,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       if (mounted) setState(() => _addingToCart = false);
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -168,7 +169,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                         '${_number(product.length!)} cm',
                       ),
                     ],
-                    const SizedBox(height: 28),                    FilledButton.icon(
+                    const SizedBox(height: 28),
+                    FilledButton.icon(
                       onPressed: _addingToCart
                           ? null
                           : () => _addToCart(product),

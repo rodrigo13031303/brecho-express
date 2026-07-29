@@ -30,9 +30,9 @@ void main() {
     );
 
     expect(find.text('Início'), findsOneWidget);
-    expect(find.text('Explorar'), findsOneWidget);
+    expect(find.text('Comprar'), findsOneWidget);
     expect(find.text('Vender'), findsOneWidget);
-    expect(find.text('Compras'), findsOneWidget);
+    expect(find.text('Carrinho'), findsOneWidget);
     expect(find.text('Perfil'), findsOneWidget);
 
     await tester.tap(find.text('Perfil'));

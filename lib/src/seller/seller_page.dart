@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -5,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../auth/brecho_session.dart';
 import '../branding/brecho_mark.dart';
 import '../catalog/catalog_service.dart';
+import '../purchase/purchase_service.dart';
 import '../location/store_location_service.dart';
 import '../order/orders_page.dart';
 import 'seller_requests_page.dart';
@@ -41,6 +44,7 @@ class _SellerPageState extends State<SellerPage> {
   final _service = SellerService();
   final _imagePicker = ImagePicker();
   final _locationService = StoreLocationService();
+  final _purchaseService = PurchaseService();
   final _storeForm = GlobalKey<FormState>();
   final _productForm = GlobalKey<FormState>();
   final _productSearch = TextEditingController();
@@ -76,6 +80,9 @@ class _SellerPageState extends State<SellerPage> {
   StoreLocationDraft? _location;
   bool _locating = false;
   bool _locationLoaded = false;
+  Timer? _requestPoller;
+  int _pendingRequestCount = 0;
+  int _knownPendingRequestCount = -1;
   String? _locationMessage;
   bool _locationMessageIsError = false;
   bool _saving = false;
@@ -92,6 +99,8 @@ class _SellerPageState extends State<SellerPage> {
   @override
   void dispose() {
     _service.close();
+    _requestPoller?.cancel();
+    _purchaseService.close();
     _locationService.close();
     for (final controller in [
       _productSearch,
@@ -130,6 +139,52 @@ class _SellerPageState extends State<SellerPage> {
     return normalized
         .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
         .replaceAll(RegExp(r'^-+|-+$'), '');
+  }
+
+  void _startRequestAlerts(SellerStore store) {
+    if (_requestPoller != null) return;
+    _checkPendingRequests(store);
+    _requestPoller = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => _checkPendingRequests(store),
+    );
+  }
+
+  Future<void> _checkPendingRequests(SellerStore store) async {
+    try {
+      final requests = await _purchaseService.listStore(
+        session: widget.session,
+        storePublicId: store.publicId,
+      );
+      final pending = requests
+          .where((request) => request.status == 'PENDING')
+          .length;
+      final shouldAlert =
+          _knownPendingRequestCount >= 0 && pending > _knownPendingRequestCount;
+      _knownPendingRequestCount = pending;
+      if (!mounted) return;
+      setState(() => _pendingRequestCount = pending);
+      if (shouldAlert) {
+        await SystemSound.play(SystemSoundType.alert);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Nova solicitação! Você tem 5 minutos para responder. 🔔',
+            ),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 8),
+            action: SnackBarAction(
+              label: 'ABRIR',
+              onPressed: () =>
+                  setState(() => _section = _SellerSection.requests),
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      // A próxima verificação automática tenta novamente.
+    }
   }
 
   Future<void> _chooseLogo() async {
@@ -299,8 +354,14 @@ class _SellerPageState extends State<SellerPage> {
         storePublicId: store.publicId,
       );
       if (mounted) setState(() => _fillLocation(location));
-    } on SellerException {
-      // A tela continua editável caso uma loja antiga ainda não tenha endereço.
+    } on SellerException catch (error) {
+      _locationLoaded = false;
+      if (mounted) {
+        _showLocationMessage(
+          'Não foi possível carregar o endereço salvo. ${error.message}',
+          error: true,
+        );
+      }
     }
   }
 
@@ -420,6 +481,76 @@ class _SellerPageState extends State<SellerPage> {
     return number == null || number <= 0 ? 'Informe um valor válido.' : null;
   }
 
+  Future<void> _editProduct(SellerProduct product) async {
+    final changes = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) =>
+          _ProductEditSheet(product: product, catalog: widget.catalog),
+    );
+    if (changes == null || _store == null || !mounted) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await _service.updateProduct(
+        session: widget.session,
+        storePublicId: _store!.publicId,
+        product: product,
+        changes: changes,
+      );
+      if (!mounted) return;
+      setState(() {
+        _products = _service.listProducts(
+          session: widget.session,
+          storePublicId: _store!.publicId,
+        );
+        _success = 'Informações da peça atualizadas! ✨';
+      });
+      widget.onPublished();
+    } on SellerException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _changeProductStatus(
+    SellerProduct product,
+    String status,
+  ) async {
+    if (_store == null || _saving) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await _service.changeProductStatus(
+        session: widget.session,
+        storePublicId: _store!.publicId,
+        productPublicId: product.publicId,
+        status: status,
+      );
+      if (!mounted) return;
+      setState(() {
+        _products = _service.listProducts(
+          session: widget.session,
+          storePublicId: _store!.publicId,
+        );
+        _success = status == 'SOLD'
+            ? 'Peça marcada como vendida! ✅'
+            : 'Peça colocada novamente à venda! 🎉';
+      });
+      widget.onPublished();
+    } on SellerException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   Future<void> _publish() async {
     if (!_productForm.currentState!.validate() || _store == null) return;
     if (_productImages.isEmpty) {
@@ -515,6 +646,7 @@ class _SellerPageState extends State<SellerPage> {
           );
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _loadStoreLocation(_store!);
+            _startRequestAlerts(_store!);
           });
         }
         return ListView(
@@ -692,6 +824,10 @@ class _SellerPageState extends State<SellerPage> {
           onTap: () => setState(() {
             _section = _SellerSection.store;
             _success = null;
+            _locationLoaded = false;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _loadStoreLocation(store);
+            });
           }),
         ),
       ),
@@ -734,8 +870,16 @@ class _SellerPageState extends State<SellerPage> {
       Card(
         child: ListTile(
           leading: const Icon(Icons.mark_email_unread_outlined),
-          title: const Text('Solicitações 📦'),
-          subtitle: const Text('Confirme as peças pedidas pelos compradores'),
+          title: Text(
+            _pendingRequestCount == 0
+                ? 'Solicitações 📦'
+                : 'Solicitações 📦  ($_pendingRequestCount)',
+          ),
+          subtitle: Text(
+            _pendingRequestCount == 0
+                ? 'Confirme as peças pedidas pelos compradores'
+                : 'Aguardando resposta • prazo de 5 minutos 🔔',
+          ),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => setState(() {
             _section = _SellerSection.requests;
@@ -844,7 +988,7 @@ class _SellerPageState extends State<SellerPage> {
           DropdownMenuItem(value: 'ACTIVE', child: Text('Em estoque')),
           DropdownMenuItem(value: 'SOLD', child: Text('Vendidas')),
           DropdownMenuItem(value: 'DRAFT', child: Text('Rascunhos')),
-          DropdownMenuItem(value: 'PAUSED', child: Text('Pausadas')),
+          DropdownMenuItem(value: 'INACTIVE', child: Text('Pausadas')),
           DropdownMenuItem(value: 'ARCHIVED', child: Text('Arquivadas')),
         ],
         onChanged: (value) => setState(() => _productStatus = value ?? 'ALL'),
@@ -864,6 +1008,8 @@ class _SellerPageState extends State<SellerPage> {
         products: _products,
         query: _productSearch.text,
         status: _productStatus,
+        onStatusChanged: _changeProductStatus,
+        onEdit: _editProduct,
       ),
     ],
   );
@@ -1101,7 +1247,7 @@ class _SellerPageState extends State<SellerPage> {
                     child: TextFormField(
                       controller: _length,
                       decoration: const InputDecoration(
-                        labelText: 'Comprimento',
+                        labelText: 'Comprimento / tamanho',
                         suffixText: 'cm',
                       ),
                       keyboardType: const TextInputType.numberWithOptions(
@@ -1334,11 +1480,16 @@ class _SellerProductList extends StatelessWidget {
     required this.products,
     required this.query,
     required this.status,
+    required this.onStatusChanged,
+    required this.onEdit,
   });
 
   final Future<List<SellerProduct>>? products;
   final String query;
   final String status;
+  final Future<void> Function(SellerProduct product, String status)
+  onStatusChanged;
+  final Future<void> Function(SellerProduct product) onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -1426,6 +1577,37 @@ class _SellerProductList extends StatelessWidget {
                       '${product.imageCount} foto${product.imageCount == 1 ? '' : 's'}',
                     ].join(' • '),
                   ),
+                  trailing: PopupMenuButton<String>(
+                    tooltip: 'Ações da peça',
+                    onSelected: (value) => value == 'EDIT'
+                        ? onEdit(product)
+                        : onStatusChanged(product, value),
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'EDIT',
+                        child: ListTile(
+                          leading: Icon(Icons.edit_outlined),
+                          title: Text('Editar informações'),
+                        ),
+                      ),
+                      if (product.status == 'ACTIVE')
+                        const PopupMenuItem(
+                          value: 'SOLD',
+                          child: ListTile(
+                            leading: Icon(Icons.sell_outlined),
+                            title: Text('Marcar como vendida'),
+                          ),
+                        )
+                      else if (product.status == 'SOLD')
+                        const PopupMenuItem(
+                          value: 'ACTIVE',
+                          child: ListTile(
+                            leading: Icon(Icons.inventory_2_outlined),
+                            title: Text('Colocar à venda novamente'),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               );
             }),
@@ -1438,11 +1620,232 @@ class _SellerProductList extends StatelessWidget {
   static String _statusLabel(String value) => switch (value) {
     'ACTIVE' => 'Publicado',
     'DRAFT' => 'Rascunho',
-    'PAUSED' => 'Pausado',
+    'INACTIVE' => 'Pausado',
     'SOLD' => 'Vendido',
     'ARCHIVED' => 'Arquivado',
     _ => value,
   };
+}
+
+class _ProductEditSheet extends StatefulWidget {
+  const _ProductEditSheet({required this.product, required this.catalog});
+  final SellerProduct product;
+  final Future<CatalogSnapshot> catalog;
+
+  @override
+  State<_ProductEditSheet> createState() => _ProductEditSheetState();
+}
+
+class _ProductEditSheetState extends State<_ProductEditSheet> {
+  late final _title = TextEditingController(text: widget.product.title);
+  late final _description = TextEditingController(
+    text: widget.product.description,
+  );
+  late final _price = TextEditingController(
+    text: widget.product.price?.toStringAsFixed(2),
+  );
+  late final _quantity = TextEditingController(
+    text: widget.product.quantity.toString(),
+  );
+  late final _weight = TextEditingController(
+    text: widget.product.weight?.toString(),
+  );
+  late final _width = TextEditingController(
+    text: widget.product.width?.toString(),
+  );
+  late final _height = TextEditingController(
+    text: widget.product.height?.toString(),
+  );
+  late final _length = TextEditingController(
+    text: widget.product.length?.toString(),
+  );
+  late String _condition = widget.product.condition;
+  late String? _category = widget.product.categoryPublicId;
+
+  @override
+  void dispose() {
+    for (final controller in [
+      _title,
+      _description,
+      _price,
+      _quantity,
+      _weight,
+      _width,
+      _height,
+      _length,
+    ]) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  double? _number(TextEditingController controller) =>
+      double.tryParse(controller.text.trim().replaceAll(',', '.'));
+
+  void _save() {
+    final title = _title.text.trim();
+    final price = _number(_price);
+    final quantity = int.tryParse(_quantity.text.trim());
+    if (title.length < 3 ||
+        price == null ||
+        price < 0 ||
+        quantity == null ||
+        quantity < 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Confira título, preço e quantidade.')),
+      );
+      return;
+    }
+    Navigator.pop(context, <String, dynamic>{
+      'title': title,
+      'description': _description.text.trim(),
+      'price': price,
+      'quantity': quantity,
+      'condition': _condition,
+      if (_category != null) 'categoryPublicId': _category,
+      'weight': _number(_weight),
+      'width': _number(_width),
+      'height': _number(_height),
+      'length': _number(_length),
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.fromLTRB(
+      20,
+      4,
+      20,
+      20 + MediaQuery.viewInsetsOf(context).bottom,
+    ),
+    child: SizedBox(
+      height: MediaQuery.sizeOf(context).height * .78,
+      child: ListView(
+        children: [
+          Text(
+            'Editar peça ✏️',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _title,
+            decoration: const InputDecoration(labelText: 'Título'),
+          ),
+          const SizedBox(height: 12),
+          FutureBuilder<CatalogSnapshot>(
+            future: widget.catalog,
+            builder: (context, snapshot) => DropdownButtonFormField<String>(
+              initialValue: _category,
+              decoration: const InputDecoration(labelText: 'Categoria'),
+              items: (snapshot.data?.categories ?? const <CatalogCategory>[])
+                  .map(
+                    (item) => DropdownMenuItem(
+                      value: item.publicId,
+                      child: Text(item.name),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) => setState(() => _category = value),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _description,
+            maxLines: 3,
+            decoration: const InputDecoration(labelText: 'Descrição'),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _price,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Preço',
+                    prefixText: 'R\$ ',
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: _quantity,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Quantidade'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: _condition,
+            decoration: const InputDecoration(labelText: 'Estado da peça'),
+            items: const [
+              DropdownMenuItem(value: 'NEW', child: Text('Novo')),
+              DropdownMenuItem(value: 'LIKE_NEW', child: Text('Como novo')),
+              DropdownMenuItem(value: 'GOOD', child: Text('Bom estado')),
+              DropdownMenuItem(value: 'FAIR', child: Text('Usado')),
+            ],
+            onChanged: (value) => setState(() => _condition = value ?? 'GOOD'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _weight,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Peso',
+              suffixText: 'kg',
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _width,
+                  decoration: const InputDecoration(
+                    labelText: 'Largura',
+                    suffixText: 'cm',
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _height,
+                  decoration: const InputDecoration(
+                    labelText: 'Altura',
+                    suffixText: 'cm',
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _length,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Comprimento / tamanho',
+              hintText: 'Ex.: 80 cm ou referência M na descrição',
+              suffixText: 'cm',
+            ),
+          ),
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            onPressed: _save,
+            icon: const Icon(Icons.save_outlined),
+            label: const Text('Salvar alterações'),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _SelectedProductImage {

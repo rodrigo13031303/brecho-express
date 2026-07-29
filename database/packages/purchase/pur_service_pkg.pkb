@@ -1,4 +1,25 @@
 CREATE OR REPLACE PACKAGE BODY pur_service_pkg AS
+  PROCEDURE expire_pending IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+  BEGIN
+    UPDATE BEX_PURCHASE_REQUEST_ITEM item_data
+       SET item_data.PRI_STATUS='REJECTED',
+           item_data.PRI_CONFIRMED_QUANTITY=0,
+           item_data.PRI_REJECT_REASON='Prazo de 5 minutos não atendido pelo brechó',
+           item_data.PRI_UPDATED_AT=SYSTIMESTAMP
+     WHERE item_data.PRI_STATUS='PENDING'
+       AND EXISTS(
+         SELECT 1 FROM BEX_PURCHASE_REQUEST request_data
+          WHERE request_data.PUR_ID=item_data.PUR_ID
+            AND request_data.PUR_STATUS='PENDING'
+            AND request_data.PUR_EXPIRES_AT<=SYSTIMESTAMP
+       );
+    UPDATE BEX_PURCHASE_REQUEST
+       SET PUR_STATUS='EXPIRED',PUR_RESPONSE_AT=SYSTIMESTAMP,
+           PUR_UPDATED_AT=SYSTIMESTAMP
+     WHERE PUR_STATUS='PENDING' AND PUR_EXPIRES_AT<=SYSTIMESTAMP;
+    COMMIT;
+  END;
   FUNCTION map_item(x pur_repository_pkg.t_item) RETURN t_item_record IS r t_item_record;
     s str_service_pkg.t_store_record;
   BEGIN r.item_public_id:=x.pri_public_id;
@@ -25,7 +46,7 @@ CREATE OR REPLACE PACKAGE BODY pur_service_pkg AS
     c crt_service_pkg.t_checkout;rid NUMBER;i PLS_INTEGER;dummy NUMBER;
   BEGIN c:=crt_service_pkg.prepare_checkout(p_cart_public_id,p_actor_id);
     pur_repository_pkg.insert_request(LOWER(RAWTOHEX(SYS_GUID())),c.profile_id,
-      SYSTIMESTAMP + INTERVAL '48' HOUR,p_actor_id,rid);i:=c.items.FIRST;
+      SYSTIMESTAMP + INTERVAL '5' MINUTE,p_actor_id,rid);i:=c.items.FIRST;
     WHILE i IS NOT NULL LOOP pur_repository_pkg.insert_item(LOWER(RAWTOHEX(SYS_GUID())),
       rid,c.items(i).product_id,c.items(i).store_id,c.items(i).requested_quantity,
       c.items(i).unit_price,p_actor_id,dummy);i:=c.items.NEXT(i);END LOOP;
@@ -33,12 +54,13 @@ CREATE OR REPLACE PACKAGE BODY pur_service_pkg AS
     RETURN map_request(pur_repository_pkg.get_request_by_id(rid));END;
   FUNCTION get_request(p_public_id VARCHAR2,p_actor_id NUMBER) RETURN t_record IS
     r pur_repository_pkg.t_request;p BEX_PROFILE%ROWTYPE;
-  BEGIN r:=internal(p_public_id);BEGIN p:=pfl_service_pkg.get_by_account_id(p_actor_id);
+  BEGIN expire_pending; r:=internal(p_public_id);BEGIN p:=pfl_service_pkg.get_by_account_id(p_actor_id);
     EXCEPTION WHEN pfl_service_pkg.e_profile_not_found THEN RAISE e_forbidden;END;
     IF r.pfl_id<>p.pfl_id THEN RAISE e_forbidden;END IF;RETURN map_request(r);END;
   FUNCTION list_for_buyer(p_actor_id NUMBER) RETURN t_table IS
     p BEX_PROFILE%ROWTYPE;xs pur_repository_pkg.t_requests;r t_table;i PLS_INTEGER;
   BEGIN
+    expire_pending;
     BEGIN p:=pfl_service_pkg.get_by_account_id(p_actor_id);
     EXCEPTION WHEN pfl_service_pkg.e_profile_not_found THEN RAISE e_forbidden;END;
     xs:=pur_repository_pkg.list_by_profile(p.pfl_id);i:=xs.FIRST;
@@ -49,6 +71,7 @@ CREATE OR REPLACE PACKAGE BODY pur_service_pkg AS
     RETURN t_table IS
     store_id NUMBER;xs pur_repository_pkg.t_requests;r t_table;i PLS_INTEGER;
   BEGIN
+    expire_pending;
     store_id:=str_service_pkg.resolve_catalog_store_id(p_store_public_id,p_actor_id);
     xs:=pur_repository_pkg.list_by_store(store_id);i:=xs.FIRST;
     WHILE i IS NOT NULL LOOP
@@ -68,7 +91,7 @@ CREATE OR REPLACE PACKAGE BODY pur_service_pkg AS
     p_store_public_id VARCHAR2,p_confirmed_quantity NUMBER,p_reject_reason VARCHAR2,
     p_actor_id NUMBER) RETURN t_record IS r pur_repository_pkg.t_request;
     x pur_repository_pkg.t_item;store_id NUMBER;s VARCHAR2(30);reason VARCHAR2(500);
-  BEGIN r:=internal(p_request_public_id);pur_repository_pkg.lock_request(r.pur_id);
+  BEGIN expire_pending; r:=internal(p_request_public_id);pur_repository_pkg.lock_request(r.pur_id);
     BEGIN pur_rule_pkg.assert_pending(r.pur_status);EXCEPTION WHEN pur_rule_pkg.e_request_closed THEN RAISE e_request_closed;END;
     BEGIN x:=pur_repository_pkg.get_item_by_public(p_item_public_id);
     EXCEPTION WHEN NO_DATA_FOUND THEN RAISE e_item_not_found;END;
