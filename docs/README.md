@@ -198,7 +198,8 @@ validação executável correspondente.
 | `39_LEDGER_PAYOUT_ARCHITECTURE.md` | Implementado no escopo inicial | ledger, saldo e repasse |
 | `40_ORDS_ARCHITECTURE.md` | Parcialmente implementado | borda HTTP e catálogo de endpoints |
 | `41_FLUTTER_OAUTH_CONFIGURATION.md` | Parcialmente implementado | IDs móveis e configuração OAuth |
-| `ADR-015` a `ADR-025` | Conforme cada arquivo | decisões individuais vigentes |
+| `42_PLATFORM_CONTENT_ARCHITECTURE.md` | Implementação inicial | banners globais e administração |
+| `ADR-015` a `ADR-026` | Conforme cada arquivo | decisões individuais vigentes |
 | `sprints/` | Operacional e histórico | execução limitada à sprint |
 
 ## 11. Pendências documentais controladas

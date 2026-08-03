@@ -505,3 +505,15 @@ Antes de gerar scripts ORDS:
 5. definir CORS e rate limit por grupo;
 6. produzir OpenAPI 3.1;
 7. ampliar handlers por domínio e criar suíte HTTP automatizada.
+
+## Conteúdo global da Home
+
+| Método | Rota | Acesso |
+|---|---|---|
+| GET | `/platform-banners` | Público, somente ativos e vigentes |
+| GET | `/platform-banners/{bannerPublicId}/image` | Público |
+| GET | `/admin/platform-banners` | ROLE global ADMIN |
+| POST | `/admin/platform-banners` | ROLE global ADMIN |
+| PUT | `/admin/platform-banners/{bannerPublicId}` | ROLE global ADMIN |
+| POST | `/admin/platform-banners/{bannerPublicId}/image` | ROLE global ADMIN |
+| GET | `/me/roles` | Sessão autenticada |

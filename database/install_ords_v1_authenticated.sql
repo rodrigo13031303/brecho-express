@@ -18,6 +18,7 @@ PROMPT ============================================================
 @@install_store_logo_media.sql
 @@install_store_location.sql
 @@install_api_error_logging.sql
+@@install_platform_banner_feature.sql
 @@packages/catalog/install_prd_api_pkg.sql
 @@install_product_image_media.sql
 @@packages/store/install_store_onboarding_api_pkg.sql

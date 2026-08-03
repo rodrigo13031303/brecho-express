@@ -38,6 +38,8 @@ migrado em 2026-07-26.
 | [ADR-022](ADR-022_FINANCIAL_ARCHITECTURE.md) | Arquitetura financeira | Aceito |
 | [ADR-023](ADR-023_POST_SALES_POLICY.md) | Política de pós-venda | Aceito |
 | [ADR-024](ADR-024_PAYMENT_PRECEDES_ORDER.md) | Pagamento antes do pedido | Aceito e implementado |
+| [ADR-025](ADR-025_SOCIAL_AUTHENTICATION.md) | Autenticação social | Aceito |
+| [ADR-026](ADR-026_PLATFORM_HOME_BANNERS.md) | Banners globais da Home | Aceito |
 
 ## Regra
 

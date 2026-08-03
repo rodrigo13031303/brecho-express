@@ -5207,3 +5207,7 @@ funcional autorizado.
 A tabela física existe, mas ainda faltam constraints temporais mais fortes,
 erros, política de retentativa, auditoria, integração e testes comportamentais
 de entrega.
+
+# PLATFORM_BANNER
+
+Entidade editorial global definida pelo ADR-026 e detalhada em 42_PLATFORM_CONTENT_ARCHITECTURE.md. Banners possuem Public ID, imagem, texto alternativo, destino estruturado, vigência, ordem, lifecycle lógico e auditoria por ACCOUNT. Não substituem STORE_EVENT e não são excluídos fisicamente pelo aplicativo.

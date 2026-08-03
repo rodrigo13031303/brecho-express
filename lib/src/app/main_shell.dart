@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 
 import '../appearance/app_palette.dart';
 import '../auth/brecho_session.dart';
+import '../banner/platform_banner_admin_page.dart';
+import '../banner/platform_banner_carousel.dart';
+import '../banner/platform_banner_service.dart';
 import '../branding/brecho_mark.dart';
 import '../cart/cart_page.dart';
 import '../cart/cart_service.dart';
@@ -43,8 +46,11 @@ class _MainShellState extends State<MainShell> {
   late final StoreLocationService _locationService;
   late final BuyerLocationStore _buyerLocationStore;
   late final PushNotificationService _pushNotificationService;
+  late final PlatformBannerService _bannerService;
   late Future<CatalogSnapshot> _catalog;
   late Future<CartSnapshot> _cart;
+  late Future<List<PlatformBanner>> _banners;
+  late Future<Set<String>> _roles;
   CartSnapshot? _cartValue;
   String? _busyCartItemId;
   bool _checkingOut = false;
@@ -60,8 +66,11 @@ class _MainShellState extends State<MainShell> {
     _locationService = StoreLocationService();
     _buyerLocationStore = BuyerLocationStore();
     _pushNotificationService = PushNotificationService();
+    _bannerService = PlatformBannerService();
     _catalog = widget.initialCatalog ?? _catalogService.load();
     _cart = _loadCart();
+    _banners = _bannerService.listPublic();
+    _roles = _bannerService.myRoles(widget.session);
     _restoreBuyerLocation();
     _activatePushNotifications();
   }
@@ -71,6 +80,7 @@ class _MainShellState extends State<MainShell> {
     _catalogService.close();
     _cartService.close();
     _pushNotificationService.close();
+    _bannerService.close();
     _locationService.close();
     super.dispose();
   }
@@ -128,6 +138,10 @@ class _MainShellState extends State<MainShell> {
           _cartValue = null;
           _purchaseRefresh++;
           _cart = _loadCart();
+          _banners = _bannerService.listPublic();
+          _roles = _bannerService.myRoles(widget.session);
+          _banners = _bannerService.listPublic();
+          _roles = _bannerService.myRoles(widget.session);
           _restoreBuyerLocation();
           _activatePushNotifications();
         });
@@ -233,10 +247,43 @@ class _MainShellState extends State<MainShell> {
 
   void _selectTab(int index) => setState(() => _currentIndex = index);
 
+  Future<void> _openBanner(PlatformBanner banner) async {
+    if (banner.targetType == 'APP_SCREEN') {
+      final index = switch (banner.targetValue?.toLowerCase()) {
+        'home' || 'inicio' => 0,
+        'buy' || 'comprar' || 'explore' => 1,
+        'sell' || 'vender' => 2,
+        'cart' || 'carrinho' => 3,
+        'profile' || 'perfil' => 4,
+        _ => 1,
+      };
+      _selectTab(index);
+      return;
+    }
+    if (banner.targetType == 'PRODUCT' && banner.targetPublicId != null) {
+      final snapshot = await _catalog;
+      final product = snapshot.products
+          .where((item) => item.publicId == banner.targetPublicId)
+          .firstOrNull;
+      if (product != null && mounted) {
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) =>
+                ProductDetailPage(product: product, onAddToCart: _addToCart),
+          ),
+        );
+        return;
+      }
+    }
+    if (mounted) _selectTab(1);
+  }
+
   @override
   Widget build(BuildContext context) {
     final pages = [
       HomePage(
+        banners: _banners,
+        onOpenBanner: _openBanner,
         catalog: _catalog,
         onRetry: _retryCatalog,
         onExplore: () => _selectTab(1),
@@ -279,6 +326,8 @@ class _MainShellState extends State<MainShell> {
         onPaletteChanged: widget.onPaletteChanged,
         onLogout: widget.onLogout,
         loggingOut: widget.loggingOut,
+        roles: _roles,
+        bannerService: _bannerService,
       ),
     ];
 
@@ -338,6 +387,8 @@ class _CartNavigationIcon extends StatelessWidget {
 
 class HomePage extends StatelessWidget {
   const HomePage({
+    required this.banners,
+    required this.onOpenBanner,
     required this.catalog,
     required this.onRetry,
     required this.onExplore,
@@ -347,6 +398,8 @@ class HomePage extends StatelessWidget {
     required this.onChooseLocation,
     super.key,
   });
+  final Future<List<PlatformBanner>> banners;
+  final ValueChanged<PlatformBanner> onOpenBanner;
   final Future<CatalogSnapshot> catalog;
   final VoidCallback onRetry;
   final VoidCallback onExplore;
@@ -366,6 +419,8 @@ class HomePage extends StatelessWidget {
             sliver: SliverList.list(
               children: [
                 const _BrandHeader(title: 'Brechó Express'),
+                const SizedBox(height: 18),
+                PlatformBannerCarousel(banners: banners, onOpen: onOpenBanner),
                 const SizedBox(height: 24),
                 Text(
                   'Olá! 👋',
@@ -844,6 +899,8 @@ class ProfilePage extends StatelessWidget {
     required this.onPaletteChanged,
     required this.onLogout,
     required this.loggingOut,
+    required this.roles,
+    required this.bannerService,
     this.initialCatalog,
     super.key,
   });
@@ -852,6 +909,8 @@ class ProfilePage extends StatelessWidget {
   final ValueChanged<AppPalette> onPaletteChanged;
   final Future<void> Function() onLogout;
   final bool loggingOut;
+  final Future<Set<String>> roles;
+  final PlatformBannerService bannerService;
   final Future<CatalogSnapshot>? initialCatalog;
 
   Future<void> _chooseAppearance(BuildContext context) async {
@@ -941,6 +1000,35 @@ class ProfilePage extends StatelessWidget {
                   subtitle: Text(palette.label),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => _chooseAppearance(context),
+                ),
+                FutureBuilder<Set<String>>(
+                  future: roles,
+                  builder: (context, snapshot) {
+                    if (!(snapshot.data?.contains('ADMIN') ?? false)) {
+                      return const SizedBox.shrink();
+                    }
+                    return Column(
+                      children: [
+                        const Divider(height: 1),
+                        ListTile(
+                          leading: const Icon(
+                            Icons.admin_panel_settings_outlined,
+                          ),
+                          title: const Text('Administração'),
+                          subtitle: const Text('Banners da página inicial'),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => PlatformBannerAdminPage(
+                                session: session,
+                                service: bannerService,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 const Divider(height: 1),
                 ListTile(
