@@ -142,6 +142,14 @@ class _BannerForm extends StatefulWidget {
 }
 
 class _BannerFormState extends State<_BannerForm> {
+  static const _appScreens = <String, String>{
+    'inicio': 'Início',
+    'comprar': 'Comprar',
+    'vender': 'Vender',
+    'carrinho': 'Carrinho',
+    'perfil': 'Perfil',
+  };
+
   final _form = GlobalKey<FormState>();
   final _picker = ImagePicker();
   late final _title = TextEditingController(text: widget.banner?.title);
@@ -160,6 +168,15 @@ class _BannerFormState extends State<_BannerForm> {
       DateTime.now().add(const Duration(days: 7));
   Uint8List? _image;
   String? _mimeType;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_targetType == 'APP_SCREEN' &&
+        !_appScreens.containsKey(_target.text.toLowerCase())) {
+      _target.text = 'comprar';
+    }
+  }
 
   @override
   void dispose() {
@@ -303,16 +320,42 @@ class _BannerFormState extends State<_BannerForm> {
                   child: Text('Link externo HTTPS'),
                 ),
               ],
-              onChanged: (value) =>
-                  setState(() => _targetType = value ?? 'APP_SCREEN'),
+              onChanged: (value) {
+                setState(() {
+                  _targetType = value ?? 'APP_SCREEN';
+                  if (_targetType == 'APP_SCREEN' &&
+                      !_appScreens.containsKey(_target.text.toLowerCase())) {
+                    _target.text = 'comprar';
+                  }
+                });
+              },
             ),
-            TextFormField(
-              controller: _target,
-              decoration: const InputDecoration(
-                labelText: 'Public ID, nome da tela ou URL',
+            if (_targetType == 'APP_SCREEN')
+              DropdownButtonFormField<String>(
+                initialValue: _target.text.toLowerCase(),
+                decoration: const InputDecoration(
+                  labelText: 'Tela do aplicativo',
+                ),
+                items: _appScreens.entries
+                    .map(
+                      (screen) => DropdownMenuItem(
+                        value: screen.key,
+                        child: Text(screen.value),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) => _target.text = value ?? 'comprar',
+              )
+            else
+              TextFormField(
+                controller: _target,
+                decoration: InputDecoration(
+                  labelText: _targetType == 'EXTERNAL_URL'
+                      ? 'URL HTTPS'
+                      : 'Public ID do destino',
+                ),
+                validator: _required,
               ),
-              validator: _required,
-            ),
             Row(
               children: [
                 Expanded(

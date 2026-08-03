@@ -25,6 +25,11 @@ destino estruturado, início, fim, ordem, estado e auditoria por ACCOUNT.
 - consulta pública aplica estado e vigência no servidor;
 - conteúdo binário não integra respostas JSON.
 
+Para o destino `APP_SCREEN`, o aplicativo administra uma chave estável em vez
+de texto de apresentação. As chaves iniciais são `inicio`, `comprar`, `vender`,
+`carrinho` e `perfil`. O formulário administrativo deve apresentá-las como
+opções e a navegação deve manter compatibilidade com aliases legados.
+
 ## Packages
 
 - `PLB_REPOSITORY_PKG`;
