@@ -68,6 +68,9 @@ Datas administrativas são apresentadas no fuso local do dispositivo. Ao voltar
 da administração, a Home invalida a consulta pública em memória para refletir
 imediatamente ativações, alterações e arquivamentos.
 
+As chamadas promocionais da Home são publicadas como banners administráveis.
+Não devem existir cards promocionais fixos no código do aplicativo.
+
 ## Evolução adiada
 
 - métricas de impressão e clique;

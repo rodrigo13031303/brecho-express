@@ -327,7 +327,6 @@ class _MainShellState extends State<MainShell> {
         profile: _profile,
         catalog: _catalog,
         onRetry: _retryCatalog,
-        onSell: () => _selectTab(2),
         onAddToCart: _addToCart,
         locationLabel: _viewerLocationLabel,
         onChooseLocation: _chooseBuyerLocation,
@@ -433,7 +432,6 @@ class HomePage extends StatelessWidget {
     required this.profile,
     required this.catalog,
     required this.onRetry,
-    required this.onSell,
     required this.onAddToCart,
     required this.locationLabel,
     required this.onChooseLocation,
@@ -444,14 +442,12 @@ class HomePage extends StatelessWidget {
   final Future<UserProfileSummary?> profile;
   final Future<CatalogSnapshot> catalog;
   final VoidCallback onRetry;
-  final VoidCallback onSell;
   final Future<void> Function(CatalogProduct product) onAddToCart;
   final String? locationLabel;
   final VoidCallback onChooseLocation;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     return SafeArea(
       child: CustomScrollView(
         slivers: [
@@ -481,43 +477,6 @@ class HomePage extends StatelessWidget {
                   onRetry: onRetry,
                   preview: true,
                   onAddToCart: onAddToCart,
-                ),
-
-                const SizedBox(height: 28),
-                Container(
-                  padding: const EdgeInsets.all(22),
-                  decoration: BoxDecoration(
-                    color: colors.primaryContainer,
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.auto_awesome,
-                        color: colors.onPrimaryContainer,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Desapegue. Renove. Recomece.',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: colors.onPrimaryContainer,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Dê uma nova história às peças que você não usa mais.',
-                        style: TextStyle(color: colors.onPrimaryContainer),
-                      ),
-                      const SizedBox(height: 16),
-                      FilledButton.icon(
-                        onPressed: onSell,
-                        icon: const Icon(Icons.add),
-                        label: const Text('Quero vender'),
-                      ),
-                    ],
-                  ),
                 ),
                 const SizedBox(height: 28),
               ],
