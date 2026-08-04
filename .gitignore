@@ -86,3 +86,4 @@ service-account*.json
 *.jks
 *.keystore
 android/key.properties
+pass.txt

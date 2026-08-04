@@ -53,6 +53,8 @@ autorização administrativa.
 | GET | `/me/roles` | autenticada |
 
 Todos os JSON seguem envelope vigente, camelCase, ISO-8601 e PUBLIC_ID.
+Nos handlers ORDS de criação e alteração, o JSON textual é recebido por
+`:body_text`; `:body` fica reservado aos uploads binários de imagem.
 
 ## Evolução adiada
 
