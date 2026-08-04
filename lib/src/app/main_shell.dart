@@ -1202,14 +1202,15 @@ class _ProductCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
+            AspectRatio(
+              aspectRatio: 1,
               child: ColoredBox(
                 color: Theme.of(context).colorScheme.primaryContainer,
                 child: product.primaryImageUrl == null
                     ? const Icon(Icons.checkroom_outlined, size: 54)
                     : CachedNetworkImage(
                         imageUrl: product.primaryImageUrl!,
-                        fit: BoxFit.contain,
+                        fit: BoxFit.fill,
                         memCacheWidth: 720,
                         placeholder: (_, _) => const Center(
                           child: CircularProgressIndicator(strokeWidth: 2),
