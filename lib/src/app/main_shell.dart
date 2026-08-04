@@ -247,6 +247,10 @@ class _MainShellState extends State<MainShell> {
 
   void _selectTab(int index) => setState(() => _currentIndex = index);
 
+  void _reloadBanners() => setState(() {
+    _banners = _bannerService.listPublic();
+  });
+
   Future<void> _openBanner(PlatformBanner banner) async {
     if (banner.targetType == 'APP_SCREEN') {
       final index = switch (banner.targetValue?.toLowerCase()) {
@@ -328,6 +332,7 @@ class _MainShellState extends State<MainShell> {
         loggingOut: widget.loggingOut,
         roles: _roles,
         bannerService: _bannerService,
+        onBannersChanged: _reloadBanners,
       ),
     ];
 
@@ -901,6 +906,7 @@ class ProfilePage extends StatelessWidget {
     required this.loggingOut,
     required this.roles,
     required this.bannerService,
+    required this.onBannersChanged,
     this.initialCatalog,
     super.key,
   });
@@ -911,6 +917,7 @@ class ProfilePage extends StatelessWidget {
   final bool loggingOut;
   final Future<Set<String>> roles;
   final PlatformBannerService bannerService;
+  final VoidCallback onBannersChanged;
   final Future<CatalogSnapshot>? initialCatalog;
 
   Future<void> _chooseAppearance(BuildContext context) async {
@@ -1017,14 +1024,17 @@ class ProfilePage extends StatelessWidget {
                           title: const Text('Administração'),
                           subtitle: const Text('Banners da página inicial'),
                           trailing: const Icon(Icons.chevron_right),
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => PlatformBannerAdminPage(
-                                session: session,
-                                service: bannerService,
+                          onTap: () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => PlatformBannerAdminPage(
+                                  session: session,
+                                  service: bannerService,
+                                ),
                               ),
-                            ),
-                          ),
+                            );
+                            onBannersChanged();
+                          },
                         ),
                       ],
                     );

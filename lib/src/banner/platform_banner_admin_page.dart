@@ -32,6 +32,57 @@ class _PlatformBannerAdminPageState extends State<PlatformBannerAdminPage> {
 
   void _reload() => _banners = widget.service.listAdmin(widget.session);
 
+  Future<void> _archive(PlatformBanner banner) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Excluir banner?'),
+        content: Text(
+          '“${banner.title}” será retirado da página inicial e arquivado. '
+          'Essa ação não poderá ser desfeita.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Excluir banner'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await widget.service.save(
+        session: widget.session,
+        current: banner,
+        draft: PlatformBannerDraft(
+          title: banner.title,
+          altText: banner.altText,
+          targetType: banner.targetType,
+          targetPublicId: banner.targetPublicId,
+          targetValue: banner.targetValue,
+          startAt: banner.startAt,
+          endAt: banner.endAt,
+          displayOrder: banner.displayOrder,
+          status: 'ARCHIVED',
+        ),
+      );
+      if (!mounted) return;
+      setState(_reload);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Banner excluído da página inicial.')),
+      );
+    } on PlatformBannerException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  }
+
   Future<void> _edit([PlatformBanner? banner]) async {
     final result = await showModalBottomSheet<_BannerFormResult>(
       context: context,
@@ -97,7 +148,9 @@ class _PlatformBannerAdminPageState extends State<PlatformBannerAdminPage> {
             ),
           );
         }
-        final banners = snapshot.data ?? const <PlatformBanner>[];
+        final banners = (snapshot.data ?? const <PlatformBanner>[])
+            .where((banner) => banner.status != 'ARCHIVED')
+            .toList(growable: false);
         if (banners.isEmpty) {
           return const Center(child: Text('Nenhum banner cadastrado.'));
         }
@@ -119,7 +172,28 @@ class _PlatformBannerAdminPageState extends State<PlatformBannerAdminPage> {
                   '${_date(banner.startAt)} até ${_date(banner.endAt)}',
                 ),
                 isThreeLine: true,
-                trailing: const Icon(Icons.edit_outlined),
+                trailing: PopupMenuButton<String>(
+                  tooltip: 'Ações do banner',
+                  onSelected: (value) =>
+                      value == 'EDIT' ? _edit(banner) : _archive(banner),
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(
+                      value: 'EDIT',
+                      child: ListTile(
+                        leading: Icon(Icons.edit_outlined),
+                        title: Text('Editar'),
+                      ),
+                    ),
+                    if (banner.status != 'ARCHIVED')
+                      const PopupMenuItem(
+                        value: 'ARCHIVE',
+                        child: ListTile(
+                          leading: Icon(Icons.delete_outline),
+                          title: Text('Excluir banner'),
+                        ),
+                      ),
+                  ],
+                ),
                 onTap: () => _edit(banner),
               ),
             );
@@ -129,9 +203,11 @@ class _PlatformBannerAdminPageState extends State<PlatformBannerAdminPage> {
     ),
   );
 
-  static String _date(DateTime value) =>
-      '${value.day.toString().padLeft(2, '0')}/'
-      '${value.month.toString().padLeft(2, '0')}/${value.year}';
+  static String _date(DateTime value) {
+    final local = value.toLocal();
+    return '${local.day.toString().padLeft(2, '0')}/'
+        '${local.month.toString().padLeft(2, '0')}/${local.year}';
+  }
 }
 
 class _BannerForm extends StatefulWidget {

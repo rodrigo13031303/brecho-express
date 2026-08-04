@@ -21,6 +21,10 @@ destino estruturado, início, fim, ordem, estado e auditoria por ACCOUNT.
 - ativação exige imagem;
 - ordem fica entre 0 e 99999;
 - `ARCHIVED` é terminal;
+- a ação administrativa “Excluir banner” realiza arquivamento lógico, nunca
+  exclusão física;
+- banners arquivados deixam a lista operacional do aplicativo, mas continuam
+  preservados no Oracle para auditoria;
 - somente ROLE global `ADMIN` cria, altera ou envia imagem;
 - consulta pública aplica estado e vigência no servidor;
 - conteúdo binário não integra respostas JSON.
@@ -59,6 +63,10 @@ Nos handlers ORDS de criação e alteração, o JSON textual é recebido por
 Seletores de mídia exibem prévia imediata do arquivo escolhido. O banner usa
 prévia 2:1 e, durante a edição, mantém visível a imagem publicada até a escolha
 de uma substituta.
+
+Datas administrativas são apresentadas no fuso local do dispositivo. Ao voltar
+da administração, a Home invalida a consulta pública em memória para refletir
+imediatamente ativações, alterações e arquivamentos.
 
 ## Evolução adiada
 
