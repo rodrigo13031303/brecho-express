@@ -286,3 +286,9 @@ contrato próprios.
 No cliente Flutter, a seleção de novas imagens apresenta prévia imediata tanto
 no cadastro quanto na edição do produto, incluindo ordem visual, indicação de
 capa e remoção antes do envio.
+
+A Home restaura a referência geográfica persistida do comprador. Na primeira
+execução sem preferência, pode solicitar a localização atual, realizar
+geocodificação reversa e persistir coordenadas e rótulo. Falha ou recusa de
+permissão não bloqueia a Home; o endereço permanece clicável para escolha por
+CEP ou GPS. Busca e filtros continuam pertencendo à área Comprar.

@@ -7,7 +7,7 @@ DECLARE
   g_current_test VARCHAR2(200);
   g_trace_id     core_trace_pkg.t_trace_id;
 
-  c_expected_test_count CONSTANT PLS_INTEGER := 44;
+  c_expected_test_count CONSTANT PLS_INTEGER := 46;
 
   l_account_id               BEX_ACCOUNT.ACC_ID%TYPE;
   l_account_public_id        BEX_ACCOUNT.ACC_PUBLIC_ID%TYPE;
@@ -243,6 +243,20 @@ DECLARE
     clear_context;
   END invoke_get_by_account;
 
+  PROCEDURE invoke_get_my_profile(
+    p_actor_id IN NUMBER
+  ) IS
+  BEGIN
+    free_temporary_clob(l_response_body);
+    initialize_context;
+    pfl_api_pkg.get_my_profile(
+      p_actor_id,
+      l_status_code,
+      l_response_body
+    );
+    clear_context;
+  END invoke_get_my_profile;
+
   PROCEDURE invoke_update(
     p_profile_public_id IN VARCHAR2,
     p_request_body      IN CLOB,
@@ -326,6 +340,20 @@ DECLARE
     SELECT COUNT(*) INTO l_count FROM BEX_PROFILE
      WHERE PFL_PUBLIC_ID = l_profile_public_id;
     assert_true(l_count = 1, 'Criacao nao permaneceu apos ROLLBACK externo.');
+    pass;
+
+    invoke_get_my_profile(l_account_id);
+    start_test('GET_MY_PROFILE retorna status 200');
+    assert_true(l_status_code = 200, 'Status do perfil autenticado incorreto.');
+    pass;
+
+    start_test('GET_MY_PROFILE retorna o displayName do ator');
+    parse_response;
+    l_data := l_envelope.get_object('data');
+    assert_true(
+      l_data.get_string('displayName') = 'Profile API',
+      'Perfil autenticado incorreto.'
+    );
     pass;
 
     start_test('GET_PROFILE retorna PROFILE por public ID');
@@ -645,7 +673,7 @@ DECLARE
      WHERE NAME = 'PFL_API_PKG' AND TYPE = 'PACKAGE BODY'
        AND INSTR(UPPER(TEXT), 'PFL_SERVICE_PKG.') > 0
        AND NOT REGEXP_LIKE(UPPER(TEXT),
-         'PFL_SERVICE_PKG[.](CREATE_BY_ACCOUNT_PUBLIC_ID|GET_BY_PUBLIC_ID|GET_BY_ACCOUNT_PUBLIC_ID|UPDATE_BY_PUBLIC_ID|E_)');
+         'PFL_SERVICE_PKG[.](CREATE_BY_ACCOUNT_PUBLIC_ID|GET_BY_PUBLIC_ID|GET_BY_ACCOUNT_ID|GET_BY_ACCOUNT_PUBLIC_ID|UPDATE_BY_PUBLIC_ID|E_)');
     assert_true(l_source_count = 0, 'API chamou operacao nao aprovada.');
     pass;
 

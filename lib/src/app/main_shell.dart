@@ -15,6 +15,7 @@ import '../location/buyer_location_store.dart';
 import '../location/store_location_service.dart';
 import '../notification/push_notification_service.dart';
 import '../purchase/purchases_hub_page.dart';
+import '../profile/user_profile_service.dart';
 import '../seller/seller_page.dart';
 
 class MainShell extends StatefulWidget {
@@ -47,10 +48,12 @@ class _MainShellState extends State<MainShell> {
   late final BuyerLocationStore _buyerLocationStore;
   late final PushNotificationService _pushNotificationService;
   late final PlatformBannerService _bannerService;
+  late final UserProfileService _profileService;
   late Future<CatalogSnapshot> _catalog;
   late Future<CartSnapshot> _cart;
   late Future<List<PlatformBanner>> _banners;
   late Future<Set<String>> _roles;
+  late Future<UserProfileSummary?> _profile;
   CartSnapshot? _cartValue;
   String? _busyCartItemId;
   bool _checkingOut = false;
@@ -67,10 +70,12 @@ class _MainShellState extends State<MainShell> {
     _buyerLocationStore = BuyerLocationStore();
     _pushNotificationService = PushNotificationService();
     _bannerService = PlatformBannerService();
+    _profileService = UserProfileService();
     _catalog = widget.initialCatalog ?? _catalogService.load();
     _cart = _loadCart();
     _banners = _bannerService.listPublic();
     _roles = _bannerService.myRoles(widget.session);
+    _profile = _loadProfile();
     _restoreBuyerLocation();
     _activatePushNotifications();
   }
@@ -82,6 +87,7 @@ class _MainShellState extends State<MainShell> {
     _pushNotificationService.close();
     _bannerService.close();
     _locationService.close();
+    _profileService.close();
     super.dispose();
   }
 
@@ -213,8 +219,38 @@ class _MainShellState extends State<MainShell> {
 
   Future<void> _restoreBuyerLocation() async {
     final saved = await _buyerLocationStore.read();
-    if (saved == null || !mounted) return;
-    _applyBuyerLocation(saved);
+    if (saved != null && saved.label != 'Minha localização atual') {
+      if (mounted) _applyBuyerLocation(saved);
+      return;
+    }
+    try {
+      final draft = await _locationService.useCurrentLocation();
+      final location = BuyerCatalogLocation(
+        point: GeoPoint(draft.latitude!, draft.longitude!),
+        label: _buyerLocationLabel(draft),
+      );
+      await _buyerLocationStore.write(location);
+      if (mounted) _applyBuyerLocation(location);
+    } catch (_) {
+      // A Home continua utilizável e permite escolher CEP ou GPS manualmente.
+    }
+  }
+
+  Future<UserProfileSummary?> _loadProfile() async {
+    try {
+      return await _profileService.getMe(widget.session);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static String _buyerLocationLabel(StoreLocationDraft draft) {
+    final street = draft.street.trim();
+    final number = draft.number.trim();
+    if (street.isNotEmpty) {
+      return number.isEmpty ? street : '$street, $number';
+    }
+    return draft.publicLabel;
   }
 
   void _applyBuyerLocation(BuyerCatalogLocation location) {
@@ -288,9 +324,9 @@ class _MainShellState extends State<MainShell> {
       HomePage(
         banners: _banners,
         onOpenBanner: _openBanner,
+        profile: _profile,
         catalog: _catalog,
         onRetry: _retryCatalog,
-        onExplore: () => _selectTab(1),
         onSell: () => _selectTab(2),
         onAddToCart: _addToCart,
         locationLabel: _viewerLocationLabel,
@@ -394,9 +430,9 @@ class HomePage extends StatelessWidget {
   const HomePage({
     required this.banners,
     required this.onOpenBanner,
+    required this.profile,
     required this.catalog,
     required this.onRetry,
-    required this.onExplore,
     required this.onSell,
     required this.onAddToCart,
     required this.locationLabel,
@@ -405,9 +441,9 @@ class HomePage extends StatelessWidget {
   });
   final Future<List<PlatformBanner>> banners;
   final ValueChanged<PlatformBanner> onOpenBanner;
+  final Future<UserProfileSummary?> profile;
   final Future<CatalogSnapshot> catalog;
   final VoidCallback onRetry;
-  final VoidCallback onExplore;
   final VoidCallback onSell;
   final Future<void> Function(CatalogProduct product) onAddToCart;
   final String? locationLabel;
@@ -426,70 +462,13 @@ class HomePage extends StatelessWidget {
                 const _BrandHeader(title: 'Brechó Express'),
                 const SizedBox(height: 18),
                 PlatformBannerCarousel(banners: banners, onOpen: onOpenBanner),
+                const SizedBox(height: 18),
+                _HomeIdentityHeader(
+                  profile: profile,
+                  locationLabel: locationLabel,
+                  onChooseLocation: onChooseLocation,
+                ),
                 const SizedBox(height: 24),
-                Text(
-                  'Olá! 👋',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Que história sua próxima peça vai contar?',
-                  style: Theme.of(context).textTheme.bodyLarge,
-                ),
-                const SizedBox(height: 22),
-                SearchBar(
-                  onTap: onExplore,
-                  readOnly: true,
-                  leading: const Icon(Icons.search),
-                  hintText: 'Buscar peças, marcas ou estilos',
-                ),
-                const SizedBox(height: 14),
-                Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.location_on_outlined),
-                    title: Text(locationLabel ?? 'Escolha onde quer comprar'),
-                    subtitle: const Text('Ver distância dos brechós'),
-                    trailing: const Icon(Icons.edit_location_alt_outlined),
-                    onTap: onChooseLocation,
-                  ),
-                ),
-                const SizedBox(height: 28),
-                Text(
-                  'Explore por categoria',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    _CategoryChip(
-                      icon: Icons.checkroom_outlined,
-                      label: 'Roupas',
-                      onTap: onExplore,
-                    ),
-                    _CategoryChip(
-                      icon: Icons.shopping_bag_outlined,
-                      label: 'Bolsas',
-                      onTap: onExplore,
-                    ),
-                    _CategoryChip(
-                      icon: Icons.diamond_outlined,
-                      label: 'Acessórios',
-                      onTap: onExplore,
-                    ),
-                    _CategoryChip(
-                      icon: Icons.directions_run_outlined,
-                      label: 'Calçados',
-                      onTap: onExplore,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 28),
                 Text(
                   'Novidades',
                   style: Theme.of(
@@ -548,6 +527,62 @@ class HomePage extends StatelessWidget {
       ),
     );
   }
+}
+
+class _HomeIdentityHeader extends StatelessWidget {
+  const _HomeIdentityHeader({
+    required this.profile,
+    required this.locationLabel,
+    required this.onChooseLocation,
+  });
+
+  final Future<UserProfileSummary?> profile;
+  final String? locationLabel;
+  final VoidCallback onChooseLocation;
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<UserProfileSummary?>(
+    future: profile,
+    builder: (context, snapshot) {
+      final firstName = snapshot.data?.firstName ?? '';
+      return InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onChooseLocation,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                firstName.isEmpty ? 'Olá! 👋' : 'Olá, $firstName! 👋',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Row(
+                children: [
+                  const Icon(Icons.location_on_outlined, size: 20),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      locationLabel ?? 'Toque para escolher sua localização',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const Icon(Icons.keyboard_arrow_down),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
 }
 
 class ExplorePage extends StatefulWidget {
@@ -798,11 +833,15 @@ class _BuyerLocationSheetState extends State<_BuyerLocationSheet> {
       _error = null;
     });
     try {
-      final point = await widget.service.currentCoordinates();
+      final draft = await widget.service.useCurrentLocation();
+      final point = GeoPoint(draft.latitude!, draft.longitude!);
       if (!mounted) return;
       Navigator.pop(
         context,
-        BuyerCatalogLocation(point: point, label: 'Minha localização atual'),
+        BuyerCatalogLocation(
+          point: point,
+          label: _MainShellState._buyerLocationLabel(draft),
+        ),
       );
     } on StoreLocationException catch (error) {
       if (mounted) setState(() => _error = error.message);
@@ -1086,23 +1125,6 @@ class _BrandHeader extends StatelessWidget {
         ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
       ),
     ],
-  );
-}
-
-class _CategoryChip extends StatelessWidget {
-  const _CategoryChip({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  @override
-  Widget build(BuildContext context) => ActionChip(
-    avatar: Icon(icon, size: 19),
-    label: Text(label),
-    onPressed: onTap,
   );
 }
 

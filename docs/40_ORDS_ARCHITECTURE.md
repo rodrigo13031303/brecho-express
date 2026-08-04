@@ -517,3 +517,4 @@ Antes de gerar scripts ORDS:
 | PUT | `/admin/platform-banners/{bannerPublicId}` | ROLE global ADMIN |
 | POST | `/admin/platform-banners/{bannerPublicId}/image` | ROLE global ADMIN |
 | GET | `/me/roles` | Sessão autenticada |
+| GET | `/me/profile` | Sessão autenticada |

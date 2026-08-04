@@ -182,6 +182,7 @@ As três constraints criam os índices necessários. Nenhum índice adicional es
 ## APIs
 - GET /profiles
 - GET /profiles/{publicId}
+- GET /me/profile
 - POST /profiles
 - PUT /profiles/{publicId}
 
@@ -190,6 +191,9 @@ As três constraints criam os índices necessários. Nenhum índice adicional es
 - ProfileRepository
 - ProfileController
 - ProfilePage
+
+`GET /me/profile` exige sessão autenticada e resolve o PROFILE pela ACCOUNT do
+ator confiável, sem aceitar identificador de conta informado pelo cliente.
 
 ## Observações
 PROFILE será a entidade modelo utilizada para padronizar todas as demais entidades do Data Dictionary.

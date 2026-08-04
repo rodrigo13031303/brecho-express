@@ -675,6 +675,45 @@ CREATE OR REPLACE PACKAGE BODY pfl_api_pkg AS
       EXCEPTION WHEN OTHERS THEN o_status_code := c_status_internal_error; o_response_body := NULL; END;
   END get_profile_by_account;
 
+  PROCEDURE get_my_profile(
+    p_actor_id      IN  NUMBER,
+    o_status_code   OUT PLS_INTEGER,
+    o_response_body OUT NOCOPY CLOB
+  ) IS
+    l_profile BEX_PROFILE%ROWTYPE;
+    l_data    JSON_OBJECT_T;
+  BEGIN
+    o_status_code := c_status_internal_error;
+    o_response_body := NULL;
+    assert_actor(p_actor_id);
+    l_profile := pfl_service_pkg.get_by_account_id(p_actor_id);
+    l_data := profile_to_json(l_profile);
+    o_response_body := core_response_pkg.build_success(l_data);
+    o_status_code := c_status_ok;
+  EXCEPTION
+    WHEN e_actor_required THEN
+      build_request_error(3, o_status_code, o_response_body);
+    WHEN pfl_service_pkg.e_profile_not_found THEN
+      build_known_error_response(
+        c_status_not_found,
+        c_code_account_without_profile,
+        core_error_pkg.c_category_not_found,
+        'A conta autenticada ainda nao possui PROFILE.',
+        o_status_code,
+        o_response_body
+      );
+    WHEN OTHERS THEN
+      o_status_code := c_status_internal_error;
+      o_response_body := NULL;
+      BEGIN
+        build_technical_error_response(o_status_code, o_response_body);
+      EXCEPTION
+        WHEN OTHERS THEN
+          o_status_code := c_status_internal_error;
+          o_response_body := NULL;
+      END;
+  END get_my_profile;
+
   PROCEDURE update_profile(
     p_profile_public_id IN  VARCHAR2,
     p_request_body      IN  CLOB,
