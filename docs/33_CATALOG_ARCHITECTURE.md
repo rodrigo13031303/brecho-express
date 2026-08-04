@@ -282,3 +282,7 @@ nas escritas e transação exclusivamente na API.
 Com as duas entidades de suporte implementadas, o módulo Catálogo não possui
 pendências internas no escopo contratado. Novas capacidades exigirão ciclo e
 contrato próprios.
+
+No cliente Flutter, a seleção de novas imagens apresenta prévia imediata tanto
+no cadastro quanto na edição do produto, incluindo ordem visual, indicação de
+capa e remoção antes do envio.

@@ -1799,31 +1799,15 @@ class _ProductEditSheetState extends State<_ProductEditSheet> {
             ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    _replacementImages.isEmpty
-                        ? '${widget.product.imageCount} foto(s) publicada(s)'
-                        : '${_replacementImages.length} nova(s) foto(s) selecionada(s)',
-                  ),
-                  const SizedBox(height: 10),
-                  OutlinedButton.icon(
-                    onPressed: _chooseReplacementImages,
-                    icon: const Icon(Icons.add_photo_alternate_outlined),
-                    label: const Text('Trocar / adicionar imagens'),
-                  ),
-                  if (_replacementImages.isNotEmpty)
-                    TextButton(
-                      onPressed: () => setState(_replacementImages.clear),
-                      child: const Text('Limpar novas imagens'),
-                    ),
-                ],
-              ),
-            ),
+          _ProductImagePicker(
+            images: _replacementImages,
+            onAdd: _chooseReplacementImages,
+            onRemove: (index) =>
+                setState(() => _replacementImages.removeAt(index)),
+            title: 'Novas fotos do produto',
+            description:
+                '${widget.product.imageCount} foto(s) já publicada(s). '
+                'As novas fotos aparecem abaixo; a primeira será a capa.',
           ),
           const SizedBox(height: 12),
           TextField(
@@ -1962,11 +1946,16 @@ class _ProductImagePicker extends StatelessWidget {
     required this.images,
     required this.onAdd,
     required this.onRemove,
+    this.title = 'Fotos do produto',
+    this.description =
+        'Obrigatório. Adicione até 8 fotos; a primeira será a capa.',
   });
 
   final List<_SelectedProductImage> images;
   final VoidCallback? onAdd;
   final ValueChanged<int>? onRemove;
+  final String title;
+  final String description;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -1981,7 +1970,7 @@ class _ProductImagePicker extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Fotos do produto',
+                  title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -1991,9 +1980,7 @@ class _ProductImagePicker extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          const Text(
-            'Obrigatório. Adicione até 8 fotos; a primeira será a capa.',
-          ),
+          Text(description),
           if (images.isNotEmpty) ...[
             const SizedBox(height: 14),
             SizedBox(

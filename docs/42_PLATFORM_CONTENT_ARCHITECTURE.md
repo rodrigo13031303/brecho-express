@@ -56,6 +56,10 @@ Todos os JSON seguem envelope vigente, camelCase, ISO-8601 e PUBLIC_ID.
 Nos handlers ORDS de criação e alteração, o JSON textual é recebido por
 `:body_text`; `:body` fica reservado aos uploads binários de imagem.
 
+Seletores de mídia exibem prévia imediata do arquivo escolhido. O banner usa
+prévia 2:1 e, durante a edição, mantém visível a imagem publicada até a escolha
+de uma substituta.
+
 ## Evolução adiada
 
 - métricas de impressão e clique;

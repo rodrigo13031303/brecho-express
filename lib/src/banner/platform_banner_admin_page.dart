@@ -281,12 +281,16 @@ class _BannerFormState extends State<_BannerForm> {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: _chooseImage,
-              icon: const Icon(Icons.image_outlined),
-              label: Text(
-                _image == null ? 'Escolher imagem 2:1' : 'Imagem selecionada',
-              ),
+            _BannerImagePicker(
+              bytes: _image,
+              imageUrl: widget.banner?.imageUrl,
+              onChoose: _chooseImage,
+              onRemove: _image == null
+                  ? null
+                  : () => setState(() {
+                      _image = null;
+                      _mimeType = null;
+                    }),
             ),
             TextFormField(
               controller: _title,
@@ -432,4 +436,83 @@ class _BannerFormResult {
   final PlatformBannerDraft draft;
   final Uint8List? image;
   final String? mimeType;
+}
+
+class _BannerImagePicker extends StatelessWidget {
+  const _BannerImagePicker({
+    required this.bytes,
+    required this.imageUrl,
+    required this.onChoose,
+    required this.onRemove,
+  });
+
+  final Uint8List? bytes;
+  final String? imageUrl;
+  final VoidCallback onChoose;
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasImage = bytes != null || imageUrl != null;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.photo_library_outlined),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Imagem do banner',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Text(hasImage ? '1/1' : '0/1'),
+              ],
+            ),
+            const SizedBox(height: 6),
+            const Text('Use uma imagem horizontal na proporção 2:1.'),
+            if (hasImage) ...[
+              const SizedBox(height: 14),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: AspectRatio(
+                  aspectRatio: 2,
+                  child: bytes != null
+                      ? Image.memory(bytes!, fit: BoxFit.cover)
+                      : Image.network(
+                          imageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => const ColoredBox(
+                            color: Colors.black12,
+                            child: Center(
+                              child: Icon(Icons.broken_image_outlined),
+                            ),
+                          ),
+                        ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: onChoose,
+              icon: const Icon(Icons.add_photo_alternate_outlined),
+              label: Text(hasImage ? 'Trocar imagem' : 'Adicionar imagem'),
+            ),
+            if (onRemove != null)
+              TextButton.icon(
+                onPressed: onRemove,
+                icon: const Icon(Icons.close),
+                label: const Text('Descartar imagem selecionada'),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }
