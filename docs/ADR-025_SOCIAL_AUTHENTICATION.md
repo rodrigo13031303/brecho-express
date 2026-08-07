@@ -128,6 +128,17 @@ O endpoint de login recebe somente a credencial necessária ao fluxo aprovado,
 além de nonce ou authorization code quando o provedor exigir. Claims confiáveis
 são produzidos exclusivamente pelo verificador do backend.
 
+### 10. Perfil inicial
+
+Claims de apresentação, como `name`, somente são aceitos depois da validação
+criptográfica do ID token. No primeiro login social, o backend provisiona o
+PROFILE com o nome verificado, locale `pt-BR` e timezone
+`America/Sao_Paulo`. Ausência do claim usa fallback derivado do e-mail.
+
+Em contas antigas, um nome técnico ainda igual ao prefixo do e-mail ou a
+`Cliente` pode ser substituído pelo nome verificado no próximo login. Um nome
+personalizado pelo usuário nunca é sobrescrito automaticamente pelo provedor.
+
 ## Estado de implementação
 
 Em 2026-07-26, no Oracle AI Database 26ai Free:
@@ -147,7 +158,9 @@ Em 2026-07-26, no Oracle AI Database 26ai Free:
   rotação de chaves, emissor, audience, datas e subject;
 - health check do plugin aprovado externamente e token inválido rejeitado com
   `401 BEX-AUTH-003`;
-- autenticação com token Google real e integração Flutter ainda pendentes;
+- autenticação com token Google real e integração Flutter implementadas;
+- provisionamento do PROFILE com o claim `name` verificado preparado para
+  implantação coordenada entre plugin ORDS e packages Oracle;
 - Apple e Facebook ainda não possuem verificadores.
 
 ## Consequências

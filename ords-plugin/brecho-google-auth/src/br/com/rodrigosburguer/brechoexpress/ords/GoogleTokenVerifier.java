@@ -78,6 +78,7 @@ final class GoogleTokenVerifier {
         String issuer = string(claims, "iss", true);
         String subject = string(claims, "sub", true);
         String email = string(claims, "email", false);
+        String name = string(claims, "name", false);
         Object emailVerifiedClaim = claims.get("email_verified");
         boolean emailVerified =
             Boolean.TRUE.equals(emailVerifiedClaim)
@@ -113,12 +114,21 @@ final class GoogleTokenVerifier {
                 throw new VerificationException();
             }
         }
+        if (name != null) {
+            name = name.trim().replaceAll("\\s+", " ");
+            if (name.isEmpty()) {
+                name = null;
+            } else if (name.length() > 200) {
+                throw new VerificationException();
+            }
+        }
 
         return new VerifiedIdentity(
             issuer,
             subject,
             email,
-            emailVerified
+            emailVerified,
+            name
         );
     }
 
@@ -320,7 +330,8 @@ final class GoogleTokenVerifier {
         String issuer,
         String subject,
         String email,
-        boolean emailVerified
+        boolean emailVerified,
+        String name
     ) {}
 
     private record KeyCache(Map<String, PublicKey> keys, Instant expiresAt) {}

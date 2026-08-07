@@ -4,6 +4,7 @@ CREATE OR REPLACE PACKAGE acc_social_auth_api_pkg AS
     p_subject        IN VARCHAR2,
     p_email          IN VARCHAR2,
     p_email_verified IN CHAR,
+    p_name           IN VARCHAR2,
     p_ip             IN VARCHAR2,
     p_user_agent     IN VARCHAR2,
     o_status_code    OUT PLS_INTEGER,

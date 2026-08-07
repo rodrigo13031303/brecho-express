@@ -13,6 +13,9 @@ The health endpoint verifies plugin discovery. The login endpoint validates
 Google's RS256 signature and token claims before delegating account linking and
 session creation to the database domain.
 
+The verified optional `name` claim provisions the initial PROFILE. Existing
+user-customized profile names are preserved.
+
 Required active business configurations:
 
 ```text

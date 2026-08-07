@@ -263,7 +263,12 @@ class _MainShellState extends State<MainShell> {
     try {
       return await _profileService.getMe(widget.session);
     } catch (_) {
-      return null;
+      try {
+        await _cart;
+        return await _profileService.getMe(widget.session);
+      } catch (_) {
+        return null;
+      }
     }
   }
 

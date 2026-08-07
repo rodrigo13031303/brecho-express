@@ -156,7 +156,7 @@ public final class GoogleSocialLoginPlugin extends HttpServlet {
                 + "ord_runtime_pkg.begin_anonymous_request; "
                 + "? := core_context_pkg.trace_id(); "
                 + "acc_social_auth_api_pkg.login_google_verified("
-                + "?,?,?,?,?,?,?,?); "
+                + "?,?,?,?,?,?,?,?,?); "
                 + "ord_runtime_pkg.clear_request_context; "
                 + "END;";
 
@@ -166,15 +166,16 @@ public final class GoogleSocialLoginPlugin extends HttpServlet {
             statement.setString(3, identity.subject());
             statement.setString(4, identity.email());
             statement.setString(5, identity.emailVerified() ? "Y" : "N");
-            statement.setString(6, ip);
-            statement.setString(7, userAgent);
-            statement.registerOutParameter(8, Types.INTEGER);
-            statement.registerOutParameter(9, Types.CLOB);
+            statement.setString(6, identity.name());
+            statement.setString(7, ip);
+            statement.setString(8, userAgent);
+            statement.registerOutParameter(9, Types.INTEGER);
+            statement.registerOutParameter(10, Types.CLOB);
             statement.execute();
 
             String traceId = statement.getString(1);
-            int status = statement.getInt(8);
-            Clob clob = statement.getClob(9);
+            int status = statement.getInt(9);
+            Clob clob = statement.getClob(10);
             return new DatabaseResponse(
                 status,
                 traceId,

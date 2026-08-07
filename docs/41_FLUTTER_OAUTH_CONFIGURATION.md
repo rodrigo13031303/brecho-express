@@ -119,6 +119,12 @@ O backend aceita apenas ID token íntegro e valida:
 - `sub` presente e estruturalmente válido;
 - nonce quando o fluxo utilizado exigir;
 - e-mail e `email_verified` apenas como atributos auxiliares.
+- `name` como dado de apresentação opcional, usado para provisionar o PROFILE
+  somente depois da validação integral do token.
+
+O nome verificado não substitui posteriormente um nome personalizado pelo
+usuário. Perfis legados cujo nome ainda seja o prefixo técnico do e-mail podem
+ser corrigidos no login seguinte.
 
 O endpoint de debugging `tokeninfo` não é mecanismo de produção.
 
