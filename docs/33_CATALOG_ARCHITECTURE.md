@@ -293,6 +293,8 @@ capa e remoção antes do envio.
 A listagem pública inclui `imageUrls` na ordem de exibição, começando pela capa,
 para que cada card ofereça carrossel próprio sem realizar uma requisição por
 produto. `primaryImageUrl` e `imageCount` permanecem por compatibilidade.
+O carrossel aceita gesto manual e avança automaticamente a cada 5 segundos. Um
+único relógio compartilhado atende o catálogo, e apenas cards visíveis animam.
 
 A Home restaura a referência geográfica persistida do comprador. Na primeira
 execução sem preferência, pode solicitar a localização atual, realizar

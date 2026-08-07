@@ -36,8 +36,10 @@ Design moderno, leve e profissional que transmite confiança, sustentabilidade e
 - Cards: bordas suaves, sombra leve e conteúdo espaçado.
 - Produtos permanecem em grade vertical de duas colunas.
 - Quando um produto possui várias fotos, a área de imagem do próprio card usa
-  carrossel horizontal manual com contador e indicador de página.
-- Avanço automático fica reservado a banners promocionais.
+  carrossel horizontal manual e automático, com contador e indicador de página.
+- Banners e fotos de produtos avançam automaticamente a cada 5 segundos.
+- O avanço de fotos pausa durante interação, não movimenta cards fora da área
+  visível e respeita a preferência do dispositivo por animações reduzidas.
 
 ## Tokens
 - Cores, espaçamentos, bordas e tamanhos centralizados em Dart.

@@ -10,6 +10,7 @@ import '../branding/brecho_mark.dart';
 import '../cart/cart_page.dart';
 import '../cart/cart_service.dart';
 import '../catalog/catalog_service.dart';
+import '../catalog/product_image_carousel_clock.dart';
 import '../catalog/product_detail_page.dart';
 import '../location/buyer_location_store.dart';
 import '../location/store_location_service.dart';
@@ -51,6 +52,8 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
   final PageController _pageController = PageController();
+  final ProductImageCarouselClock _productImageClock =
+      ProductImageCarouselClock();
   late final CatalogService _catalogService;
   late final CartService _cartService;
   late final StoreLocationService _locationService;
@@ -92,6 +95,7 @@ class _MainShellState extends State<MainShell> {
   @override
   void dispose() {
     _pageController.dispose();
+    _productImageClock.dispose();
     _catalogService.close();
     _cartService.close();
     _pushNotificationService.close();
@@ -395,12 +399,15 @@ class _MainShellState extends State<MainShell> {
     ];
 
     return Scaffold(
-      body: PageView(
-        controller: _pageController,
-        onPageChanged: (index) {
-          if (index != _currentIndex) setState(() => _currentIndex = index);
-        },
-        children: pages,
+      body: ProductImageCarouselScope(
+        clock: _productImageClock,
+        child: PageView(
+          controller: _pageController,
+          onPageChanged: (index) {
+            if (index != _currentIndex) setState(() => _currentIndex = index);
+          },
+          children: pages,
+        ),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
@@ -1202,8 +1209,11 @@ class _CatalogContent extends StatelessWidget {
             mainAxisSpacing: 10,
             childAspectRatio: .58,
           ),
-          itemBuilder: (context, index) =>
-              _ProductCard(product: visible[index], onAddToCart: onAddToCart),
+          itemBuilder: (context, index) => _ProductCard(
+            key: ValueKey(visible[index].publicId),
+            product: visible[index],
+            onAddToCart: onAddToCart,
+          ),
         );
       },
     );
@@ -1211,7 +1221,11 @@ class _CatalogContent extends StatelessWidget {
 }
 
 class _ProductCard extends StatefulWidget {
-  const _ProductCard({required this.product, required this.onAddToCart});
+  const _ProductCard({
+    required this.product,
+    required this.onAddToCart,
+    super.key,
+  });
   final CatalogProduct product;
   final Future<void> Function(CatalogProduct product) onAddToCart;
 
@@ -1220,7 +1234,45 @@ class _ProductCard extends StatefulWidget {
 }
 
 class _ProductCardState extends State<_ProductCard> {
+  final PageController _imageController = PageController();
+  ProductImageCarouselClock? _clock;
   int _imageIndex = 0;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final nextClock = ProductImageCarouselScope.of(context);
+    if (identical(_clock, nextClock)) return;
+    _clock?.removeListener(_advanceImage);
+    _clock = nextClock..addListener(_advanceImage);
+  }
+
+  @override
+  void dispose() {
+    _clock?.removeListener(_advanceImage);
+    _imageController.dispose();
+    super.dispose();
+  }
+
+  void _advanceImage() {
+    final images = widget.product.imageUrls;
+    if (!mounted || images.length < 2 || !_imageController.hasClients) return;
+    if (MediaQuery.disableAnimationsOf(context) ||
+        _imageController.position.isScrollingNotifier.value) {
+      return;
+    }
+    final renderBox = context.findRenderObject();
+    if (renderBox is! RenderBox || !renderBox.hasSize) return;
+    final cardRect = renderBox.localToGlobal(Offset.zero) & renderBox.size;
+    final screenRect = Offset.zero & MediaQuery.sizeOf(context);
+    if (!cardRect.overlaps(screenRect)) return;
+    final next = (_imageIndex + 1) % images.length;
+    _imageController.animateToPage(
+      next,
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeInOut,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1244,6 +1296,7 @@ class _ProductCardState extends State<_ProductCard> {
             AspectRatio(
               aspectRatio: 1,
               child: _ProductCardGallery(
+                controller: _imageController,
                 imageUrls: product.imageUrls,
                 currentIndex: _imageIndex,
                 onPageChanged: (index) => setState(() => _imageIndex = index),
@@ -1318,11 +1371,13 @@ class _ProductCardState extends State<_ProductCard> {
 
 class _ProductCardGallery extends StatelessWidget {
   const _ProductCardGallery({
+    required this.controller,
     required this.imageUrls,
     required this.currentIndex,
     required this.onPageChanged,
   });
 
+  final PageController controller;
   final List<String> imageUrls;
   final int currentIndex;
   final ValueChanged<int> onPageChanged;
@@ -1340,15 +1395,15 @@ class _ProductCardGallery extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         PageView.builder(
+          controller: controller,
           itemCount: imageUrls.length,
           onPageChanged: onPageChanged,
           itemBuilder: (context, index) => CachedNetworkImage(
             imageUrl: imageUrls[index],
             fit: BoxFit.fill,
             memCacheWidth: 720,
-            placeholder: (_, _) => const Center(
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
+            placeholder: (_, _) =>
+                const Center(child: CircularProgressIndicator(strokeWidth: 2)),
             errorWidget: (_, _, _) => const Icon(Icons.broken_image_outlined),
           ),
         ),
