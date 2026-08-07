@@ -93,6 +93,76 @@ class StoreLocationService {
     return GeoPoint(position.latitude, position.longitude);
   }
 
+  Future<List<AddressSearchSuggestion>> searchAddresses(
+    String value, {
+    GeoPoint? origin,
+  }) async {
+    final query = value.trim();
+    if (query.length < 3) return const [];
+    final digits = query.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length == 8 && RegExp(r'^[0-9 .-]+$').hasMatch(query)) {
+      final draft = await lookupPostalCode(digits);
+      final point = await coordinatesForBuyerReference(draft);
+      return [
+        AddressSearchSuggestion(
+          location: BuyerSearchLocation(point: point, label: draft.publicLabel),
+          primaryLabel: draft.street.isEmpty ? draft.publicLabel : draft.street,
+          secondaryLabel: draft.publicLabel,
+          distanceKm: _distanceKm(origin, point),
+        ),
+      ];
+    }
+    try {
+      final matches = await locationFromAddress('$query, Brasil');
+      final suggestions = <AddressSearchSuggestion>[];
+      final seen = <String>{};
+      for (final match in matches.take(5)) {
+        final point = GeoPoint(match.latitude, match.longitude);
+        final placemarks = await placemarkFromCoordinates(
+          match.latitude,
+          match.longitude,
+        );
+        if (placemarks.isEmpty) continue;
+        final place = placemarks.first;
+        final street = (place.thoroughfare ?? place.street ?? '').trim();
+        final number = (place.subThoroughfare ?? '').trim();
+        final primary = [street, number]
+            .where((part) => part.isNotEmpty)
+            .join(', ');
+        final district = (place.subLocality ?? '').trim();
+        final city = (place.locality ?? place.subAdministrativeArea ?? '').trim();
+        final state = _stateCode(place.administrativeArea ?? '');
+        final secondary = [district, city, state]
+            .where((part) => part.isNotEmpty)
+            .join(', ');
+        final label = primary.isNotEmpty ? primary : secondary;
+        if (label.isEmpty || !seen.add('$label|$secondary')) continue;
+        suggestions.add(
+          AddressSearchSuggestion(
+            location: BuyerSearchLocation(point: point, label: label),
+            primaryLabel: label,
+            secondaryLabel: secondary,
+            distanceKm: _distanceKm(origin, point),
+          ),
+        );
+      }
+      return suggestions;
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  static double? _distanceKm(GeoPoint? origin, GeoPoint destination) {
+    if (origin == null) return null;
+    return Geolocator.distanceBetween(
+          origin.latitude,
+          origin.longitude,
+          destination.latitude,
+          destination.longitude,
+        ) /
+        1000;
+  }
+
   Future<StoreLocationDraft> useCurrentLocation() async {
     final position = await currentCoordinates();
     final placemarks = await placemarkFromCoordinates(
@@ -241,6 +311,25 @@ class GeoPoint {
   const GeoPoint(this.latitude, this.longitude);
   final double latitude;
   final double longitude;
+}
+
+class BuyerSearchLocation {
+  const BuyerSearchLocation({required this.point, required this.label});
+  final GeoPoint point;
+  final String label;
+}
+
+class AddressSearchSuggestion {
+  const AddressSearchSuggestion({
+    required this.location,
+    required this.primaryLabel,
+    required this.secondaryLabel,
+    required this.distanceKm,
+  });
+  final BuyerSearchLocation location;
+  final String primaryLabel;
+  final String secondaryLabel;
+  final double? distanceKm;
 }
 
 class StoreLocationDraft {

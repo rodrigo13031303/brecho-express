@@ -22,6 +22,7 @@ class BuyerLocationStore {
           (json['longitude'] as num).toDouble(),
         ),
         label: json['label'] as String,
+        isDeviceLocation: json['isDeviceLocation'] as bool? ?? false,
       );
     } catch (_) {
       await clear();
@@ -35,6 +36,7 @@ class BuyerLocationStore {
       'latitude': location.point.latitude,
       'longitude': location.point.longitude,
       'label': location.label,
+      'isDeviceLocation': location.isDeviceLocation,
     }),
   );
 
@@ -42,8 +44,13 @@ class BuyerLocationStore {
 }
 
 class BuyerCatalogLocation {
-  const BuyerCatalogLocation({required this.point, required this.label});
+  const BuyerCatalogLocation({
+    required this.point,
+    required this.label,
+    this.isDeviceLocation = false,
+  });
 
   final GeoPoint point;
   final String label;
+  final bool isDeviceLocation;
 }

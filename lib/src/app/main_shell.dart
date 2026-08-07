@@ -13,6 +13,7 @@ import '../catalog/catalog_service.dart';
 import '../catalog/product_image_carousel_clock.dart';
 import '../catalog/product_detail_page.dart';
 import '../location/buyer_location_store.dart';
+import '../location/buyer_location_page.dart';
 import '../location/store_location_service.dart';
 import '../notification/push_notification_service.dart';
 import '../purchase/purchases_hub_page.dart';
@@ -72,6 +73,8 @@ class _MainShellState extends State<MainShell> {
   int _purchaseRefresh = 0;
   GeoPoint? _viewerLocation;
   String? _viewerLocationLabel;
+  GeoPoint? _deviceLocation;
+  String? _deviceLocationLabel;
 
   @override
   void initState() {
@@ -233,7 +236,7 @@ class _MainShellState extends State<MainShell> {
 
   Future<void> _restoreBuyerLocation() async {
     final saved = await _buyerLocationStore.read();
-    if (saved != null && saved.label != 'Minha localização atual') {
+    if (saved != null && !saved.isDeviceLocation) {
       if (mounted) _applyBuyerLocation(saved);
       return;
     }
@@ -242,11 +245,17 @@ class _MainShellState extends State<MainShell> {
       final location = BuyerCatalogLocation(
         point: GeoPoint(draft.latitude!, draft.longitude!),
         label: _buyerLocationLabel(draft),
+        isDeviceLocation: true,
       );
       await _buyerLocationStore.write(location);
-      if (mounted) _applyBuyerLocation(location);
+      if (mounted) {
+        _deviceLocation = location.point;
+        _deviceLocationLabel = location.label;
+        _applyBuyerLocation(location);
+      }
     } catch (_) {
-      // A Home continua utilizável e permite escolher CEP ou GPS manualmente.
+      if (saved != null && mounted) _applyBuyerLocation(saved);
+      // A Home continua utilizável e permite escolher endereço ou GPS manualmente.
     }
   }
 
@@ -279,20 +288,25 @@ class _MainShellState extends State<MainShell> {
   }
 
   Future<void> _chooseBuyerLocation() async {
-    final postalCode = TextEditingController();
-    final result = await showModalBottomSheet<BuyerCatalogLocation>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (sheetContext) => _BuyerLocationSheet(
-        postalCode: postalCode,
-        service: _locationService,
+    final result = await Navigator.of(context).push<BuyerCatalogLocation>(
+      MaterialPageRoute(
+        builder: (context) => BuyerLocationPage(
+          session: widget.session,
+          locationService: _locationService,
+          currentLocation: _deviceLocation,
+          currentLabel: _deviceLocationLabel,
+        ),
       ),
     );
-    postalCode.dispose();
     if (result == null || !mounted) return;
     await _buyerLocationStore.write(result);
-    if (mounted) _applyBuyerLocation(result);
+    if (mounted) {
+      if (result.isDeviceLocation) {
+        _deviceLocation = result.point;
+        _deviceLocationLabel = result.label;
+      }
+      _applyBuyerLocation(result);
+    }
   }
 
   void _selectTab(int index) {
@@ -783,116 +797,6 @@ class _ExplorePageState extends State<ExplorePage> {
           ),
         ],
       ),
-    ),
-  );
-}
-
-class _BuyerLocationSheet extends StatefulWidget {
-  const _BuyerLocationSheet({required this.postalCode, required this.service});
-  final TextEditingController postalCode;
-  final StoreLocationService service;
-
-  @override
-  State<_BuyerLocationSheet> createState() => _BuyerLocationSheetState();
-}
-
-class _BuyerLocationSheetState extends State<_BuyerLocationSheet> {
-  bool _busy = false;
-  String? _error;
-
-  Future<void> _byPostalCode() async {
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    try {
-      final draft = await widget.service.lookupPostalCode(
-        widget.postalCode.text,
-      );
-      final point = await widget.service.coordinatesForBuyerReference(draft);
-      if (!mounted) return;
-      Navigator.pop(
-        context,
-        BuyerCatalogLocation(point: point, label: draft.publicLabel),
-      );
-    } on StoreLocationException catch (error) {
-      if (mounted) setState(() => _error = error.message);
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _current() async {
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    try {
-      final draft = await widget.service.useCurrentLocation();
-      final point = GeoPoint(draft.latitude!, draft.longitude!);
-      if (!mounted) return;
-      Navigator.pop(
-        context,
-        BuyerCatalogLocation(
-          point: point,
-          label: _MainShellState._buyerLocationLabel(draft),
-        ),
-      );
-    } on StoreLocationException catch (error) {
-      if (mounted) setState(() => _error = error.message);
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: EdgeInsets.fromLTRB(
-      24,
-      4,
-      24,
-      24 + MediaQuery.viewInsetsOf(context).bottom,
-    ),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'Onde você quer comprar? 📍',
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 6),
-        const Text('Escolha qualquer região; não precisa ser onde você está.'),
-        const SizedBox(height: 18),
-        TextField(
-          controller: widget.postalCode,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'CEP de referência',
-            prefixIcon: Icon(Icons.location_on_outlined),
-          ),
-        ),
-        if (_error != null) ...[
-          const SizedBox(height: 8),
-          Text(
-            _error!,
-            style: TextStyle(color: Theme.of(context).colorScheme.error),
-          ),
-        ],
-        const SizedBox(height: 12),
-        FilledButton.icon(
-          onPressed: _busy ? null : _byPostalCode,
-          icon: const Icon(Icons.search),
-          label: const Text('Usar este CEP'),
-        ),
-        OutlinedButton.icon(
-          onPressed: _busy ? null : _current,
-          icon: const Icon(Icons.my_location),
-          label: const Text('Usar minha localização atual'),
-        ),
-      ],
     ),
   );
 }

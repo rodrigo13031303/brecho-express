@@ -42,6 +42,9 @@ Design moderno, leve e profissional que transmite confiança, sustentabilidade e
 - Banners e fotos de produtos avançam automaticamente a cada 5 segundos.
 - O avanço de fotos pausa durante interação, não movimenta cards fora da área
   visível e respeita a preferência do dispositivo por animações reduzidas.
+- A escolha da localização do comprador usa tela própria com busca no topo,
+  localização atual e endereços nomeados recentes; resultados de busca aparecem
+  durante a digitação e podem exibir distância aproximada.
 
 ## Tokens
 - Cores, espaçamentos, bordas e tamanhos centralizados em Dart.

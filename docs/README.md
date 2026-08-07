@@ -105,7 +105,10 @@ Decisões novas:
 - `ADR-021_AUDIT_ACTOR_IDENTITY.md`;
 - `ADR-022_FINANCIAL_ARCHITECTURE.md`;
 - `ADR-023_POST_SALES_POLICY.md`;
-- `ADR-024_PAYMENT_PRECEDES_ORDER.md`.
+- `ADR-024_PAYMENT_PRECEDES_ORDER.md`;
+- `ADR-025_SOCIAL_AUTHENTICATION.md`;
+- `ADR-026_PLATFORM_HOME_BANNERS.md`;
+- `ADR-027_BUYER_REFERENCE_LOCATION.md`.
 
 ## 8. Estado conhecido da implementação
 
@@ -199,7 +202,7 @@ validação executável correspondente.
 | `40_ORDS_ARCHITECTURE.md` | Parcialmente implementado | borda HTTP e catálogo de endpoints |
 | `41_FLUTTER_OAUTH_CONFIGURATION.md` | Parcialmente implementado | IDs móveis e configuração OAuth |
 | `42_PLATFORM_CONTENT_ARCHITECTURE.md` | Implementação inicial | banners globais e administração |
-| `ADR-015` a `ADR-026` | Conforme cada arquivo | decisões individuais vigentes |
+| `ADR-015` a `ADR-027` | Conforme cada arquivo | decisões individuais vigentes |
 | `sprints/` | Operacional e histórico | execução limitada à sprint |
 
 ## 11. Pendências documentais controladas
