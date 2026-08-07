@@ -9,6 +9,9 @@ CREATE OR REPLACE PACKAGE BODY cat_api_pkg AS
     p_category IN cat_service_pkg.t_category_record
   ) RETURN JSON_OBJECT_T IS
     l_data JSON_OBJECT_T := JSON_OBJECT_T();
+    l_parent_public_id BEX_CATEGORY.CAT_PUBLIC_ID%TYPE;
+    l_sort_order BEX_CATEGORY.CAT_SORT_ORDER%TYPE;
+    l_accepts_products BEX_CATEGORY.CAT_ACCEPTS_PRODUCTS%TYPE;
   BEGIN
     core_json_pkg.put_string(
       l_data,
@@ -23,6 +26,19 @@ CREATE OR REPLACE PACKAGE BODY cat_api_pkg AS
       core_json_pkg.put_string(l_data,'description',p_category.description);
     END IF;
     core_json_pkg.put_string(l_data,'status',p_category.status);
+    SELECT TRIM(parent.CAT_PUBLIC_ID),child.CAT_SORT_ORDER,
+           child.CAT_ACCEPTS_PRODUCTS
+      INTO l_parent_public_id,l_sort_order,l_accepts_products
+      FROM BEX_CATEGORY child
+      LEFT JOIN BEX_CATEGORY parent ON parent.CAT_ID=child.CAT_PARENT_ID
+     WHERE child.CAT_PUBLIC_ID=p_category.category_public_id;
+    IF l_parent_public_id IS NULL THEN
+      core_json_pkg.put_null(l_data,'parentCategoryPublicId');
+    ELSE
+      core_json_pkg.put_string(l_data,'parentCategoryPublicId',l_parent_public_id);
+    END IF;
+    core_json_pkg.put_number(l_data,'sortOrder',l_sort_order);
+    core_json_pkg.put_boolean(l_data,'acceptsProducts',l_accepts_products=1);
     core_json_pkg.put_string(
       l_data,'createdAt',
       core_json_pkg.format_timestamp(p_category.created_at)

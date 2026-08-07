@@ -282,6 +282,12 @@ físico.
 | GET | `/categories` | `CAT_API_PKG.list_categories` | Público |
 | GET | `/categories/{categoryPublicId}` | `CAT_API_PKG.get_category` | Público |
 | GET | `/categories/by-slug/{slug}` | `CAT_API_PKG.get_category_by_slug` | Público |
+| GET | `/admin/categories` | `CAT_ADMIN_API_PKG.list_categories` | ADMIN global |
+| POST | `/admin/categories` | `CAT_ADMIN_API_PKG.create_category` | ADMIN global |
+| PUT | `/admin/categories/{categoryPublicId}` | `CAT_ADMIN_API_PKG.update_category` | ADMIN global |
+| POST | `/admin/categories/{categoryPublicId}/actions/activate` | `CAT_ADMIN_API_PKG.change_status` | ADMIN global |
+| POST | `/admin/categories/{categoryPublicId}/actions/inactivate` | `CAT_ADMIN_API_PKG.change_status` | ADMIN global |
+| DELETE | `/admin/categories/{categoryPublicId}` | `CAT_ADMIN_API_PKG.delete_category` | ADMIN global; somente sem relacionamentos |
 | GET | `/brands` | `BRD_API_PKG.list_brands` | Público |
 | GET | `/brands/{brandPublicId}` | `BRD_API_PKG.get_brand` | Público |
 | GET | `/brands/by-slug/{slug}` | `BRD_API_PKG.get_brand_by_slug` | Público |

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../appearance/app_palette.dart';
 import '../auth/brecho_session.dart';
-import '../banner/platform_banner_admin_page.dart';
+import '../admin/platform_admin_page.dart';
 import '../banner/platform_banner_carousel.dart';
 import '../banner/platform_banner_service.dart';
 import '../branding/brecho_mark.dart';
@@ -965,14 +965,14 @@ class ProfilePage extends StatelessWidget {
                             Icons.admin_panel_settings_outlined,
                           ),
                           title: const Text('Administração'),
-                          subtitle: const Text('Banners da página inicial'),
+                          subtitle: const Text('Banners e categorias'),
                           trailing: const Icon(Icons.chevron_right),
                           onTap: () async {
                             await Navigator.of(context).push(
                               MaterialPageRoute<void>(
-                                builder: (_) => PlatformBannerAdminPage(
+                                builder: (_) => PlatformAdminPage(
                                   session: session,
-                                  service: bannerService,
+                                  bannerService: bannerService,
                                 ),
                               ),
                             );

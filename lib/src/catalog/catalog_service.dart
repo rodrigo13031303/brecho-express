@@ -161,16 +161,25 @@ class CatalogCategory {
     required this.publicId,
     required this.name,
     required this.slug,
+    this.parentPublicId,
+    this.sortOrder = 0,
+    this.acceptsProducts = true,
   });
   factory CatalogCategory.fromJson(Map<String, dynamic> json) =>
       CatalogCategory(
         publicId: json['categoryPublicId'] as String,
         name: json['categoryName'] as String,
         slug: json['categorySlug'] as String,
+        parentPublicId: json['parentCategoryPublicId'] as String?,
+        sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
+        acceptsProducts: json['acceptsProducts'] as bool? ?? true,
       );
   final String publicId;
   final String name;
   final String slug;
+  final String? parentPublicId;
+  final int sortOrder;
+  final bool acceptsProducts;
 }
 
 class CatalogProduct {

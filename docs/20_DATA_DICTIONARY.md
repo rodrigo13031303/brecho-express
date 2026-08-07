@@ -1639,10 +1639,16 @@ Catálogo
 - RN-006 — APIs externas usam CAT_PUBLIC_ID, nunca CAT_ID.
 - RN-007 — A inativação deve ocorrer via CAT_STATUS; não existe exclusão física como operação normal.
 - RN-008 — CAT_STATUS aceita ACTIVE e INACTIVE.
-- RN-009 — PRODUCT novo ou alterado só pode referenciar CATEGORY ACTIVE.
+- RN-009 — PRODUCT novo ou alterado só pode referenciar CATEGORY ACTIVE que aceite produtos diretamente.
+- RN-010 — CATEGORY pode possuir uma CATEGORY pai opcional na mesma tabela, sem limite físico de profundidade e sem ciclos.
+- RN-011 — Somente uma conta com papel global ADMIN pode manter CATEGORY.
+- RN-012 — CATEGORY associada a qualquer PRODUCT ou que possua subcategorias não pode ser inativada nem excluída.
+- RN-013 — A exclusão física é permitida apenas para corrigir cadastro sem produtos e sem subcategorias; após uso, o administrador deve corrigir os dados.
 
 ## Relacionamentos
 
+- CATEGORY pai (N:0..1)
+- CATEGORY filha (1:N)
 - PRODUCT (1:N)
 
 ## Atributos
@@ -1654,6 +1660,9 @@ Catálogo
 | CAT_NAME | VARCHAR2(200 CHAR) | Sim |
 | CAT_SLUG | VARCHAR2(120 CHAR) | Sim |
 | CAT_DESCRIPTION | VARCHAR2(1000 CHAR) | Não |
+| CAT_PARENT_ID | NUMBER(19) | Não |
+| CAT_SORT_ORDER | NUMBER(9) DEFAULT 0 | Sim |
+| CAT_ACCEPTS_PRODUCTS | NUMBER(1) DEFAULT 1 | Sim |
 | CAT_STATUS | VARCHAR2(20 CHAR) | Sim |
 | CAT_CREATED_AT | TIMESTAMP(6) | Sim |
 | CAT_UPDATED_AT | TIMESTAMP(6) | Sim |
@@ -1669,6 +1678,7 @@ Runtime Contract e não possuem foreign key para PROFILE.
 - UK_CATEGORY_PUBLIC_ID
 - UK_CATEGORY_SLUG
 - IDX_CATEGORY_STATUS
+- IDX_CATEGORY_PARENT
 
 ## Packages Oracle
 
@@ -1676,13 +1686,21 @@ Runtime Contract e não possuem foreign key para PROFILE.
 - CAT_REPOSITORY_PKG
 - CAT_SERVICE_PKG
 - CAT_API_PKG
+- CAT_ADMIN_API_PKG
 
 ## APIs
 
 - GET /categories
 - GET /categories/{publicId}
-Escritas administrativas não serão expostas antes de existir contrato de
-autoridade global da plataforma.
+- GET /admin/categories
+- POST /admin/categories
+- PUT /admin/categories/{publicId}
+- POST /admin/categories/{publicId}/actions/activate
+- POST /admin/categories/{publicId}/actions/inactivate
+- DELETE /admin/categories/{publicId}
+
+As escritas exigem autoridade global ADMIN. DELETE é a exceção controlada da
+ADR-028 e nunca remove categoria já relacionada.
 
 ## Flutter
 
@@ -1695,7 +1713,8 @@ autoridade global da plataforma.
 
 CATEGORY é uma entidade de configuração do módulo Catálogo.
 
-Ela organiza os Achados por categorias oficiais, com foco em navegação e filtragem.
+Ela organiza os Achados em uma árvore de categorias oficiais, com foco em
+navegação e filtragem.
 
 # BRAND
 

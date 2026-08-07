@@ -78,14 +78,21 @@ Não será criada tabela de estoque antes de existir contrato próprio.
 
 ### 3.4 Classificação
 
-CATEGORY é obrigatória e BRAND é opcional.
+CATEGORY é obrigatória e BRAND é opcional. CATEGORY forma uma árvore por
+autorrelacionamento opcional; categorias raiz e filhas compartilham a mesma
+entidade.
 
 Referências recebidas pela API usam `categoryPublicId` e `brandPublicId`.
 O Service resolve esses identificadores; IDs técnicos não atravessam a API.
 
 CATEGORY e BRAND usam estado `ACTIVE` ou `INACTIVE`. Um Achado novo ou alterado
-só pode referenciar uma classificação ACTIVE. A inativação de uma referência
+só pode referenciar uma classificação ACTIVE. Para CATEGORY, o nó também deve
+aceitar produtos diretamente. A inativação de uma referência
 não apaga nem invalida historicamente os Achados existentes.
+
+Somente ADMIN global mantém a árvore. Categoria com produto histórico ou
+subcategoria não pode ser inativada nem excluída; a exclusão física é
+reservada a erro de cadastro sem relacionamentos, conforme ADR-028.
 
 ### 3.5 Auditoria
 
@@ -124,6 +131,9 @@ Service consumidor. Essa evolução foi implementada e testada antes de PRODUCT.
 - `CAT_NAME VARCHAR2(200 CHAR)`;
 - `CAT_SLUG VARCHAR2(120 CHAR)`;
 - `CAT_DESCRIPTION VARCHAR2(1000 CHAR)` anulável;
+- `CAT_PARENT_ID NUMBER(19)` anulável e autorreferente;
+- `CAT_SORT_ORDER NUMBER(9)`;
+- `CAT_ACCEPTS_PRODUCTS NUMBER(1)`;
 - `CAT_STATUS VARCHAR2(20 CHAR)`;
 - auditoria temporal e de ator conforme padrão vigente.
 

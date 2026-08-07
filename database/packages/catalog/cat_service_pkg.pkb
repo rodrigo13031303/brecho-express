@@ -115,6 +115,13 @@ CREATE OR REPLACE PACKAGE BODY cat_service_pkg AS
     IF l_record.cat_status <> cat_rule_pkg.c_status_active THEN
       RAISE e_category_inactive;
     END IF;
+    DECLARE
+      l_accepts BEX_CATEGORY.CAT_ACCEPTS_PRODUCTS%TYPE;
+    BEGIN
+      SELECT CAT_ACCEPTS_PRODUCTS INTO l_accepts
+        FROM BEX_CATEGORY WHERE CAT_ID=l_record.cat_id;
+      IF l_accepts<>1 THEN RAISE e_category_inactive;END IF;
+    END;
     RETURN l_record.cat_id;
   END resolve_active_category_id;
 
