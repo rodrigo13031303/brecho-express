@@ -37,6 +37,11 @@ A tela de escolha apresenta:
 - endereços ativos do PROFILE, priorizando o endereço padrão;
 - distância aproximada das sugestões quando houver origem conhecida.
 
+A ação de localização atual não confirma automaticamente a referência. O
+endereço obtido por GPS preenche o campo de busca e aparece como sugestão para
+revisão. O usuário pode corrigir número ou texto antes de tocar no resultado e
+confirmar a escolha.
+
 `ADDRESS` continua sendo a fonte dos endereços persistidos. `ADR_LABEL` aceita
 nomes amigáveis como Casa, Trabalho, Casa da mãe e Casa da praia. A escolha para
 navegação no catálogo é mantida localmente para restauração rápida e não muda o

@@ -329,11 +329,13 @@ class AddressSearchSuggestion {
     required this.primaryLabel,
     required this.secondaryLabel,
     required this.distanceKm,
+    this.isDeviceLocation = false,
   });
   final BuyerSearchLocation location;
   final String primaryLabel;
   final String secondaryLabel;
   final double? distanceKm;
+  final bool isDeviceLocation;
 }
 
 class StoreLocationDraft {

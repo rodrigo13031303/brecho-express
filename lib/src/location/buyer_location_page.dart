@@ -105,14 +105,40 @@ class _BuyerLocationPageState extends State<BuyerLocationPage> {
     try {
       final draft = await widget.locationService.useCurrentLocation();
       if (!mounted) return;
-      Navigator.pop(
-        context,
-        BuyerCatalogLocation(
-          point: GeoPoint(draft.latitude!, draft.longitude!),
-          label: _labelForDraft(draft),
-          isDeviceLocation: true,
-        ),
+      final point = GeoPoint(draft.latitude!, draft.longitude!);
+      final primary = _labelForDraft(draft);
+      final secondary = [
+        draft.district.trim(),
+        [draft.city.trim(), draft.state.trim()]
+            .where((part) => part.isNotEmpty)
+            .join(' - '),
+      ].where((part) => part.isNotEmpty).join(', ');
+      final searchText = [
+        primary,
+        draft.district.trim(),
+        draft.city.trim(),
+        draft.state.trim(),
+      ].where((part) => part.isNotEmpty).join(', ');
+      _debounce?.cancel();
+      _search.removeListener(_scheduleSearch);
+      _search.value = TextEditingValue(
+        text: searchText,
+        selection: TextSelection.collapsed(offset: searchText.length),
       );
+      _search.addListener(_scheduleSearch);
+      setState(() {
+        _suggestions = [
+          AddressSearchSuggestion(
+            location: BuyerSearchLocation(point: point, label: primary),
+            primaryLabel: primary,
+            secondaryLabel: secondary,
+            distanceKm: 0,
+            isDeviceLocation: true,
+          ),
+        ];
+        _searching = false;
+        _error = null;
+      });
     } on StoreLocationException catch (error) {
       if (mounted) setState(() => _error = error.message);
     } finally {
@@ -163,6 +189,7 @@ class _BuyerLocationPageState extends State<BuyerLocationPage> {
     BuyerCatalogLocation(
       point: suggestion.location.point,
       label: suggestion.location.label,
+      isDeviceLocation: suggestion.isDeviceLocation,
     ),
   );
 
