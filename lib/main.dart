@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'src/appearance/app_palette.dart';
 import 'src/appearance/appearance_store.dart';
 import 'src/auth/google_login_page.dart';
+import 'src/navigation/slide_page_transitions.dart';
 import 'src/notification/push_notification_service.dart';
 
 Future<void> main() async {
@@ -50,6 +51,15 @@ class _BrechoExpressAppState extends State<BrechoExpressApp> {
         colorScheme: colorScheme,
         scaffoldBackgroundColor: _palette.backgroundColor,
         useMaterial3: true,
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: {
+            TargetPlatform.android: SlidePageTransitionsBuilder(),
+            TargetPlatform.iOS: SlidePageTransitionsBuilder(),
+            TargetPlatform.macOS: SlidePageTransitionsBuilder(),
+            TargetPlatform.windows: SlidePageTransitionsBuilder(),
+            TargetPlatform.linux: SlidePageTransitionsBuilder(),
+          },
+        ),
       ),
       home: GoogleLoginPage(
         palette: _palette,

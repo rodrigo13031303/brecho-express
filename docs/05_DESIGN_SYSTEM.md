@@ -43,6 +43,16 @@ Design moderno, leve e profissional que transmite confiança, sustentabilidade e
 - Contraste suficiente em textos.
 - Toque alvo mínimo de 44x44 dp.
 - Feedback visual claro em interações.
+- Respeito à preferência do dispositivo por animações reduzidas.
+
+## Movimento e transições
+- Trocas entre áreas principais usam deslizamento horizontal e preservam o
+  estado de cada área.
+- A direção do movimento acompanha a posição relativa do destino na navegação.
+- A duração padrão é de 280 ms, com curva de desaceleração suave.
+- Telas empilhadas entram pela direita e retornam no sentido inverso.
+- Gestos horizontais podem alternar áreas equivalentes quando não conflitarem
+  com o conteúdo da tela.
 
 ## Aplicação
 O Design System é preservado como base de consistência visual, mas continua alinhado à nova visão nacional e aos conceitos de economia circular, Brechó Plus e entrega inteligente.

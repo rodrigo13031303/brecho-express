@@ -26,6 +26,10 @@ class MainShell extends StatefulWidget {
     required this.onLogout,
     required this.loggingOut,
     this.initialCatalog,
+    this.initialCart,
+    this.initialBanners,
+    this.initialRoles,
+    this.initialProfile,
     super.key,
   });
 
@@ -35,6 +39,10 @@ class MainShell extends StatefulWidget {
   final Future<void> Function() onLogout;
   final bool loggingOut;
   final Future<CatalogSnapshot>? initialCatalog;
+  final Future<CartSnapshot>? initialCart;
+  final Future<List<PlatformBanner>>? initialBanners;
+  final Future<Set<String>>? initialRoles;
+  final Future<UserProfileSummary?>? initialProfile;
 
   @override
   State<MainShell> createState() => _MainShellState();
@@ -42,6 +50,7 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
+  final PageController _pageController = PageController();
   late final CatalogService _catalogService;
   late final CartService _cartService;
   late final StoreLocationService _locationService;
@@ -72,16 +81,17 @@ class _MainShellState extends State<MainShell> {
     _bannerService = PlatformBannerService();
     _profileService = UserProfileService();
     _catalog = widget.initialCatalog ?? _catalogService.load();
-    _cart = _loadCart();
-    _banners = _bannerService.listPublic();
-    _roles = _bannerService.myRoles(widget.session);
-    _profile = _loadProfile();
+    _cart = widget.initialCart ?? _loadCart();
+    _banners = widget.initialBanners ?? _bannerService.listPublic();
+    _roles = widget.initialRoles ?? _bannerService.myRoles(widget.session);
+    _profile = widget.initialProfile ?? _loadProfile();
     _restoreBuyerLocation();
     _activatePushNotifications();
   }
 
   @override
   void dispose() {
+    _pageController.dispose();
     _catalogService.close();
     _cartService.close();
     _pushNotificationService.close();
@@ -281,7 +291,20 @@ class _MainShellState extends State<MainShell> {
     if (mounted) _applyBuyerLocation(result);
   }
 
-  void _selectTab(int index) => setState(() => _currentIndex = index);
+  void _selectTab(int index) {
+    if (index == _currentIndex) return;
+    setState(() => _currentIndex = index);
+    if (!_pageController.hasClients) return;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _pageController.jumpToPage(index);
+      return;
+    }
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+    );
+  }
 
   void _reloadBanners() => setState(() {
     _banners = _bannerService.listPublic();
@@ -372,7 +395,13 @@ class _MainShellState extends State<MainShell> {
     ];
 
     return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: pages),
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: (index) {
+          if (index != _currentIndex) setState(() => _currentIndex = index);
+        },
+        children: pages,
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: _selectTab,

@@ -28,6 +28,28 @@ class PurchasesHubPage extends StatefulWidget {
 
 class _PurchasesHubPageState extends State<PurchasesHubPage> {
   int _selected = 0;
+  final PageController _pageController = PageController();
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _selectPage(int index) {
+    if (index == _selected) return;
+    setState(() => _selected = index);
+    if (!_pageController.hasClients) return;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _pageController.jumpToPage(index);
+      return;
+    }
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+    );
+  }
 
   @override
   Widget build(BuildContext context) => Column(
@@ -55,14 +77,16 @@ class _PurchasesHubPageState extends State<PurchasesHubPage> {
               ),
             ],
             selected: {_selected},
-            onSelectionChanged: (value) =>
-                setState(() => _selected = value.first),
+            onSelectionChanged: (value) => _selectPage(value.first),
           ),
         ),
       ),
       Expanded(
-        child: IndexedStack(
-          index: _selected,
+        child: PageView(
+          controller: _pageController,
+          onPageChanged: (index) {
+            if (index != _selected) setState(() => _selected = index);
+          },
           children: [
             widget.cartPage,
             _BuyerRequestsPage(
@@ -275,8 +299,7 @@ class _BuyerRequestCard extends StatelessWidget {
   };
 
   static String _rejectReason(String reason) {
-    if (reason == 'SELLER_TIMEOUT' ||
-        reason.startsWith('Prazo de 5 minutos')) {
+    if (reason == 'SELLER_TIMEOUT' || reason.startsWith('Prazo de 5 minutos')) {
       return 'Prazo de 5 minutos não atendido pelo brechó';
     }
     return reason;

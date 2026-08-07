@@ -1,6 +1,7 @@
 import 'package:brecho_express_app/src/app/main_shell.dart';
 import 'package:brecho_express_app/src/appearance/app_palette.dart';
 import 'package:brecho_express_app/src/auth/brecho_session.dart';
+import 'package:brecho_express_app/src/cart/cart_service.dart';
 import 'package:brecho_express_app/src/catalog/catalog_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -25,6 +26,12 @@ void main() {
           initialCatalog: Future.value(
             const CatalogSnapshot(categories: [], products: []),
           ),
+          initialCart: Future.value(
+            const CartSnapshot(publicId: 'cart', status: 'ACTIVE', items: []),
+          ),
+          initialBanners: Future.value(const []),
+          initialRoles: Future.value(const {}),
+          initialProfile: Future.value(null),
         ),
       ),
     );
@@ -41,5 +48,41 @@ void main() {
     expect(find.text('Minha conta'), findsOneWidget);
     expect(find.text('Aparência'), findsOneWidget);
     expect(find.text('Sair da conta'), findsOneWidget);
+  });
+
+  testWidgets('desliza entre as áreas principais', (tester) async {
+    final session = BrechoSession(
+      accessToken: 'token',
+      sessionPublicId: 'session',
+      expiresAt: DateTime.now().add(const Duration(hours: 1)),
+      accountPublicId: 'account',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MainShell(
+          session: session,
+          palette: AppPalette.petroleum,
+          onPaletteChanged: (_) {},
+          onLogout: () async {},
+          loggingOut: false,
+          initialCatalog: Future.value(
+            const CatalogSnapshot(categories: [], products: []),
+          ),
+          initialCart: Future.value(
+            const CartSnapshot(publicId: 'cart', status: 'ACTIVE', items: []),
+          ),
+          initialBanners: Future.value(const []),
+          initialRoles: Future.value(const {}),
+          initialProfile: Future.value(null),
+        ),
+      ),
+    );
+
+    await tester.drag(find.byType(PageView).first, const Offset(-500, 0));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Comprar'), findsWidgets);
+    expect(find.text('Ordenar produtos'), findsOneWidget);
   });
 }
