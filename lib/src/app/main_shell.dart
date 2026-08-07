@@ -350,6 +350,7 @@ class _MainShellState extends State<MainShell> {
         profile: _profile,
         catalog: _catalog,
         onRetry: _retryCatalog,
+        onViewAll: () => _selectTab(1),
         onAddToCart: _addToCart,
         locationLabel: _viewerLocationLabel,
         onChooseLocation: _chooseBuyerLocation,
@@ -461,6 +462,7 @@ class HomePage extends StatelessWidget {
     required this.profile,
     required this.catalog,
     required this.onRetry,
+    required this.onViewAll,
     required this.onAddToCart,
     required this.locationLabel,
     required this.onChooseLocation,
@@ -471,6 +473,7 @@ class HomePage extends StatelessWidget {
   final Future<UserProfileSummary?> profile;
   final Future<CatalogSnapshot> catalog;
   final VoidCallback onRetry;
+  final VoidCallback onViewAll;
   final Future<void> Function(CatalogProduct product) onAddToCart;
   final String? locationLabel;
   final VoidCallback onChooseLocation;
@@ -494,11 +497,21 @@ class HomePage extends StatelessWidget {
                   onChooseLocation: onChooseLocation,
                 ),
                 const SizedBox(height: 24),
-                Text(
-                  'Novidades',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Novidades para você ✨',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: onViewAll,
+                      child: const Text('Ver todos'),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 _CatalogContent(
@@ -1191,7 +1204,13 @@ class _CatalogContent extends StatelessWidget {
             return left.compareTo(right);
           });
         }
-        final visible = (preview ? products.take(4) : products).toList();
+        final visible = (preview ? products.take(10) : products).toList();
+        if (preview) {
+          return _ProductCarousel(
+            products: visible,
+            onAddToCart: onAddToCart,
+          );
+        }
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -1208,6 +1227,37 @@ class _CatalogContent extends StatelessWidget {
       },
     );
   }
+}
+
+class _ProductCarousel extends StatelessWidget {
+  const _ProductCarousel({required this.products, required this.onAddToCart});
+
+  final List<CatalogProduct> products;
+  final Future<void> Function(CatalogProduct product) onAddToCart;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final cardWidth = constraints.maxWidth * .54;
+      return SizedBox(
+        height: cardWidth / .58,
+        child: ListView.separated(
+          key: const PageStorageKey('home-product-carousel'),
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          itemCount: products.length,
+          separatorBuilder: (_, _) => const SizedBox(width: 10),
+          itemBuilder: (context, index) => SizedBox(
+            width: cardWidth,
+            child: _ProductCard(
+              product: products[index],
+              onAddToCart: onAddToCart,
+            ),
+          ),
+        ),
+      );
+    },
+  );
 }
 
 class _ProductCard extends StatelessWidget {
