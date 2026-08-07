@@ -3,39 +3,23 @@ CREATE OR REPLACE PACKAGE BODY prd_api_pkg AS
 
   FUNCTION to_json(p prd_service_pkg.t_product_record) RETURN JSON_OBJECT_T IS
     j JSON_OBJECT_T:=JSON_OBJECT_T();
-    l_store_name BEX_STORE.STR_NAME%TYPE;
-    l_store_logo_url BEX_STORE.STR_LOGO_URL%TYPE;
-    l_primary_image_url BEX_PRODUCT_IMAGE.PIM_URL%TYPE;
-    l_image_count PLS_INTEGER := 0;
+    l_image_urls JSON_ARRAY_T:=JSON_ARRAY_T();
+    l_i PLS_INTEGER:=p.image_urls.FIRST;
   BEGIN
-    BEGIN
-      SELECT STR_NAME, STR_LOGO_URL INTO l_store_name, l_store_logo_url
-        FROM BEX_STORE
-       WHERE STR_PUBLIC_ID = TRIM(p.store_public_id);
-    EXCEPTION WHEN NO_DATA_FOUND THEN
-      l_store_name := NULL; l_store_logo_url := NULL;
-    END;
-    BEGIN
-      SELECT COUNT(*),
-             MAX(CASE WHEN image_data.PIM_IS_PRIMARY = 1
-                      THEN image_data.PIM_URL END)
-        INTO l_image_count, l_primary_image_url
-        FROM BEX_PRODUCT_IMAGE image_data
-        JOIN BEX_PRODUCT product_data ON product_data.PRD_ID = image_data.PRD_ID
-       WHERE product_data.PRD_PUBLIC_ID = TRIM(p.product_public_id)
-         AND image_data.PIM_STATUS = 'ACTIVE';
-    EXCEPTION WHEN NO_DATA_FOUND THEN
-      l_image_count := 0; l_primary_image_url := NULL;
-    END;
+    WHILE l_i IS NOT NULL LOOP
+      core_json_pkg.append_string(l_image_urls,p.image_urls(l_i));
+      l_i:=p.image_urls.NEXT(l_i);
+    END LOOP;
     core_json_pkg.put_string(j,'productPublicId',TRIM(p.product_public_id));
     core_json_pkg.put_string(j,'storePublicId',TRIM(p.store_public_id));
-    IF l_store_name IS NULL THEN core_json_pkg.put_null(j,'storeName');
-    ELSE core_json_pkg.put_string(j,'storeName',l_store_name); END IF;
-    IF l_store_logo_url IS NULL THEN core_json_pkg.put_null(j,'storeLogoUrl');
-    ELSE core_json_pkg.put_string(j,'storeLogoUrl',l_store_logo_url); END IF;
-    IF l_primary_image_url IS NULL THEN core_json_pkg.put_null(j,'primaryImageUrl');
-    ELSE core_json_pkg.put_string(j,'primaryImageUrl',l_primary_image_url); END IF;
-    core_json_pkg.put_number(j,'imageCount',l_image_count);
+    IF p.store_name IS NULL THEN core_json_pkg.put_null(j,'storeName');
+    ELSE core_json_pkg.put_string(j,'storeName',p.store_name); END IF;
+    IF p.store_logo_url IS NULL THEN core_json_pkg.put_null(j,'storeLogoUrl');
+    ELSE core_json_pkg.put_string(j,'storeLogoUrl',p.store_logo_url); END IF;
+    IF p.primary_image_url IS NULL THEN core_json_pkg.put_null(j,'primaryImageUrl');
+    ELSE core_json_pkg.put_string(j,'primaryImageUrl',p.primary_image_url); END IF;
+    core_json_pkg.put_number(j,'imageCount',p.image_count);
+    core_json_pkg.put_element(j,'imageUrls',l_image_urls);
     core_json_pkg.put_string(j,'categoryPublicId',TRIM(p.category_public_id));
     IF p.brand_public_id IS NULL THEN core_json_pkg.put_null(j,'brandPublicId');
     ELSE core_json_pkg.put_string(j,'brandPublicId',TRIM(p.brand_public_id)); END IF;

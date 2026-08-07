@@ -228,6 +228,9 @@ Packages previstas:
   "quantity": 1,
   "condition": "GOOD",
   "status": "DRAFT",
+  "primaryImageUrl": null,
+  "imageCount": 0,
+  "imageUrls": [],
   "weight": null,
   "width": null,
   "height": null,
@@ -286,6 +289,10 @@ contrato próprios.
 No cliente Flutter, a seleção de novas imagens apresenta prévia imediata tanto
 no cadastro quanto na edição do produto, incluindo ordem visual, indicação de
 capa e remoção antes do envio.
+
+A listagem pública inclui `imageUrls` na ordem de exibição, começando pela capa,
+para que cada card ofereça carrossel próprio sem realizar uma requisição por
+produto. `primaryImageUrl` e `imageCount` permanecem por compatibilidade.
 
 A Home restaura a referência geográfica persistida do comprador. Na primeira
 execução sem preferência, pode solicitar a localização atual, realizar

@@ -185,6 +185,7 @@ class CatalogProduct {
     this.storeName,
     this.storeLogoUrl,
     this.primaryImageUrl,
+    this.imageUrls = const [],
     this.imageCount = 0,
     this.weight,
     this.width,
@@ -192,23 +193,34 @@ class CatalogProduct {
     this.length,
     this.location,
   });
-  factory CatalogProduct.fromJson(Map<String, dynamic> json) => CatalogProduct(
-    publicId: json['productPublicId'] as String,
-    title: json['title'] as String,
-    price: (json['price'] as num).toDouble(),
-    condition: json['condition'] as String,
-    categoryPublicId: json['categoryPublicId'] as String?,
-    description: json['description'] as String?,
-    storePublicId: json['storePublicId'] as String?,
-    storeName: json['storeName'] as String?,
-    storeLogoUrl: json['storeLogoUrl'] as String?,
-    primaryImageUrl: json['primaryImageUrl'] as String?,
-    imageCount: (json['imageCount'] as num?)?.toInt() ?? 0,
-    weight: (json['weight'] as num?)?.toDouble(),
-    width: (json['width'] as num?)?.toDouble(),
-    height: (json['height'] as num?)?.toDouble(),
-    length: (json['length'] as num?)?.toDouble(),
-  );
+  factory CatalogProduct.fromJson(Map<String, dynamic> json) {
+    final primaryImageUrl = json['primaryImageUrl'] as String?;
+    final imageUrls = (json['imageUrls'] as List? ?? const [])
+        .whereType<String>()
+        .where((url) => url.isNotEmpty)
+        .toList(growable: true);
+    if (imageUrls.isEmpty && primaryImageUrl != null) {
+      imageUrls.add(primaryImageUrl);
+    }
+    return CatalogProduct(
+      publicId: json['productPublicId'] as String,
+      title: json['title'] as String,
+      price: (json['price'] as num).toDouble(),
+      condition: json['condition'] as String,
+      categoryPublicId: json['categoryPublicId'] as String?,
+      description: json['description'] as String?,
+      storePublicId: json['storePublicId'] as String?,
+      storeName: json['storeName'] as String?,
+      storeLogoUrl: json['storeLogoUrl'] as String?,
+      primaryImageUrl: primaryImageUrl,
+      imageUrls: List.unmodifiable(imageUrls),
+      imageCount: (json['imageCount'] as num?)?.toInt() ?? imageUrls.length,
+      weight: (json['weight'] as num?)?.toDouble(),
+      width: (json['width'] as num?)?.toDouble(),
+      height: (json['height'] as num?)?.toDouble(),
+      length: (json['length'] as num?)?.toDouble(),
+    );
+  }
   final String publicId;
   final String title;
   final double price;
@@ -219,6 +231,7 @@ class CatalogProduct {
   final String? storeName;
   final String? storeLogoUrl;
   final String? primaryImageUrl;
+  final List<String> imageUrls;
   final int imageCount;
   final double? weight;
   final double? width;
@@ -237,6 +250,7 @@ class CatalogProduct {
     storeName: storeName,
     storeLogoUrl: storeLogoUrl,
     primaryImageUrl: primaryImageUrl,
+    imageUrls: imageUrls,
     imageCount: imageCount,
     weight: weight,
     width: width,

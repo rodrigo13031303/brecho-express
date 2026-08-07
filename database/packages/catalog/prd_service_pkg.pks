@@ -1,7 +1,11 @@
 CREATE OR REPLACE PACKAGE prd_service_pkg AS
+  TYPE t_image_url_table IS TABLE OF BEX_PRODUCT_IMAGE.PIM_URL%TYPE
+    INDEX BY PLS_INTEGER;
   TYPE t_product_record IS RECORD (
     product_public_id BEX_PRODUCT.PRD_PUBLIC_ID%TYPE,
     store_public_id BEX_STORE.STR_PUBLIC_ID%TYPE,
+    store_name BEX_STORE.STR_NAME%TYPE,
+    store_logo_url BEX_STORE.STR_LOGO_URL%TYPE,
     category_public_id BEX_CATEGORY.CAT_PUBLIC_ID%TYPE,
     brand_public_id BEX_BRAND.BRD_PUBLIC_ID%TYPE,
     title BEX_PRODUCT.PRD_TITLE%TYPE,
@@ -14,6 +18,9 @@ CREATE OR REPLACE PACKAGE prd_service_pkg AS
     width BEX_PRODUCT.PRD_WIDTH%TYPE,
     height BEX_PRODUCT.PRD_HEIGHT%TYPE,
     length BEX_PRODUCT.PRD_LENGTH%TYPE,
+    primary_image_url BEX_PRODUCT_IMAGE.PIM_URL%TYPE,
+    image_count PLS_INTEGER,
+    image_urls t_image_url_table,
     status BEX_PRODUCT.PRD_STATUS%TYPE,
     created_at BEX_PRODUCT.PRD_CREATED_AT%TYPE,
     updated_at BEX_PRODUCT.PRD_UPDATED_AT%TYPE

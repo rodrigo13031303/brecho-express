@@ -113,6 +113,18 @@ CREATE OR REPLACE PACKAGE BODY prd_repository_pkg AS
     RETURN l_rows;
   END;
 
+  FUNCTION list_active_images(
+    p_product_id BEX_PRODUCT.PRD_ID%TYPE
+  ) RETURN t_product_image_table IS l_rows t_product_image_table;
+  BEGIN
+    SELECT PIM_URL,PIM_IS_PRIMARY,PIM_SORT_ORDER
+      BULK COLLECT INTO l_rows
+      FROM BEX_PRODUCT_IMAGE
+     WHERE PRD_ID=p_product_id AND PIM_STATUS='ACTIVE'
+     ORDER BY PIM_IS_PRIMARY DESC,PIM_SORT_ORDER,PIM_ID;
+    RETURN l_rows;
+  END;
+
   PROCEDURE update_product(
     p_product t_product_record,o_updated OUT BOOLEAN
   ) IS

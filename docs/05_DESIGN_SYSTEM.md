@@ -34,9 +34,10 @@ Design moderno, leve e profissional que transmite confiança, sustentabilidade e
 - Botões: primary filled, outlined e text.
 - Campos: inputs com bordas arredondadas, foco em azul médio.
 - Cards: bordas suaves, sombra leve e conteúdo espaçado.
-- A Home apresenta novidades em carrossel horizontal manual, com parte do
-  próximo card visível; avanço automático fica reservado a banners.
-- A vitrine resumida oferece ação `Ver todos` para abrir o catálogo completo.
+- Produtos permanecem em grade vertical de duas colunas.
+- Quando um produto possui várias fotos, a área de imagem do próprio card usa
+  carrossel horizontal manual com contador e indicador de página.
+- Avanço automático fica reservado a banners promocionais.
 
 ## Tokens
 - Cores, espaçamentos, bordas e tamanhos centralizados em Dart.

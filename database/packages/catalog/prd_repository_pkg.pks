@@ -22,6 +22,13 @@ CREATE OR REPLACE PACKAGE prd_repository_pkg AS
     prd_updated_by BEX_PRODUCT.PRD_UPDATED_BY%TYPE
   );
   TYPE t_product_table IS TABLE OF t_product_record INDEX BY PLS_INTEGER;
+  TYPE t_product_image_record IS RECORD (
+    image_url BEX_PRODUCT_IMAGE.PIM_URL%TYPE,
+    is_primary BEX_PRODUCT_IMAGE.PIM_IS_PRIMARY%TYPE,
+    sort_order BEX_PRODUCT_IMAGE.PIM_SORT_ORDER%TYPE
+  );
+  TYPE t_product_image_table IS TABLE OF t_product_image_record
+    INDEX BY PLS_INTEGER;
 
   PROCEDURE insert_product(
     p_product t_product_record,
@@ -52,6 +59,9 @@ CREATE OR REPLACE PACKAGE prd_repository_pkg AS
     p_brand_id BEX_PRODUCT.BRD_ID%TYPE DEFAULT NULL,
     p_condition BEX_PRODUCT.PRD_CONDITION%TYPE DEFAULT NULL
   ) RETURN t_product_table;
+  FUNCTION list_active_images(
+    p_product_id BEX_PRODUCT.PRD_ID%TYPE
+  ) RETURN t_product_image_table;
   PROCEDURE update_product(
     p_product t_product_record,
     o_updated OUT BOOLEAN

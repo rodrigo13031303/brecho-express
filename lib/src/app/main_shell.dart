@@ -350,7 +350,6 @@ class _MainShellState extends State<MainShell> {
         profile: _profile,
         catalog: _catalog,
         onRetry: _retryCatalog,
-        onViewAll: () => _selectTab(1),
         onAddToCart: _addToCart,
         locationLabel: _viewerLocationLabel,
         onChooseLocation: _chooseBuyerLocation,
@@ -462,7 +461,6 @@ class HomePage extends StatelessWidget {
     required this.profile,
     required this.catalog,
     required this.onRetry,
-    required this.onViewAll,
     required this.onAddToCart,
     required this.locationLabel,
     required this.onChooseLocation,
@@ -473,7 +471,6 @@ class HomePage extends StatelessWidget {
   final Future<UserProfileSummary?> profile;
   final Future<CatalogSnapshot> catalog;
   final VoidCallback onRetry;
-  final VoidCallback onViewAll;
   final Future<void> Function(CatalogProduct product) onAddToCart;
   final String? locationLabel;
   final VoidCallback onChooseLocation;
@@ -497,21 +494,11 @@ class HomePage extends StatelessWidget {
                   onChooseLocation: onChooseLocation,
                 ),
                 const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Novidades para você ✨',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: onViewAll,
-                      child: const Text('Ver todos'),
-                    ),
-                  ],
+                Text(
+                  'Novidades',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 12),
                 _CatalogContent(
@@ -1204,13 +1191,7 @@ class _CatalogContent extends StatelessWidget {
             return left.compareTo(right);
           });
         }
-        final visible = (preview ? products.take(10) : products).toList();
-        if (preview) {
-          return _ProductCarousel(
-            products: visible,
-            onAddToCart: onAddToCart,
-          );
-        }
+        final visible = (preview ? products.take(4) : products).toList();
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -1229,44 +1210,21 @@ class _CatalogContent extends StatelessWidget {
   }
 }
 
-class _ProductCarousel extends StatelessWidget {
-  const _ProductCarousel({required this.products, required this.onAddToCart});
-
-  final List<CatalogProduct> products;
-  final Future<void> Function(CatalogProduct product) onAddToCart;
-
-  @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final cardWidth = constraints.maxWidth * .54;
-      return SizedBox(
-        height: cardWidth / .58,
-        child: ListView.separated(
-          key: const PageStorageKey('home-product-carousel'),
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          itemCount: products.length,
-          separatorBuilder: (_, _) => const SizedBox(width: 10),
-          itemBuilder: (context, index) => SizedBox(
-            width: cardWidth,
-            child: _ProductCard(
-              product: products[index],
-              onAddToCart: onAddToCart,
-            ),
-          ),
-        ),
-      );
-    },
-  );
-}
-
-class _ProductCard extends StatelessWidget {
+class _ProductCard extends StatefulWidget {
   const _ProductCard({required this.product, required this.onAddToCart});
   final CatalogProduct product;
   final Future<void> Function(CatalogProduct product) onAddToCart;
 
   @override
+  State<_ProductCard> createState() => _ProductCardState();
+}
+
+class _ProductCardState extends State<_ProductCard> {
+  int _imageIndex = 0;
+
+  @override
   Widget build(BuildContext context) {
+    final product = widget.product;
     final price = product.price.toStringAsFixed(2).replaceAll('.', ',');
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -1274,8 +1232,10 @@ class _ProductCard extends StatelessWidget {
       child: InkWell(
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute<void>(
-            builder: (context) =>
-                ProductDetailPage(product: product, onAddToCart: onAddToCart),
+            builder: (context) => ProductDetailPage(
+              product: product,
+              onAddToCart: widget.onAddToCart,
+            ),
           ),
         ),
         child: Column(
@@ -1283,20 +1243,10 @@ class _ProductCard extends StatelessWidget {
           children: [
             AspectRatio(
               aspectRatio: 1,
-              child: ColoredBox(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                child: product.primaryImageUrl == null
-                    ? const Icon(Icons.checkroom_outlined, size: 54)
-                    : CachedNetworkImage(
-                        imageUrl: product.primaryImageUrl!,
-                        fit: BoxFit.fill,
-                        memCacheWidth: 720,
-                        placeholder: (_, _) => const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                        errorWidget: (_, _, _) =>
-                            const Icon(Icons.broken_image_outlined),
-                      ),
+              child: _ProductCardGallery(
+                imageUrls: product.imageUrls,
+                currentIndex: _imageIndex,
+                onPageChanged: (index) => setState(() => _imageIndex = index),
               ),
             ),
             Padding(
@@ -1362,6 +1312,96 @@ class _ProductCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ProductCardGallery extends StatelessWidget {
+  const _ProductCardGallery({
+    required this.imageUrls,
+    required this.currentIndex,
+    required this.onPageChanged,
+  });
+
+  final List<String> imageUrls;
+  final int currentIndex;
+  final ValueChanged<int> onPageChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    if (imageUrls.isEmpty) {
+      return ColoredBox(
+        color: colors.primaryContainer,
+        child: const Icon(Icons.checkroom_outlined, size: 54),
+      );
+    }
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        PageView.builder(
+          itemCount: imageUrls.length,
+          onPageChanged: onPageChanged,
+          itemBuilder: (context, index) => CachedNetworkImage(
+            imageUrl: imageUrls[index],
+            fit: BoxFit.fill,
+            memCacheWidth: 720,
+            placeholder: (_, _) => const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            errorWidget: (_, _, _) => const Icon(Icons.broken_image_outlined),
+          ),
+        ),
+        if (imageUrls.length > 1) ...[
+          Positioned(
+            top: 7,
+            right: 7,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: .62),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                child: Text(
+                  '${currentIndex + 1}/${imageUrls.length}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 8,
+            right: 8,
+            bottom: 7,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                imageUrls.length,
+                (index) => AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  width: index == currentIndex ? 14 : 5,
+                  height: 5,
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  decoration: BoxDecoration(
+                    color: index == currentIndex
+                        ? Colors.white
+                        : Colors.white.withValues(alpha: .58),
+                    borderRadius: BorderRadius.circular(5),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black38, blurRadius: 2),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

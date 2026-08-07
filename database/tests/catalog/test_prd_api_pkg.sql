@@ -3,6 +3,7 @@ SET DEFINE OFF
 WHENEVER SQLERROR EXIT SQL.SQLCODE
 DECLARE
   l_account NUMBER; l_store NUMBER; l_category NUMBER; l_brand NUMBER;
+  l_product NUMBER;
   l_token VARCHAR2(12):=LOWER(SUBSTR(RAWTOHEX(SYS_GUID()),1,12));
   l_store_pub CHAR(32):=LOWER(RAWTOHEX(SYS_GUID()));
   l_cat_pub CHAR(32):=LOWER(RAWTOHEX(SYS_GUID()));
@@ -52,6 +53,20 @@ BEGIN
   l_json:=JSON_OBJECT_T.parse(l_body); l_data:=l_json.get_object('data');
   ok(l_status=201 AND l_json.get_boolean('success'),'CREATE incorreto.');
   l_product_pub:=l_data.get_string('productPublicId');
+  SELECT PRD_ID INTO l_product FROM BEX_PRODUCT
+   WHERE PRD_PUBLIC_ID=l_product_pub;
+  INSERT INTO BEX_PRODUCT_IMAGE(
+    PIM_PUBLIC_ID,PRD_ID,PIM_URL,PIM_ALT_TEXT,PIM_SORT_ORDER,PIM_IS_PRIMARY
+  ) VALUES(
+    LOWER(RAWTOHEX(SYS_GUID())),l_product,'https://example.invalid/front.jpg',
+    'Frente',0,1
+  );
+  INSERT INTO BEX_PRODUCT_IMAGE(
+    PIM_PUBLIC_ID,PRD_ID,PIM_URL,PIM_ALT_TEXT,PIM_SORT_ORDER,PIM_IS_PRIMARY
+  ) VALUES(
+    LOWER(RAWTOHEX(SYS_GUID())),l_product,'https://example.invalid/back.jpg',
+    'Costas',1,0
+  );
   ok(l_data.get_string('title')='Achado API'
      AND l_data.get('description').is_null
      AND NOT l_data.has('prdId') AND NOT l_data.has('createdBy'),
@@ -76,6 +91,14 @@ BEGIN
   l_json:=JSON_OBJECT_T.parse(l_body);
   l_array:=l_json.get_array('data');
   ok(l_status=200 AND l_array.get_size=1,'LIST publico incorreto.');
+  l_data:=TREAT(l_array.get(0) AS JSON_OBJECT_T);
+  ok(l_data.get_number('imageCount')=2
+     AND l_data.get_array('imageUrls').get_size=2
+     AND l_data.get_array('imageUrls').get_string(0)=
+       'https://example.invalid/front.jpg'
+     AND l_data.get_array('imageUrls').get_string(1)=
+       'https://example.invalid/back.jpg',
+     'Carrossel de imagens incorreto.');
   prd_api_pkg.get_product(NULL,l_status,l_body);
   ok(l_status=400,'Obrigatorio deveria retornar 400.');
   prd_api_pkg.create_product(
@@ -84,9 +107,10 @@ BEGIN
   ok(l_status=400,'Campo desconhecido deveria retornar 400.');
   SELECT COUNT(*) INTO l_count FROM USER_DEPENDENCIES
    WHERE NAME='PRD_API_PKG' AND REFERENCED_NAME IN (
-     'PRD_REPOSITORY_PKG','BEX_PRODUCT'
+     'PRD_REPOSITORY_PKG','BEX_PRODUCT','BEX_PRODUCT_IMAGE','BEX_STORE'
    );
   ok(l_count=0,'API acessa Repository ou tabela.');
+  DELETE FROM BEX_PRODUCT_IMAGE WHERE PRD_ID=l_product;
   DELETE FROM BEX_PRODUCT WHERE PRD_PUBLIC_ID=l_product_pub;
   DELETE FROM BEX_BRAND WHERE BRD_ID=l_brand;
   DELETE FROM BEX_CATEGORY WHERE CAT_ID=l_category;

@@ -13,7 +13,7 @@ void main() {
         );
       }
       return http.Response(
-        '{"success":true,"data":[{"productPublicId":"prd","categoryPublicId":"cat","title":"Vestido","price":59.9,"condition":"GOOD","description":null}]}',
+        '{"success":true,"data":[{"productPublicId":"prd","categoryPublicId":"cat","title":"Vestido","price":59.9,"condition":"GOOD","description":null,"primaryImageUrl":"https://example.invalid/frente.jpg","imageUrls":["https://example.invalid/frente.jpg","https://example.invalid/costas.jpg"]}]}',
         200,
       );
     });
@@ -25,6 +25,11 @@ void main() {
     expect(catalog.products.single.title, 'Vestido');
     expect(catalog.products.single.price, 59.9);
     expect(catalog.products.single.categoryPublicId, 'cat');
+    expect(catalog.products.single.imageUrls, hasLength(2));
+    expect(
+      catalog.products.single.imageUrls.last,
+      'https://example.invalid/costas.jpg',
+    );
     service.close();
   });
 

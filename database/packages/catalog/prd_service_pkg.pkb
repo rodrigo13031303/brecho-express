@@ -5,10 +5,13 @@ CREATE OR REPLACE PACKAGE BODY prd_service_pkg AS
   FUNCTION map_row(p prd_repository_pkg.t_product_record)
     RETURN t_product_record IS r t_product_record;
     s str_service_pkg.t_store_record;
+    imgs prd_repository_pkg.t_product_image_table;
+    i PLS_INTEGER;
   BEGIN
     IF p.prd_id IS NULL THEN RETURN r; END IF;
     s:=str_service_pkg.get_store_by_id(p.str_id);
     r.product_public_id:=p.prd_public_id; r.store_public_id:=s.store_public_id;
+    r.store_name:=s.store_name; r.store_logo_url:=s.logo_url;
     r.category_public_id:=cat_service_pkg.resolve_category_public_id(p.cat_id);
     IF p.brd_id IS NOT NULL THEN
       r.brand_public_id:=brd_service_pkg.resolve_brand_public_id(p.brd_id);
@@ -17,7 +20,15 @@ CREATE OR REPLACE PACKAGE BODY prd_service_pkg AS
     r.description:=p.prd_description; r.price:=p.prd_price;
     r.quantity:=p.prd_quantity; r.condition:=p.prd_condition;
     r.weight:=p.prd_weight; r.width:=p.prd_width; r.height:=p.prd_height;
-    r.length:=p.prd_length; r.status:=p.prd_status;
+    r.length:=p.prd_length;
+    imgs:=prd_repository_pkg.list_active_images(p.prd_id);i:=imgs.FIRST;
+    WHILE i IS NOT NULL LOOP
+      r.image_count:=NVL(r.image_count,0)+1;
+      r.image_urls(r.image_urls.COUNT+1):=imgs(i).image_url;
+      IF imgs(i).is_primary=1 THEN r.primary_image_url:=imgs(i).image_url;END IF;
+      i:=imgs.NEXT(i);
+    END LOOP;
+    r.image_count:=NVL(r.image_count,0);r.status:=p.prd_status;
     r.created_at:=p.prd_created_at; r.updated_at:=p.prd_updated_at;
     RETURN r;
   END;
