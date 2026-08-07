@@ -77,6 +77,30 @@ CREATE OR REPLACE PACKAGE BODY acc_social_auth_api_pkg AS
     p_subject        IN VARCHAR2,
     p_email          IN VARCHAR2,
     p_email_verified IN CHAR,
+    p_ip             IN VARCHAR2,
+    p_user_agent     IN VARCHAR2,
+    o_status_code    OUT PLS_INTEGER,
+    o_response_body  OUT NOCOPY CLOB
+  ) IS
+  BEGIN
+    login_google_verified(
+      p_issuer         => p_issuer,
+      p_subject        => p_subject,
+      p_email          => p_email,
+      p_email_verified => p_email_verified,
+      p_name           => NULL,
+      p_ip             => p_ip,
+      p_user_agent     => p_user_agent,
+      o_status_code    => o_status_code,
+      o_response_body  => o_response_body
+    );
+  END login_google_verified;
+
+  PROCEDURE login_google_verified(
+    p_issuer         IN VARCHAR2,
+    p_subject        IN VARCHAR2,
+    p_email          IN VARCHAR2,
+    p_email_verified IN CHAR,
     p_name           IN VARCHAR2,
     p_ip             IN VARCHAR2,
     p_user_agent     IN VARCHAR2,

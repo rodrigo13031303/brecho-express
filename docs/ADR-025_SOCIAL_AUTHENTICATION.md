@@ -139,6 +139,11 @@ Em contas antigas, um nome técnico ainda igual ao prefixo do e-mail ou a
 `Cliente` pode ser substituído pelo nome verificado no próximo login. Um nome
 personalizado pelo usuário nunca é sobrescrito automaticamente pelo provedor.
 
+Durante a implantação incremental, o package Oracle mantém temporariamente a
+assinatura anterior sem `name`, delegando-a ao mesmo fluxo com claim nulo. Isso
+permite atualizar o banco antes do plugin ORDS sem interromper o login; a
+assinatura de compatibilidade poderá ser retirada após confirmação do novo JAR.
+
 ## Estado de implementação
 
 Em 2026-07-26, no Oracle AI Database 26ai Free:
