@@ -67,7 +67,10 @@ class _BuyerLocationPageState extends State<BuyerLocationPage> {
       _searching = true;
       _error = null;
     });
-    _debounce = Timer(const Duration(milliseconds: 550), () => _runSearch(query));
+    _debounce = Timer(
+      const Duration(milliseconds: 550),
+      () => _runSearch(query),
+    );
   }
 
   Future<void> _runSearch(String query) async {
@@ -197,34 +200,48 @@ class _BuyerLocationPageState extends State<BuyerLocationPage> {
               ..._suggestions.map(_suggestionTile),
             ] else ...[
               const SizedBox(height: 28),
-              Text('Localização atual', style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                'Localização atual',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               const SizedBox(height: 10),
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.my_location, size: 32),
                 title: const Text('Usar minha localização'),
-                subtitle: Text(widget.currentLabel ?? 'Toque para localizar o aparelho'),
+                subtitle: Text(
+                  widget.currentLabel ?? 'Toque para localizar o aparelho',
+                ),
                 trailing: const Icon(Icons.refresh),
                 onTap: _locating ? null : _useCurrent,
               ),
               const SizedBox(height: 24),
-              Text('Endereços recentes', style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                'Endereços recentes',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               const SizedBox(height: 10),
               FutureBuilder<List<SavedAddress>>(
                 future: _addresses,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState != ConnectionState.done) {
-                    return const Center(child: Padding(
-                      padding: EdgeInsets.all(24),
-                      child: CircularProgressIndicator(),
-                    ));
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
                   }
                   if (snapshot.hasError) {
-                    return const Text('Não foi possível carregar seus endereços salvos.');
+                    return const Text(
+                      'Não foi possível carregar seus endereços salvos.',
+                    );
                   }
                   final addresses = snapshot.data ?? const [];
                   if (addresses.isEmpty) {
-                    return const Text('Você ainda não possui endereços salvos.');
+                    return const Text(
+                      'Você ainda não possui endereços salvos.',
+                    );
                   }
                   return Column(children: addresses.map(_savedTile).toList());
                 },
@@ -232,7 +249,10 @@ class _BuyerLocationPageState extends State<BuyerLocationPage> {
             ],
             if (_error != null) ...[
               const SizedBox(height: 16),
-              Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             ],
           ],
         ),
@@ -250,13 +270,23 @@ class _BuyerLocationPageState extends State<BuyerLocationPage> {
   Widget _savedTile(SavedAddress address) => Card(
     margin: const EdgeInsets.only(bottom: 10),
     child: ListTile(
-      leading: Icon(address.isDefault ? Icons.home : Icons.location_on_outlined),
+      leading: Icon(
+        address.isDefault ? Icons.home : Icons.location_on_outlined,
+      ),
       title: Row(
         children: [
-          Flexible(child: Text(address.title, style: const TextStyle(fontWeight: FontWeight.w700))),
+          Flexible(
+            child: Text(
+              address.title,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
           if (address.isDefault) ...[
             const SizedBox(width: 8),
-            const Chip(label: Text('Principal'), visualDensity: VisualDensity.compact),
+            const Chip(
+              label: Text('Principal'),
+              visualDensity: VisualDensity.compact,
+            ),
           ],
         ],
       ),
@@ -270,8 +300,13 @@ class _BuyerLocationPageState extends State<BuyerLocationPage> {
   Widget _suggestionTile(AddressSearchSuggestion suggestion) => ListTile(
     contentPadding: EdgeInsets.zero,
     leading: const Icon(Icons.location_on_outlined),
-    title: Text(suggestion.primaryLabel, style: const TextStyle(fontWeight: FontWeight.w700)),
-    subtitle: suggestion.secondaryLabel.isEmpty ? null : Text(suggestion.secondaryLabel),
+    title: Text(
+      suggestion.primaryLabel,
+      style: const TextStyle(fontWeight: FontWeight.w700),
+    ),
+    subtitle: suggestion.secondaryLabel.isEmpty
+        ? null
+        : Text(suggestion.secondaryLabel),
     trailing: suggestion.distanceKm == null
         ? null
         : Text('${suggestion.distanceKm!.round()} km'),

@@ -3,7 +3,7 @@
 ## 1. Status
 
 Identificadores móveis, clientes OAuth e verificador Google oficializados.
-Backend instalado; integração Flutter e teste com ID token real pendentes.
+Backend e integração Flutter instalados e validados com ID token real.
 
 Em 2026-07-27, a integração Flutter com `google_sign_in 7.2.0` foi
 materializada, aprovada por `flutter analyze` e testes, e gerou o primeiro APK
@@ -138,9 +138,12 @@ Facebook utilizará o mesmo identificador Android/iOS, App ID público no
 cliente e App Secret exclusivamente no backend. Sua implementação ocorrerá
 depois de Google e Apple.
 
+Em 2026-08-07, o plugin ORDS passou a validar também o claim opcional `name` e
+o backend provisionou com sucesso o PROFILE de uma conta real, preservando a
+regra de não sobrescrever nomes personalizados.
+
 ## 8. Pendências
 
 - concluir a configuração de distribuição/testadores do consentimento Google;
-- validar um ID token real de ponta a ponta;
 - criar credenciais Android de release antes da publicação;
 - implementar Sign in with Apple depois do fluxo Google aprovado.

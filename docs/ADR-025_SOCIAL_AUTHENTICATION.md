@@ -164,8 +164,10 @@ Em 2026-07-26, no Oracle AI Database 26ai Free:
 - health check do plugin aprovado externamente e token inválido rejeitado com
   `401 BEX-AUTH-003`;
 - autenticação com token Google real e integração Flutter implementadas;
-- provisionamento do PROFILE com o claim `name` verificado preparado para
-  implantação coordenada entre plugin ORDS e packages Oracle;
+- provisionamento do PROFILE com o claim `name` verificado implantado em
+  2026-08-07 no plugin ORDS e nos packages Oracle;
+- login Google real confirmou a persistência de `displayName` e `fullName` e a
+  Home apresentou corretamente somente o primeiro nome na saudação;
 - Apple e Facebook ainda não possuem verificadores.
 
 ## Consequências

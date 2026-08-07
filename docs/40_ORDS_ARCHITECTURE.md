@@ -452,6 +452,8 @@ do caso de uso. CLOBs, URLs, texto e arquivos respeitam limites documentados.
 - plugin Google instalado em `lib/ext`, com health check externo aprovado;
 - endpoint `POST /auth/social/google` publicado pelo plugin e rejeição segura
   de token inválido confirmada com `401 BEX-AUTH-003`;
+- login Google real validado de ponta a ponta e claim `name` verificado usado
+  para provisionar o PROFILE em 2026-08-07;
 - domínio Oracle do login Google instalado e aprovado por cinco testes
   transacionais.
 
@@ -462,8 +464,6 @@ do caso de uso. CLOBs, URLs, texto e arquivos respeitam limites documentados.
 - ator ainda é recebido como parâmetro PL/SQL e depende de binding ORDS
   confiável;
 - autenticação de webhook ainda precisa de contrato do provedor;
-- verificador Google está materializado, mas aguarda validação com um ID token
-  real emitido para a audience aprovada;
 - verificadores Apple e Facebook ainda não estão materializados;
 - notificações não possuem API package;
 - aceite parcial e reserva ainda não possuem operações executáveis.

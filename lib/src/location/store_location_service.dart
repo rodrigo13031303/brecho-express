@@ -126,15 +126,19 @@ class StoreLocationService {
         final place = placemarks.first;
         final street = (place.thoroughfare ?? place.street ?? '').trim();
         final number = (place.subThoroughfare ?? '').trim();
-        final primary = [street, number]
-            .where((part) => part.isNotEmpty)
-            .join(', ');
+        final primary = [
+          street,
+          number,
+        ].where((part) => part.isNotEmpty).join(', ');
         final district = (place.subLocality ?? '').trim();
-        final city = (place.locality ?? place.subAdministrativeArea ?? '').trim();
+        final city = (place.locality ?? place.subAdministrativeArea ?? '')
+            .trim();
         final state = _stateCode(place.administrativeArea ?? '');
-        final secondary = [district, city, state]
-            .where((part) => part.isNotEmpty)
-            .join(', ');
+        final secondary = [
+          district,
+          city,
+          state,
+        ].where((part) => part.isNotEmpty).join(', ');
         final label = primary.isNotEmpty ? primary : secondary;
         if (label.isEmpty || !seen.add('$label|$secondary')) continue;
         suggestions.add(
