@@ -35,6 +35,8 @@ Design moderno, leve e profissional que transmite confiança, sustentabilidade e
 - Campos: inputs com bordas arredondadas, foco em azul médio.
 - Cards: bordas suaves, sombra leve e conteúdo espaçado.
 - Produtos permanecem em grade vertical de duas colunas.
+- Na Home, **Novidades** apresenta primeiro os Achados com alteração efetiva
+  mais recente. Uma peça renovada, inclusive com nova foto, volta ao topo.
 - Quando um produto possui várias fotos, a área de imagem do próprio card usa
   carrossel horizontal manual e automático, com contador e indicador de página.
 - Banners e fotos de produtos avançam automaticamente a cada 5 segundos.

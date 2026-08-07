@@ -256,8 +256,27 @@ IDs técnicos e atores de auditoria nunca são expostos.
 - arquivar;
 - verificar disponibilidade de slug dentro da STORE.
 
-Busca textual, paginação definitiva e ordenação pública serão contratadas antes
-da API pública de feed; não serão improvisadas no Repository.
+Busca textual e paginação definitiva serão contratadas antes de ampliações da
+API pública de feed; não serão improvisadas no Repository.
+
+### 10.1 Ordenação pública padrão
+
+Na ausência de uma ordenação escolhida explicitamente pelo consumidor, o
+catálogo público e a seção **Novidades** usam `updatedAt` decrescente, com
+desempate determinístico pelo identificador interno decrescente exclusivamente
+no Repository.
+
+Uma alteração efetiva em um Achado — por exemplo, inclusão ou troca de foto,
+mudança de preço, título, descrição ou demais dados editáveis — atualiza
+`updatedAt` e faz o produto voltar ao topo. Esse comportamento é intencional:
+uma peça renovada também é considerada novidade. Operações idempotentes que não
+alterem o estado não devem atualizar `updatedAt` nem reposicionar o produto.
+
+Uma evolução futura poderá considerar destaque ou prioridade comercial dos
+planos pagos, inclusive Brechó Plus. Essa priorização não está ativa e deverá
+ser contratada de forma transparente antes da implementação, preservando
+critérios determinísticos e distinguindo conteúdo patrocinado da ordenação
+orgânica.
 
 ## 11. Concorrência
 
