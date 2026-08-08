@@ -5,6 +5,7 @@ WHENEVER SQLERROR EXIT SQL.SQLCODE ROLLBACK
 PROMPT Installing hierarchical category administration...
 
 @tables/catalog/upgrade_category_hierarchy.sql
+@packages/catalog/install_cat_repository_pkg.sql
 @packages/catalog/install_cat_service_pkg.sql
 @packages/catalog/install_cat_api_pkg.sql
 
